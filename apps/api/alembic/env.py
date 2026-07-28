@@ -24,13 +24,8 @@ from hiron.core.config import get_settings
 # Import all ORM models here as they are added in future roadmap phases so that
 # Alembic 'autogenerate' can detect new tables and schema modifications registered
 # on Base.metadata.
-#
-# Examples (will be un-commented as feature modules are introduced):
-#   from hiron.tenants.models import Tenant          # Phase 1 Step 3
-#   from hiron.users.models import User              # Phase 1 Step 4
-#   from hiron.jobs.models import Job                # Phase 3
-#   from hiron.candidates.models import Candidate    # Phase 4
 # ==============================================================================
+from hiron.tenants.models import Tenant  # Phase 1 Step 3: Tenant Entity
 
 # Alembic Config object
 config = context.config
