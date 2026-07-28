@@ -26,6 +26,7 @@ from hiron.core.config import get_settings
 # on Base.metadata.
 # ==============================================================================
 from hiron.tenants.models import Tenant  # Phase 1 Step 3: Tenant Entity
+from hiron.users.models import User      # Phase 1 Step 4: User Entity
 
 # Alembic Config object
 config = context.config
