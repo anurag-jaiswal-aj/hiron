@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "preserve",
+    "allowJs": false,
+    "checkJs": false,
+    
+    /* Strict Type-Checking Options (§4.1) */
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+    
+    /* Additional Checks (§4.1) */
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+
+    /* Module Resolution Options */
+    "baseUrl": ".",
+    "paths": {
+      "@hiron/shared-types": ["packages/shared-types/src/index.ts"],
+      "@hiron/shared-types/*": ["packages/shared-types/src/*"],
+      "@hiron/ui": ["packages/ui/src/index.ts"],
+      "@hiron/ui/*": ["packages/ui/src/*"],
+      "@hiron/config": ["packages/config/src/index.ts"],
+      "@hiron/config/*": ["packages/config/src/*"],
+      "@hiron/utils": ["packages/utils/src/index.ts"],
+      "@hiron/utils/*": ["packages/utils/src/*"]
+    },
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true
+  },
+  "exclude": ["node_modules", "dist", "build", ".next"]
+}
