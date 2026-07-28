@@ -1,0 +1,63 @@
+# ==============================================================================
+# HIRON PLATFORM PRE-COMMIT HOOKS CONFIGURATION
+# ==============================================================================
+# Engineering Guidelines §3 & §10 compliance.
+#
+# DEVELOPER INSTRUCTIONS:
+# 1. Install pre-commit locally on your workstation:
+#    pip install pre-commit (or brew install pre-commit)
+# 2. Register the pre-commit git hooks in this repository:
+#    pre-commit install
+# 3. Note: Language-specific hooks (Ruff, Black, Prettier) will become fully
+#    effective once project dependencies are installed in later phases.
+
+repos:
+  # ----------------------------------------------------------------------------
+  # 1. Standard Git & File Formatting Checks
+  # ----------------------------------------------------------------------------
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+        args: ['--maxkb=10240'] # 10MB limit per §15.2
+      - id: check-merge-conflict
+      - id: detect-private-key
+
+  # ----------------------------------------------------------------------------
+  # 2. Python Code Quality (Ruff & Black)
+  # ----------------------------------------------------------------------------
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.4
+    hooks:
+      - id: ruff
+        args: [--fix]
+
+  - repo: https://github.com/psf/black-pre-commit-mirror
+    rev: 24.4.2
+    hooks:
+      - id: black
+        language_version: python3.12
+
+  # ----------------------------------------------------------------------------
+  # 3. Frontend & JSON/YAML Formatting (Prettier)
+  # ----------------------------------------------------------------------------
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v3.1.0
+    hooks:
+      - id: prettier
+        types_or: [javascript, jsx, ts, tsx, json, yaml, markdown]
+
+  # ----------------------------------------------------------------------------
+  # 4. Commit Message Linting (Conventional Commits §10)
+  # ----------------------------------------------------------------------------
+  - repo: https://github.com/alessandrojcm/commitlint-pre-commit-hook
+    rev: v9.16.0
+    hooks:
+      - id: commitlint
+        stages: [commit-msg]
+        additional_dependencies: ['@commitlint/config-conventional']

@@ -1,0 +1,16 @@
+{
+  // VS Code Workspace Recommended Extensions for Hiron Monorepo
+  // Note: These are RECOMMENDED extensions for the optimal development experience.
+  // VS Code does not install them automatically. Developers may choose to install them manually.
+  "recommendations": [
+    "astral-sh.ruff",
+    "ms-python.black-formatter",
+    "ms-python.vscode-pylance",
+    "ms-python.mypy-type-checker",
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "eamodio.gitlens",
+    "ms-azuretools.vscode-docker",
+    "tamasfe.even-better-toml"
+  ]
+}

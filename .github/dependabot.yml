@@ -1,0 +1,36 @@
+# ==============================================================================
+# DEPENDABOT CONFIGURATION
+# ==============================================================================
+# Security Guidelines §16 compliance: Automated dependency security updates.
+
+version: 2
+updates:
+  # 1. Python Dependencies (pip / pyproject.toml)
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "deps"
+      - "python"
+
+  # 2. Node.js & Monorepo Dependencies (npm / pnpm)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "deps"
+      - "javascript"
+
+  # 3. GitHub Actions Workflows
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "deps"
+      - "ci"
