@@ -1,0 +1,40 @@
+# ==============================================================================
+# HIRON AI SERVICE DOCKERFILE SKELETON (FastAPI + spaCy + OpenAI)
+# ==============================================================================
+# Multi-stage, non-root, Python 3.12 container infrastructure skeleton.
+
+FROM python:3.12-slim AS builder
+
+WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+FROM python:3.12-slim AS runner
+
+WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Security: Non-root user
+RUN groupadd -g 10001 hiron && \
+    useradd -u 10001 -g hiron -m -s /bin/bash hiron
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+USER hiron
+
+EXPOSE 8001
+
+# Note: HTTP health check (/health) will be enabled in Phase 6 after AI service app initialization.
+
+# Infrastructure skeleton placeholder: long-running command for container orchestration
+CMD ["sleep", "infinity"]

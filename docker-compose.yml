@@ -1,0 +1,139 @@
+# ==============================================================================
+# HIRON PLATFORM LOCAL DEVELOPMENT DOCKER COMPOSE ORCHESTRATION
+# ==============================================================================
+# Architecture §10 & Infrastructure Specification.
+# Runs PostgreSQL 16 + pgvector, Redis 7, Core API, AI Service, Celery Worker, and Web.
+
+name: hiron-dev
+
+services:
+  # ----------------------------------------------------------------------------
+  # 1. PostgreSQL 16 with pgvector Extension (§10 & Database Design)
+  # ----------------------------------------------------------------------------
+  postgres:
+    image: ankane/pgvector:v0.7.0-pg16
+    container_name: hiron-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-hiron_dev}
+      POSTGRES_USER: ${POSTGRES_USER:-hiron_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-hiron_secure_password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hiron_user} -d ${POSTGRES_DB:-hiron_dev}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - hiron_network
+
+  # ----------------------------------------------------------------------------
+  # 2. Redis Cache & Celery Task Broker (§10 & Database Design §1)
+  # ----------------------------------------------------------------------------
+  redis:
+    image: redis:7.2-alpine
+    container_name: hiron-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - hiron_network
+
+  # ----------------------------------------------------------------------------
+  # 3. Core API (FastAPI) Container Skeleton (§10 & API Contract)
+  # ----------------------------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.api
+    container_name: hiron-api
+    restart: unless-stopped
+    env_file:
+      - .env.local
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - hiron_network
+
+  # ----------------------------------------------------------------------------
+  # 4. AI Microservice Container Skeleton (§10 & Architecture)
+  # ----------------------------------------------------------------------------
+  ai:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.ai
+    container_name: hiron-ai
+    restart: unless-stopped
+    env_file:
+      - .env.local
+    ports:
+      - "8001:8001"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - hiron_network
+
+  # ----------------------------------------------------------------------------
+  # 5. Celery Async Task Worker Container Skeleton (§10 & Architecture)
+  # ----------------------------------------------------------------------------
+  worker:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.api
+    container_name: hiron-worker
+    restart: unless-stopped
+    env_file:
+      - .env.local
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - hiron_network
+
+  # ----------------------------------------------------------------------------
+  # 6. Web Frontend Container Skeleton (§10 & UI/UX Design)
+  # ----------------------------------------------------------------------------
+  web:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.web
+    container_name: hiron-web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_started
+    networks:
+      - hiron_network
+
+# ------------------------------------------------------------------------------
+# Persistent Volumes & Private Network
+# ------------------------------------------------------------------------------
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  hiron_network:
+    driver: bridge

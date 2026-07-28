@@ -1,0 +1,23 @@
+name: Test Workflow
+
+on:
+  workflow_call:
+
+jobs:
+  config-validation:
+    name: Configuration & Infrastructure Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate Root Configurations Exist
+        run: |
+          test -f pyproject.toml
+          test -f package.json
+          test -f tsconfig.base.json
+          test -f docker-compose.yml
+          echo "Infrastructure configuration files validated."
+
+# Note: Application test suites (Pytest, MyPy strict check, TypeScript compiler, ESLint)
+# will be un-commented in Phase 1+ as application modules and source code files are created.

@@ -1,8 +1,6 @@
 # Hiron — AI-Powered Hiring Intelligence Platform
 
-<!-- CI Pipeline Badge (Will be activated in Phase 0 Step 3 after GitHub Actions workflows are created)
 [![CI Pipeline](https://github.com/anurag-jaiswal-aj/hiron/actions/workflows/ci.yml/badge.svg)](https://github.com/anurag-jaiswal-aj/hiron/actions)
--->
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.12-blue.svg)](https://www.python.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue.svg)](https://www.typescriptlang.org/)
@@ -67,26 +65,29 @@ hiron/
    cd hiron
    ```
 
-2. **Set up local environment variables**:
+2. **Initialize local environment file (`.env.local`)**:
+   > ⚠️ **IMPORTANT**: You MUST run `make setup` before running `docker compose up` because `.env.local` is required by the container environment.
    ```bash
-   cp .env.example .env.local
+   make setup
    ```
 
-3. **Development Command Reference**:
+3. **Start local development containers**:
+   ```bash
+   make dev
+   ```
+
+4. **Development Command Reference**:
    - Run type checks across monorepo:
      ```bash
-     pnpm type-check
-     uv run mypy
+     make type-check
      ```
    - Run linters:
      ```bash
-     pnpm lint
-     uv run ruff check .
+     make lint
      ```
    - Code formatting:
      ```bash
-     pnpm format
-     uv run black --check .
+     make format
      ```
 
 ---
