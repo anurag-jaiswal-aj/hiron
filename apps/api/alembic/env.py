@@ -25,8 +25,9 @@ from hiron.core.config import get_settings
 # Alembic 'autogenerate' can detect new tables and schema modifications registered
 # on Base.metadata.
 # ==============================================================================
-from hiron.tenants.models import Tenant  # Phase 1 Step 3: Tenant Entity
-from hiron.users.models import User      # Phase 1 Step 4: User Entity
+from hiron.tenants.models import Tenant          # Phase 1 Step 3: Tenant Entity
+from hiron.users.models import User              # Phase 1 Step 4: User Entity
+from hiron.tokens.models import RefreshToken      # Phase 1 Step 5: RefreshToken Entity
 
 # Alembic Config object
 config = context.config
