@@ -1,0 +1,51 @@
+"""Declarative Base class and common abstract ORM model fields."""
+
+from datetime import datetime
+import uuid
+
+from sqlalchemy import DateTime, func
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+
+class Base(DeclarativeBase):
+    """Root Declarative Base class for all SQLAlchemy ORM models."""
+
+    pass
+
+
+class BaseModel(Base):
+    """Abstract base ORM model providing standard audit columns (id, created_at, updated_at).
+    
+    Per Database Design §9 & Engineering Guidelines §8:
+    - id: UUIDv4 primary key generated automatically
+    - created_at: TIMESTAMPTZ UTC timestamp on record insertion
+    - updated_at: TIMESTAMPTZ UTC timestamp automatically updated on row modification
+    """
+
+    __abstract__ = True
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        sort_order=-10,
+        comment="Globally unique primary key identifier (UUIDv4)",
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+        sort_order=100,
+        comment="UTC timestamp when the record was created",
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+        sort_order=101,
+        comment="UTC timestamp when the record was last updated",
+    )

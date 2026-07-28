@@ -8,6 +8,7 @@ from pydantic import Field
 
 from hiron import __version__
 from hiron.common.schemas import HironBaseModel
+from hiron.core.database import check_database_connection
 
 health_router = APIRouter(tags=["Health"])
 
@@ -61,30 +62,24 @@ async def get_health() -> HealthResponse:
     description="Returns readiness status of database and Redis subsystems per API Contract §HEALTH-2.",
 )
 async def get_readiness(response: Response) -> ReadinessResponse:
-    """Readiness probe checking real subsystem connectivity per API Contract §HEALTH-2.
-    
-    Accurately reports status: not_ready (503 Service Unavailable) until database and Redis
-    connection management layers are initialized in subsequent implementation steps.
-    """
-    # Database and Redis connection layers will be attached here as they are implemented.
-    # Prior to their initialization, falsely claiming readiness is prohibited.
-    db_connected = False
-    redis_connected = False
+    """Readiness probe checking real PostgreSQL connectivity per API Contract §HEALTH-2."""
+    db_healthy, db_latency = await check_database_connection()
 
-    if not (db_connected and redis_connected):
+    db_status_str = "up" if db_healthy else "down"
+    
+    # Redis will participate in readiness gating once the Redis service layer is introduced.
+    redis_status_str = "not_initialized"
+
+    # Overall readiness reflects active implemented infrastructure components (PostgreSQL)
+    is_overall_ready = db_healthy
+
+    if not is_overall_ready:
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
-        return ReadinessResponse(
-            status="not_ready",
-            checks={
-                "database": SubsystemCheck(status="not_initialized", latency_ms=0.0),
-                "redis": SubsystemCheck(status="not_initialized", latency_ms=0.0),
-            },
-        )
 
     return ReadinessResponse(
-        status="ready",
+        status="ready" if is_overall_ready else "not_ready",
         checks={
-            "database": SubsystemCheck(status="up", latency_ms=0.0),
-            "redis": SubsystemCheck(status="up", latency_ms=0.0),
+            "database": SubsystemCheck(status=db_status_str, latency_ms=db_latency),
+            "redis": SubsystemCheck(status=redis_status_str, latency_ms=0.0),
         },
     )

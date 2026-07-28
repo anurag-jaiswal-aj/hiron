@@ -10,6 +10,7 @@ import structlog
 from hiron import __version__
 from hiron.common.exceptions import register_exception_handlers
 from hiron.core.config import get_settings
+from hiron.core.database import engine
 from hiron.core.logging import setup_logging
 from hiron.core.middleware import RequestTracingMiddleware
 from hiron.health.router import health_router
@@ -32,7 +33,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     yield
 
-    logger.info("Application shutting down")
+    logger.info("Application shutting down: disposing database connection pool")
+    await engine.dispose()
 
 
 def create_app() -> FastAPI:

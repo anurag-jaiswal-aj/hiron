@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = Field(default=15, description="Access token TTL in minutes")
     refresh_token_expire_days: int = Field(default=7, description="Refresh token TTL in days")
 
-    # 3. Database & PostgreSQL Configuration
+    # 3. Database & PostgreSQL Configuration (§10 & Database Design)
     postgres_host: str = Field(default="localhost", description="PostgreSQL host")
     postgres_port: int = Field(default=5432, description="PostgreSQL port")
     postgres_db: str = Field(default="hiron_dev", description="PostgreSQL database name")
@@ -51,6 +51,9 @@ class Settings(BaseSettings):
         default="postgresql+asyncpg://hiron_user:your_postgres_password_here@localhost:5432/hiron_dev",
         description="Async SQLAlchemy database connection URL",
     )
+    db_pool_size: int = Field(default=10, description="SQLAlchemy connection pool size")
+    db_max_overflow: int = Field(default=20, description="SQLAlchemy connection max overflow")
+    db_pool_timeout: int = Field(default=30, description="SQLAlchemy pool timeout in seconds")
 
     # 4. Redis & Task Queue
     redis_url: str = Field(default="redis://localhost:6379/0", description="Redis connection URL")
