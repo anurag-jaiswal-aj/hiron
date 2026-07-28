@@ -1,17 +1,27 @@
-"""Declarative Base class and common abstract ORM model fields."""
+"""Declarative Base class, constraint naming conventions, and common abstract ORM model fields."""
 
 from datetime import datetime
 import uuid
 
-from sqlalchemy import DateTime, func
+from sqlalchemy import DateTime, MetaData, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+# Constraint Naming Conventions per Engineering Guidelines §8 & Database Design
+# ix: index, uq: unique, ck: check, fk: foreign key, pk: primary key
+NAMING_CONVENTIONS = {
+    "ix": "ix_%(column_0_label)s",
+    "uq": "uq_%(table_name)s_%(column_0_name)s",
+    "ck": "ck_%(table_name)s_%(constraint_name)s",
+    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+    "pk": "pk_%(table_name)s",
+}
+
 
 class Base(DeclarativeBase):
-    """Root Declarative Base class for all SQLAlchemy ORM models."""
+    """Root Declarative Base class with explicit constraint naming conventions."""
 
-    pass
+    metadata = MetaData(naming_convention=NAMING_CONVENTIONS)
 
 
 class BaseModel(Base):
