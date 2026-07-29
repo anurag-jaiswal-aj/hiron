@@ -33,6 +33,7 @@ These seven principles govern every technical decision at Hiron. When in doubt, 
 **Rationale**: Hiron is a startup. Engineers will join mid-sprint with zero context. Code that requires tribal knowledge to understand is a liability. The time saved writing "clever" code is paid back 10x in debugging and onboarding costs.
 
 **Good Example**:
+
 ```python
 def calculate_fit_score(resume: ParsedResume, job: JobDescription) -> FitScore:
     skill_score = compute_skill_match(resume.skills, job.required_skills)
@@ -56,12 +57,14 @@ def calculate_fit_score(resume: ParsedResume, job: JobDescription) -> FitScore:
 ```
 
 **Bad Example**:
+
 ```python
 def score(r, j):
     return sum(w * f(r, j) for w, f in zip(W, [sk, ex, ed]))
 ```
 
 **Common Mistakes**:
+
 - Using single-letter variable names outside of loop indices or lambdas
 - Relying on Python's `__dunder__` methods for business logic instead of explicit method names
 - Writing "self-documenting code" that actually requires a PhD to parse
@@ -75,6 +78,7 @@ def score(r, j):
 **Rationale**: Implicit behavior creates bugs that are invisible in code review and only manifest in production. In an AI system like Hiron, where data flows through parsing → embedding → scoring → storage, every transformation must be traceable.
 
 **Good Example**:
+
 ```python
 # Dependencies are explicit via function parameters
 async def score_candidate(
@@ -87,6 +91,7 @@ async def score_candidate(
 ```
 
 **Bad Example**:
+
 ```python
 # Hidden dependency on global state
 async def score_candidate(resume_id: int, job_id: int):
@@ -97,6 +102,7 @@ async def score_candidate(resume_id: int, job_id: int):
 ```
 
 **Common Mistakes**:
+
 - Using module-level mutable state (global dicts, lists) for caching or config
 - Importing side-effectful modules that run code on import
 - FastAPI dependency injection that hides 5 layers of indirection
@@ -110,6 +116,7 @@ async def score_candidate(resume_id: int, job_id: int):
 **Rationale**: Silent failures in an AI scoring system are catastrophic. If a resume fails to parse and we silently return a score of 0, the recruiter makes a bad hiring decision. We'd rather show an error than show wrong data.
 
 **Good Example**:
+
 ```python
 def parse_resume(file: UploadFile) -> ParsedResume:
     if file.content_type not in ALLOWED_CONTENT_TYPES:
@@ -126,6 +133,7 @@ def parse_resume(file: UploadFile) -> ParsedResume:
 ```
 
 **Bad Example**:
+
 ```python
 def parse_resume(file):
     try:
@@ -135,6 +143,7 @@ def parse_resume(file):
 ```
 
 **Common Mistakes**:
+
 - Catching `Exception` or `BaseException` without re-raising or logging
 - Returning `None` instead of raising — forces every caller to null-check
 - Using boolean return values for operations that can fail in multiple ways
@@ -148,6 +157,7 @@ def parse_resume(file):
 **Rationale**: Untestable code is untrustworthy code. If you can't write a unit test for it, you can't verify it works, and you can't refactor it safely.
 
 **Good Example**:
+
 ```python
 # Pure function — easy to test
 def compute_skill_match(
@@ -161,6 +171,7 @@ def compute_skill_match(
 ```
 
 **Bad Example**:
+
 ```python
 # Impossible to test without mocking the database AND the AI service
 def compute_skill_match(candidate_id: int, job_id: int) -> float:
@@ -171,6 +182,7 @@ def compute_skill_match(candidate_id: int, job_id: int) -> float:
 ```
 
 **Common Mistakes**:
+
 - Mixing business logic with database queries in the same function
 - Hard-coding API URLs inside functions instead of injecting clients
 - Writing "integration tests" and calling them "unit tests"
@@ -184,6 +196,7 @@ def compute_skill_match(candidate_id: int, job_id: int) -> float:
 **Rationale**: Hiron is a startup. Requirements will change weekly. The codebase that survives is the one that can be changed in hours, not days. Premature abstraction is the root of all evil in startup engineering.
 
 **Good Example**:
+
 ```python
 # Two similar but not identical handlers — keep them separate
 @router.post("/resumes/{resume_id}/score")
@@ -194,6 +207,7 @@ async def score_all_candidates_for_job(...): ...
 ```
 
 **Bad Example**:
+
 ```python
 # Over-abstracted "generic scorer" that handles 5 different cases
 # with flags and conditional logic
@@ -205,6 +219,7 @@ async def universal_score(
 ```
 
 **Common Mistakes**:
+
 - Building plugin systems before you have 2 plugins
 - Creating abstract base classes with one implementation
 - Spending 2 days on a "generic solution" for a problem you've seen once
@@ -218,6 +233,7 @@ async def universal_score(
 **Rationale**: Every dependency is a risk — it can be abandoned, compromised, or introduce breaking changes. In a security-sensitive application handling PII (resumes), supply chain attacks are a real threat.
 
 **Good Example**:
+
 ```
 # Adding a dependency — document why in the PR
 # PR Description:
@@ -227,6 +243,7 @@ async def universal_score(
 ```
 
 **Bad Example**:
+
 ```
 # package.json with 47 dependencies for a dashboard page
 # including: moment.js (use date-fns or Intl), lodash (use native
@@ -234,6 +251,7 @@ async def universal_score(
 ```
 
 **Common Mistakes**:
+
 - Adding a library for one utility function (e.g., `lodash` just for `_.debounce`)
 - Not pinning dependency versions in lockfiles
 - Ignoring Dependabot alerts for weeks
@@ -247,6 +265,7 @@ async def universal_score(
 **Rationale**: Hiron's AI pipeline is a black box by nature (LLM calls, embedding generation, scoring). Without observability, debugging production issues becomes guesswork. We must know: what went in, what came out, how long it took, and whether it succeeded.
 
 **Good Example**:
+
 ```python
 logger.info(
     "candidate_scored",
@@ -262,11 +281,13 @@ logger.info(
 ```
 
 **Bad Example**:
+
 ```python
 print(f"scored {resume_id}")  # No structure, no context, lost in stdout
 ```
 
 **Common Mistakes**:
+
 - Logging PII (candidate names, emails) in plain text
 - Using `print()` instead of structured logging
 - Not including `tenant_id` in logs (makes multi-tenant debugging impossible)
@@ -284,6 +305,7 @@ These rules apply to ALL code in the Hiron project, regardless of language.
 **Rationale**: Readable on a single monitor without horizontal scrolling. Accommodates side-by-side diff views in code review.
 
 **Common Mistakes**:
+
 - Breaking lines in the middle of a string literal — use implicit string concatenation or parentheses
 - Using `\` line continuation in Python — use parentheses instead
 
@@ -296,6 +318,7 @@ These rules apply to ALL code in the Hiron project, regardless of language.
 **Rationale**: Long functions have high cognitive load, are hard to test, and tend to accumulate responsibilities. 30 lines is roughly one "screen" of code.
 
 **Good Example**:
+
 ```python
 async def process_resume_upload(file: UploadFile, tenant_id: str) -> ResumeResponse:
     validated_file = validate_upload(file)
@@ -308,6 +331,7 @@ async def process_resume_upload(file: UploadFile, tenant_id: str) -> ResumeRespo
 **Bad Example**: A 150-line function that validates, stores, parses, scores, and emails — all in one function body.
 
 **Common Mistakes**:
+
 - Extracting functions that are only called once AND have no reuse potential — sometimes inline is clearer
 - Creating `_helper1()`, `_helper2()` with meaningless names
 
@@ -320,6 +344,7 @@ async def process_resume_upload(file: UploadFile, tenant_id: str) -> ResumeRespo
 **Rationale**: Magic numbers make code unreadable and unmaintainable. "What does 0.7 mean?" is a question no one should have to ask during code review.
 
 **Good Example**:
+
 ```python
 SKILL_MATCH_WEIGHT = 0.4
 EXPERIENCE_WEIGHT = 0.35
@@ -329,12 +354,14 @@ MINIMUM_FIT_SCORE_FOR_SHORTLIST = 70
 ```
 
 **Bad Example**:
+
 ```python
 if score > 0.7:
     move_to_stage(candidate, 3)  # What is 0.7? What is stage 3?
 ```
 
 **Common Mistakes**:
+
 - Defining constants but putting them in a random `utils.py` instead of a domain-specific constants module
 - Over-extracting: `HTTP_STATUS_OK = 200` is unnecessary — everyone knows 200
 
@@ -347,12 +374,14 @@ if score > 0.7:
 **Rationale**: Dead code is confusing. Readers waste time wondering if it's intentional, if it's needed for a future feature, or if it's a bug.
 
 **Good Example**: Delete the old implementation. Reference the git commit in a comment if needed.
+
 ```python
 # Previous scoring algorithm removed in commit abc123.
 # See ADR-007 for migration rationale.
 ```
 
 **Bad Example**:
+
 ```python
 # def old_score_algorithm(resume):
 #     # TODO: maybe use this later?
@@ -363,6 +392,7 @@ if score > 0.7:
 ```
 
 **Common Mistakes**:
+
 - Keeping "backup" code in comments "just in case"
 - Leaving unused imports that the formatter didn't catch
 
@@ -375,11 +405,13 @@ if score > 0.7:
 **Rationale**: TODOs without ownership are permanent. They accumulate until the codebase is a graveyard of good intentions.
 
 **Good Example**:
+
 ```python
 # TODO(anurag, HIR-142): Add retry logic for OpenAI rate limits
 ```
 
 **Bad Example**:
+
 ```python
 # TODO: fix this later
 # FIXME: doesn't work sometimes
@@ -387,6 +419,7 @@ if score > 0.7:
 ```
 
 **Common Mistakes**:
+
 - Writing TODOs during a PR and never creating the corresponding ticket
 - Using `FIXME` and `HACK` without any tracking — these are TODOs with extra anxiety
 
@@ -402,15 +435,16 @@ if score > 0.7:
 
 **Rule**: All Python code must pass the following tools with zero warnings:
 
-| Tool | Purpose | Config Location |
-|---|---|---|
-| `ruff` | Linting + formatting (replaces black, isort, flake8) | `pyproject.toml` |
-| `mypy` (strict mode) | Static type checking | `pyproject.toml` |
-| `bandit` | Security linting | `pyproject.toml` |
+| Tool                 | Purpose                                              | Config Location  |
+| -------------------- | ---------------------------------------------------- | ---------------- |
+| `ruff`               | Linting + formatting (replaces black, isort, flake8) | `pyproject.toml` |
+| `mypy` (strict mode) | Static type checking                                 | `pyproject.toml` |
+| `bandit`             | Security linting                                     | `pyproject.toml` |
 
 **Rationale**: Automated formatting eliminates style debates in code review. Type checking catches bugs before tests. Security linting catches vulnerabilities before production.
 
 **Common Mistakes**:
+
 - Adding `# type: ignore` without a comment explaining why
 - Disabling ruff rules per-file without team approval
 
@@ -423,6 +457,7 @@ if score > 0.7:
 **Rationale**: Hiron's AI pipeline passes complex data structures (resumes, scores, embeddings) through many layers. Type annotations are the contract between layers. Without them, a refactor in the AI service can silently break the API layer.
 
 **Good Example**:
+
 ```python
 async def get_candidates_for_job(
     job_id: uuid.UUID,
@@ -436,12 +471,14 @@ async def get_candidates_for_job(
 ```
 
 **Bad Example**:
+
 ```python
 async def get_candidates(job_id, tenant_id, **kwargs):
     ...
 ```
 
 **Common Mistakes**:
+
 - Using `dict` instead of a TypedDict or Pydantic model for structured data
 - Using `list` without element type: `list` vs `list[CandidateScore]`
 - Annotating with `Optional[X]` instead of `X | None` (use the modern union syntax)
@@ -455,6 +492,7 @@ async def get_candidates(job_id, tenant_id, **kwargs):
 **Rationale**: Pydantic gives us runtime validation, serialization, and documentation (OpenAPI schema) in one place. Raw dicts are invisible contracts — they break silently.
 
 **Good Example**:
+
 ```python
 class CreateJobRequest(BaseModel):
     title: str = Field(..., min_length=3, max_length=200)
@@ -472,6 +510,7 @@ class CreateJobRequest(BaseModel):
 ```
 
 **Bad Example**:
+
 ```python
 @router.post("/jobs")
 async def create_job(request: dict):  # No validation, no docs
@@ -480,6 +519,7 @@ async def create_job(request: dict):  # No validation, no docs
 ```
 
 **Common Mistakes**:
+
 - Using `model_config = ConfigDict(extra="allow")` — this defeats the purpose of validation
 - Putting presentation logic (formatting, localization) in Pydantic models
 - Creating deeply nested model hierarchies instead of flat, purpose-specific models
@@ -493,6 +533,7 @@ async def create_job(request: dict):  # No validation, no docs
 **Rationale**: A single blocking call in an async handler blocks the entire event loop, degrading performance for all concurrent requests. This is the #1 performance bug in FastAPI applications.
 
 **Good Example**:
+
 ```python
 # I/O-bound — use async
 async def fetch_resume(resume_id: uuid.UUID, db: AsyncSession) -> Resume:
@@ -510,6 +551,7 @@ async def handle_resume_parse(pdf_bytes: bytes) -> str:
 ```
 
 **Bad Example**:
+
 ```python
 async def fetch_resume(resume_id):
     # BLOCKS THE EVENT LOOP — requests.get is synchronous!
@@ -518,6 +560,7 @@ async def fetch_resume(resume_id):
 ```
 
 **Common Mistakes**:
+
 - Using `requests` library in async code — use `httpx` with `AsyncClient` instead
 - Calling synchronous SQLAlchemy session methods in async handlers
 - Using `time.sleep()` instead of `asyncio.sleep()` in async functions
@@ -527,6 +570,7 @@ async def fetch_resume(resume_id):
 ### 3.5 Import Organization 🔴
 
 **Rule**: Imports must be organized in this order, separated by blank lines:
+
 1. Standard library
 2. Third-party packages
 3. Local application imports
@@ -534,6 +578,7 @@ async def fetch_resume(resume_id):
 Within each group, sort alphabetically. `ruff` enforces this automatically.
 
 **Good Example**:
+
 ```python
 import asyncio
 import uuid
@@ -549,6 +594,7 @@ from hiron.models.candidate import Candidate
 ```
 
 **Bad Example**:
+
 ```python
 from hiron.core.auth import get_current_user
 import uuid
@@ -560,6 +606,7 @@ from pydantic import BaseModel
 ```
 
 **Common Mistakes**:
+
 - Using wildcard imports (`from module import *`) — these pollute the namespace and break static analysis
 - Circular imports caused by importing models at module level — use `TYPE_CHECKING` guard
 
@@ -572,6 +619,7 @@ from pydantic import BaseModel
 **Rationale**: Domain exceptions carry semantic meaning. They can be caught selectively, mapped to specific HTTP status codes, and documented in API specs.
 
 **Good Example**:
+
 ```python
 # hiron/core/exceptions.py
 class HironError(Exception):
@@ -588,12 +636,14 @@ class TenantAccessDeniedError(HironError):
 ```
 
 **Bad Example**:
+
 ```python
 raise Exception("resume not found")
 raise ValueError("bad input")  # What input? What was bad about it?
 ```
 
 **Common Mistakes**:
+
 - Creating too many exception classes — keep it to one per failure mode, not one per function
 - Not including the base `HironError` class — makes it impossible to catch "all domain errors"
 
@@ -602,12 +652,14 @@ raise ValueError("bad input")  # What input? What was bad about it?
 ### 3.7 SQLAlchemy Model Conventions 🔴
 
 **Rule**: All SQLAlchemy models must:
+
 - Inherit from a `Base` class with common columns (`id`, `tenant_id`, `created_at`, `updated_at`)
 - Use `Mapped` type annotations (SQLAlchemy 2.0 style)
 - Define `__tablename__` explicitly
 - Include `__repr__` for debugging
 
 **Good Example**:
+
 ```python
 class Candidate(TenantBase):
     __tablename__ = "candidates"
@@ -632,6 +684,7 @@ class Candidate(TenantBase):
 ```
 
 **Bad Example**:
+
 ```python
 class Candidate(Base):
     # Old SQLAlchemy 1.x style — no type safety
@@ -641,6 +694,7 @@ class Candidate(Base):
 ```
 
 **Common Mistakes**:
+
 - Using integer auto-increment IDs — use UUIDs for security (IDs shouldn't be guessable/enumerable)
 - Forgetting `index=True` on columns used in WHERE clauses
 - Not setting `nullable` explicitly — SQLAlchemy's default is `nullable=True`, which is often not what you want
@@ -657,13 +711,14 @@ class Candidate(Base):
 
 **Rule**: All TypeScript code must pass:
 
-| Tool | Purpose | Config Location |
-|---|---|---|
-| `eslint` | Linting (Next.js config + strict TypeScript rules) | `.eslintrc.json` |
-| `prettier` | Formatting | `.prettierrc` |
-| `tsc --noEmit` | Type checking (strict mode) | `tsconfig.json` |
+| Tool           | Purpose                                            | Config Location  |
+| -------------- | -------------------------------------------------- | ---------------- |
+| `eslint`       | Linting (Next.js config + strict TypeScript rules) | `.eslintrc.json` |
+| `prettier`     | Formatting                                         | `.prettierrc`    |
+| `tsc --noEmit` | Type checking (strict mode)                        | `tsconfig.json`  |
 
 **Common Mistakes**:
+
 - Disabling `@typescript-eslint/no-explicit-any` globally — fix the types instead
 - Using `prettier-ignore` to avoid reformatting — your code isn't special
 
@@ -676,6 +731,7 @@ class Candidate(Base):
 **Rationale**: `strict: true` catches an entire class of bugs at compile time — null dereferences, implicit any types, incorrect function signatures. Disabling it "temporarily" always becomes permanent.
 
 **Good Example**:
+
 ```json
 {
   "compilerOptions": {
@@ -688,6 +744,7 @@ class Candidate(Base):
 ```
 
 **Bad Example**:
+
 ```json
 {
   "compilerOptions": {
@@ -698,6 +755,7 @@ class Candidate(Base):
 ```
 
 **Common Mistakes**:
+
 - Adding `as any` to silence type errors — this hides bugs
 - Using `!` (non-null assertion) without verifying the value exists
 
@@ -706,6 +764,7 @@ class Candidate(Base):
 ### 4.3 Component Structure 🔴
 
 **Rule**: React components must follow this structure:
+
 1. Type/interface definitions (Props)
 2. Component function (named export, not default export)
 3. Helper functions (below the component or in a separate file)
@@ -715,6 +774,7 @@ Use function declarations, not arrow functions, for components.
 **Rationale**: Named exports are refactor-friendly (rename propagates everywhere). Function declarations are hoisted and appear clearly in stack traces.
 
 **Good Example**:
+
 ```tsx
 // candidate-score-card.tsx
 
@@ -741,6 +801,7 @@ export function CandidateScoreCard({ candidate, onStageChange }: CandidateScoreC
 ```
 
 **Bad Example**:
+
 ```tsx
 // Bad: default export with arrow function
 const Card = (props: any) => {
@@ -751,6 +812,7 @@ export default Card;
 ```
 
 **Common Mistakes**:
+
 - Using `React.FC` — it adds an implicit `children` prop and has been discouraged by the React team
 - Defining Props inline instead of as a named interface
 - Default exports make imports inconsistent across the codebase
@@ -760,6 +822,7 @@ export default Card;
 ### 4.4 State Management 🔴
 
 **Rule**: Follow this hierarchy for state:
+
 1. **Local state** (`useState`) — for UI-only state (modals, form inputs)
 2. **Server state** (`TanStack Query`) — for all data fetched from the API
 3. **Global client state** (`Zustand`) — only for truly cross-cutting client state (theme, sidebar open/closed, current tenant)
@@ -769,6 +832,7 @@ Never use Zustand for server-fetched data. Never use `useEffect` to "sync" serve
 **Rationale**: The #1 bug source in React apps is stale state from manual caching of server data. TanStack Query handles caching, revalidation, and optimistic updates correctly. Using it for all server state eliminates an entire class of bugs.
 
 **Good Example**:
+
 ```tsx
 // Server data — TanStack Query
 function useCandidates(jobId: string) {
@@ -786,6 +850,7 @@ const useUIStore = create<UIState>((set) => ({
 ```
 
 **Bad Example**:
+
 ```tsx
 // ANTI-PATTERN: Fetching in useEffect and storing in useState
 const [candidates, setCandidates] = useState([]);
@@ -797,6 +862,7 @@ useEffect(() => {
 ```
 
 **Common Mistakes**:
+
 - Creating a Zustand store for every feature — most features only need TanStack Query
 - Using `useEffect` for data fetching — this is what TanStack Query is for
 - Not setting `staleTime` in TanStack Query — default of 0 causes excessive refetching
@@ -808,6 +874,7 @@ useEffect(() => {
 **Rule**: All API calls must go through a typed API client. Never call `fetch()` directly from components. The API client handles: base URL, auth headers, error transformation, and response typing.
 
 **Good Example**:
+
 ```typescript
 // lib/api/candidates.ts
 export const candidatesApi = {
@@ -826,6 +893,7 @@ export const candidatesApi = {
 ```
 
 **Bad Example**:
+
 ```tsx
 // Directly in a component — no typing, no error handling, no auth
 const res = await fetch("/api/v1/candidates/" + id);
@@ -833,6 +901,7 @@ const data = await res.json();
 ```
 
 **Common Mistakes**:
+
 - Duplicating fetch logic across components
 - Not handling non-2xx responses (fetch doesn't throw on 4xx/5xx)
 - Hard-coding the API base URL in multiple places
@@ -872,11 +941,13 @@ hiron/
 ### 5.2 Folder Naming Rules 🔴
 
 **Rule**:
+
 - All folders use **kebab-case** (lowercase with hyphens): `score-engine/`, `api-client/`
 - No abbreviations unless universally understood: `auth/` ✅, `authn/` ❌, `db/` ✅, `dbase/` ❌
 - Singular nouns for modules, plural for collections: `model/` (the model layer), `models/` (contains many model files)
 
 **Good Example**:
+
 ```
 apps/api/
 ├── hiron/
@@ -896,6 +967,7 @@ apps/api/
 ```
 
 **Bad Example**:
+
 ```
 API/
 ├── Src/
@@ -906,6 +978,7 @@ API/
 ```
 
 **Common Mistakes**:
+
 - Mixing camelCase and kebab-case in the same project
 - Creating a `utils/` or `helpers/` catch-all folder — break utilities into domain-specific modules
 - Nesting more than 4 levels deep — flat is better than nested
@@ -915,6 +988,7 @@ API/
 ### 5.3 Frontend Folder Structure (Next.js App Router) 🔴
 
 **Rule**:
+
 ```
 apps/web/
 ├── src/
@@ -951,6 +1025,7 @@ apps/web/
 **Rationale**: Components are organized by domain (candidates, jobs, pipeline), not by type (buttons, forms, tables). This keeps related code together and makes it easy to find everything related to a feature.
 
 **Common Mistakes**:
+
 - Putting all components in a flat `components/` folder — doesn't scale past 20 components
 - Creating `components/common/` as a dumping ground — use `components/ui/` for primitives
 
@@ -962,16 +1037,16 @@ apps/web/
 
 **Rule**: All Python files use **snake_case**: `candidate_service.py`, `fit_score.py`, `test_scoring.py`
 
-| File Type | Pattern | Example |
-|---|---|---|
-| Module | `<domain>_<purpose>.py` | `candidate_service.py` |
-| Model | `<entity>.py` | `candidate.py`, `job.py` |
-| Schema (Pydantic) | `<entity>_schema.py` | `candidate_schema.py` |
-| Router | `<domain>_router.py` | `candidate_router.py` |
-| Tests | `test_<module>.py` | `test_candidate_service.py` |
-| Exceptions | `exceptions.py` | One per package |
-| Constants | `constants.py` | One per package |
-| Config | `config.py` | One at app level |
+| File Type         | Pattern                 | Example                     |
+| ----------------- | ----------------------- | --------------------------- |
+| Module            | `<domain>_<purpose>.py` | `candidate_service.py`      |
+| Model             | `<entity>.py`           | `candidate.py`, `job.py`    |
+| Schema (Pydantic) | `<entity>_schema.py`    | `candidate_schema.py`       |
+| Router            | `<domain>_router.py`    | `candidate_router.py`       |
+| Tests             | `test_<module>.py`      | `test_candidate_service.py` |
+| Exceptions        | `exceptions.py`         | One per package             |
+| Constants         | `constants.py`          | One per package             |
+| Config            | `config.py`             | One at app level            |
 
 **Good Example**: `apps/api/hiron/scoring/score_calculator.py`
 
@@ -983,22 +1058,23 @@ apps/web/
 
 **Rule**: All TypeScript files use **kebab-case**: `candidate-score-card.tsx`, `use-candidates.ts`
 
-| File Type | Pattern | Example |
-|---|---|---|
-| Component | `<component-name>.tsx` | `candidate-score-card.tsx` |
-| Hook | `use-<name>.ts` | `use-candidates.ts` |
-| Utility | `<purpose>.ts` | `format-date.ts` |
-| Type definitions | `<domain>.types.ts` | `candidate.types.ts` |
-| API client | `<domain>.api.ts` | `candidates.api.ts` |
-| Constants | `<domain>.constants.ts` | `pipeline.constants.ts` |
-| Tests | `<module>.test.ts(x)` | `candidate-score-card.test.tsx` |
-| Storybook | `<component>.stories.tsx` | `candidate-score-card.stories.tsx` |
+| File Type        | Pattern                   | Example                            |
+| ---------------- | ------------------------- | ---------------------------------- |
+| Component        | `<component-name>.tsx`    | `candidate-score-card.tsx`         |
+| Hook             | `use-<name>.ts`           | `use-candidates.ts`                |
+| Utility          | `<purpose>.ts`            | `format-date.ts`                   |
+| Type definitions | `<domain>.types.ts`       | `candidate.types.ts`               |
+| API client       | `<domain>.api.ts`         | `candidates.api.ts`                |
+| Constants        | `<domain>.constants.ts`   | `pipeline.constants.ts`            |
+| Tests            | `<module>.test.ts(x)`     | `candidate-score-card.test.tsx`    |
+| Storybook        | `<component>.stories.tsx` | `candidate-score-card.stories.tsx` |
 
 **Good Example**: `src/components/candidates/candidate-score-card.tsx`
 
 **Bad Example**: `src/components/candidates/CandidateScoreCard.tsx` (PascalCase filenames cause issues on case-insensitive file systems like macOS)
 
 **Common Mistakes**:
+
 - Using PascalCase for filenames — works on Linux, breaks on macOS/Windows
 - Putting the test file far from the source file — colocate: `button.tsx` and `button.test.tsx` in the same folder
 
@@ -1006,13 +1082,13 @@ apps/web/
 
 ### 6.3 Configuration and Infrastructure Files 🔴
 
-| File Type | Convention | Example |
-|---|---|---|
-| Docker | `Dockerfile.<target>` | `Dockerfile.api`, `Dockerfile.worker` |
-| Docker Compose | `docker-compose.<env>.yml` | `docker-compose.dev.yml` |
-| Terraform | `<resource>.tf` | `ecs.tf`, `rds.tf`, `iam.tf` |
-| Environment | `.env.<environment>` | `.env.local`, `.env.staging` |
-| GitHub Actions | `<purpose>.yml` | `ci.yml`, `deploy-staging.yml` |
+| File Type      | Convention                 | Example                               |
+| -------------- | -------------------------- | ------------------------------------- |
+| Docker         | `Dockerfile.<target>`      | `Dockerfile.api`, `Dockerfile.worker` |
+| Docker Compose | `docker-compose.<env>.yml` | `docker-compose.dev.yml`              |
+| Terraform      | `<resource>.tf`            | `ecs.tf`, `rds.tf`, `iam.tf`          |
+| Environment    | `.env.<environment>`       | `.env.local`, `.env.staging`          |
+| GitHub Actions | `<purpose>.yml`            | `ci.yml`, `deploy-staging.yml`        |
 
 ---
 
@@ -1032,6 +1108,7 @@ apps/web/
 - No verbs in URLs — use HTTP methods for actions
 
 **Good Example**:
+
 ```
 GET    /api/v1/jobs                           # List jobs
 POST   /api/v1/jobs                           # Create job
@@ -1044,6 +1121,7 @@ GET    /api/v1/candidates/{candidate_id}/scores # Get all scores for candidate
 ```
 
 **Bad Example**:
+
 ```
 POST   /api/v1/getJobs                 # Verb in URL
 GET    /api/v1/job/list                 # Singular resource, redundant "list"
@@ -1052,6 +1130,7 @@ GET    /api/v1/get-candidate-by-id/123 # Verb in URL, integer ID
 ```
 
 **Common Mistakes**:
+
 - Using verbs in URLs — the HTTP method IS the verb
 - Inconsistent pluralization — pick plural and stick with it
 - Nesting more than 2 levels deep — flatten with query params instead
@@ -1061,12 +1140,14 @@ GET    /api/v1/get-candidate-by-id/123 # Verb in URL, integer ID
 ### 7.2 Request/Response Conventions 🔴
 
 **Rule**:
+
 - Request bodies use **camelCase** keys (JSON convention for frontend consumption)
 - Response bodies use **camelCase** keys
 - Pydantic models use snake_case internally with `alias_generator = to_camel` for serialization
 - All responses wrap data in a consistent envelope
 
 **Good Example**:
+
 ```json
 // POST /api/v1/jobs — Request
 {
@@ -1103,6 +1184,7 @@ GET    /api/v1/get-candidate-by-id/123 # Verb in URL, integer ID
 ```
 
 **Bad Example**:
+
 ```json
 // Inconsistent casing, no envelope
 {
@@ -1113,6 +1195,7 @@ GET    /api/v1/get-candidate-by-id/123 # Verb in URL, integer ID
 ```
 
 **Common Mistakes**:
+
 - Returning raw database objects that expose internal fields (`tenant_id`, `_sa_instance_state`)
 - Inconsistent date formats — always use ISO 8601 with UTC timezone
 - Returning `null` for missing fields vs. omitting them — pick one strategy and be consistent (we omit optional null fields)
@@ -1128,6 +1211,7 @@ GET /api/v1/jobs?limit=20&cursor=eyJpZCI6MTAwfQ==
 ```
 
 **Response**:
+
 ```json
 {
   "data": [...],
@@ -1142,6 +1226,7 @@ GET /api/v1/jobs?limit=20&cursor=eyJpZCI6MTAwfQ==
 **Rationale**: Offset-based pagination (`?page=5&limit=20`) is broken for real-time data — inserts/deletes shift pages. Cursor-based pagination is stable and performant (uses indexed columns, not OFFSET which scans rows).
 
 **Common Mistakes**:
+
 - Using OFFSET for pagination — O(n) performance degradation as page number increases
 - Not including `totalCount` — frontend needs it for "Showing 1–20 of 350"
 - Using sequential integer cursors — they leak information about data volume
@@ -1152,22 +1237,23 @@ GET /api/v1/jobs?limit=20&cursor=eyJpZCI6MTAwfQ==
 
 **Rule**: Use the correct HTTP status code for every response. No "200 OK with error in body" pattern.
 
-| Scenario | Status Code |
-|---|---|
-| Successful read | `200 OK` |
-| Successful create | `201 Created` |
-| Successful async operation started | `202 Accepted` |
-| Successful delete (no body) | `204 No Content` |
-| Invalid request data | `400 Bad Request` |
-| Not authenticated | `401 Unauthorized` |
-| Authenticated but not authorized | `403 Forbidden` |
-| Resource not found | `404 Not Found` |
-| Duplicate resource (e.g., email already exists) | `409 Conflict` |
-| Validation error | `422 Unprocessable Entity` |
-| Rate limited | `429 Too Many Requests` |
-| Server error | `500 Internal Server Error` |
+| Scenario                                        | Status Code                 |
+| ----------------------------------------------- | --------------------------- |
+| Successful read                                 | `200 OK`                    |
+| Successful create                               | `201 Created`               |
+| Successful async operation started              | `202 Accepted`              |
+| Successful delete (no body)                     | `204 No Content`            |
+| Invalid request data                            | `400 Bad Request`           |
+| Not authenticated                               | `401 Unauthorized`          |
+| Authenticated but not authorized                | `403 Forbidden`             |
+| Resource not found                              | `404 Not Found`             |
+| Duplicate resource (e.g., email already exists) | `409 Conflict`              |
+| Validation error                                | `422 Unprocessable Entity`  |
+| Rate limited                                    | `429 Too Many Requests`     |
+| Server error                                    | `500 Internal Server Error` |
 
 **Common Mistakes**:
+
 - Returning `200` with `{ "success": false, "error": "..." }` — this breaks HTTP client error handling
 - Using `404` for authorization failures — use `403` (or `404` if you want to hide resource existence)
 - Returning `500` for validation errors — these are client errors (`4xx`)
@@ -1179,6 +1265,7 @@ GET /api/v1/jobs?limit=20&cursor=eyJpZCI6MTAwfQ==
 ### 8.1 General Rules 🔴
 
 **Rule**:
+
 - All identifiers use **snake_case**
 - Table names are **plural**: `candidates`, `jobs`, `pipeline_stages`
 - Column names are **singular**: `email`, `full_name`, `created_at`
@@ -1187,6 +1274,7 @@ GET /api/v1/jobs?limit=20&cursor=eyJpZCI6MTAwfQ==
 - Foreign keys use `<referenced_table_singular>_id`: `candidate_id`, `job_id`
 
 **Good Example**:
+
 ```sql
 CREATE TABLE candidates (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1202,6 +1290,7 @@ CREATE TABLE candidates (
 ```
 
 **Bad Example**:
+
 ```sql
 CREATE TABLE Candidate (
     CandidateID     INT AUTO_INCREMENT,  -- PascalCase, integer ID
@@ -1227,6 +1316,7 @@ ALTER TABLE candidates ADD CONSTRAINT ck_candidates_email_format CHECK (email ~*
 ```
 
 **Common Mistakes**:
+
 - Letting the ORM auto-generate index names — they're unreadable (`ix_candidates_3a7b2c`)
 - Forgetting composite indexes for multi-tenant queries (always include `tenant_id` first)
 
@@ -1235,6 +1325,7 @@ ALTER TABLE candidates ADD CONSTRAINT ck_candidates_email_format CHECK (email ~*
 ### 8.3 Migration Naming 🔴
 
 **Rule**: Alembic migration files follow the pattern:
+
 ```
 YYYY_MM_DD_HHMM_<description>.py
 ```
@@ -1244,6 +1335,7 @@ YYYY_MM_DD_HHMM_<description>.py
 **Bad Example**: `migration_001.py`, `fix_stuff.py`
 
 **Common Mistakes**:
+
 - Autogenerated migrations that include unrelated changes — review and split them
 - Migrations that are not reversible — always implement `downgrade()`
 
@@ -1276,22 +1368,24 @@ gitGraph
 ### 9.2 Branch Naming 🔴
 
 **Rule**:
+
 ```
 <type>/<ticket-id>-<short-description>
 ```
 
-| Type | Usage | Example |
-|---|---|---|
-| `feature/` | New functionality | `feature/hir-42-resume-upload` |
-| `fix/` | Bug fixes | `fix/hir-50-parsing-crash` |
-| `hotfix/` | Production emergency fixes | `hotfix/hir-51-auth-bypass` |
-| `chore/` | Non-functional changes (deps, CI, docs) | `chore/hir-55-upgrade-fastapi` |
+| Type        | Usage                                      | Example                                  |
+| ----------- | ------------------------------------------ | ---------------------------------------- |
+| `feature/`  | New functionality                          | `feature/hir-42-resume-upload`           |
+| `fix/`      | Bug fixes                                  | `fix/hir-50-parsing-crash`               |
+| `hotfix/`   | Production emergency fixes                 | `hotfix/hir-51-auth-bypass`              |
+| `chore/`    | Non-functional changes (deps, CI, docs)    | `chore/hir-55-upgrade-fastapi`           |
 | `refactor/` | Code restructuring without behavior change | `refactor/hir-60-extract-scoring-module` |
-| `release/` | Release preparation | `release/v1.0.0` |
+| `release/`  | Release preparation                        | `release/v1.0.0`                         |
 
 **Bad Example**: `my-branch`, `fix-stuff`, `wip`, `test123`
 
 **Common Mistakes**:
+
 - Long-lived feature branches (> 3 days) — break work into smaller PRs
 - Not including the ticket ID — makes it impossible to trace changes back to requirements
 
@@ -1299,14 +1393,14 @@ gitGraph
 
 ### 9.3 Branch Rules 🔴
 
-| Rule | Rationale |
-|---|---|
-| `main` is always deployable | Broken `main` = blocked team |
-| Feature branches merge via PR only (no direct push to `main`) | Enforces code review |
-| Feature branches must be ≤ 3 days old | Long branches = painful merges |
-| Squash merge to `main` | Clean linear history |
-| Delete branch after merge | Avoid branch sprawl |
-| No force-push to `main` or `release/*` | History must be immutable |
+| Rule                                                          | Rationale                      |
+| ------------------------------------------------------------- | ------------------------------ |
+| `main` is always deployable                                   | Broken `main` = blocked team   |
+| Feature branches merge via PR only (no direct push to `main`) | Enforces code review           |
+| Feature branches must be ≤ 3 days old                         | Long branches = painful merges |
+| Squash merge to `main`                                        | Clean linear history           |
+| Delete branch after merge                                     | Avoid branch sprawl            |
+| No force-push to `main` or `release/*`                        | History must be immutable      |
 
 ---
 
@@ -1326,50 +1420,51 @@ gitGraph
 
 ### 10.2 Types 🔴
 
-| Type | When to Use | Example |
-|---|---|---|
-| `feat` | New feature | `feat(scoring): add skill gap detection` |
-| `fix` | Bug fix | `fix(parser): handle multi-page PDFs correctly` |
-| `docs` | Documentation only | `docs(api): add OpenAPI examples for /jobs` |
-| `style` | Formatting, whitespace (no logic change) | `style(api): run ruff formatter` |
-| `refactor` | Code restructuring (no behavior change) | `refactor(auth): extract JWT validation into middleware` |
-| `test` | Adding or updating tests | `test(scoring): add edge case for empty skills list` |
-| `chore` | Build, CI, dependencies | `chore(deps): upgrade pydantic to 2.8` |
-| `perf` | Performance improvement | `perf(search): add index on candidate embeddings` |
-| `ci` | CI/CD changes | `ci: add staging deployment step` |
-| `revert` | Revert a previous commit | `revert: feat(scoring): add skill gap detection` |
+| Type       | When to Use                              | Example                                                  |
+| ---------- | ---------------------------------------- | -------------------------------------------------------- |
+| `feat`     | New feature                              | `feat(scoring): add skill gap detection`                 |
+| `fix`      | Bug fix                                  | `fix(parser): handle multi-page PDFs correctly`          |
+| `docs`     | Documentation only                       | `docs(api): add OpenAPI examples for /jobs`              |
+| `style`    | Formatting, whitespace (no logic change) | `style(api): run ruff formatter`                         |
+| `refactor` | Code restructuring (no behavior change)  | `refactor(auth): extract JWT validation into middleware` |
+| `test`     | Adding or updating tests                 | `test(scoring): add edge case for empty skills list`     |
+| `chore`    | Build, CI, dependencies                  | `chore(deps): upgrade pydantic to 2.8`                   |
+| `perf`     | Performance improvement                  | `perf(search): add index on candidate embeddings`        |
+| `ci`       | CI/CD changes                            | `ci: add staging deployment step`                        |
+| `revert`   | Revert a previous commit                 | `revert: feat(scoring): add skill gap detection`         |
 
 ### 10.3 Scopes 🟡
 
 Scopes map to Hiron's architectural components:
 
-| Scope | Component |
-|---|---|
-| `auth` | Authentication and authorization |
-| `candidates` | Candidate management |
-| `jobs` | Job description management |
-| `scoring` | AI scoring engine |
-| `search` | Semantic search |
-| `pipeline` | Candidate pipeline/workflow |
-| `parser` | Resume parsing |
-| `api` | API layer (general) |
-| `web` | Frontend (Next.js) |
-| `db` | Database/migrations |
-| `infra` | Infrastructure/deployment |
-| `deps` | Dependencies |
+| Scope        | Component                        |
+| ------------ | -------------------------------- |
+| `auth`       | Authentication and authorization |
+| `candidates` | Candidate management             |
+| `jobs`       | Job description management       |
+| `scoring`    | AI scoring engine                |
+| `search`     | Semantic search                  |
+| `pipeline`   | Candidate pipeline/workflow      |
+| `parser`     | Resume parsing                   |
+| `api`        | API layer (general)              |
+| `web`        | Frontend (Next.js)               |
+| `db`         | Database/migrations              |
+| `infra`      | Infrastructure/deployment        |
+| `deps`       | Dependencies                     |
 
 ### 10.4 Rules 🔴
 
-| Rule | Good | Bad |
-|---|---|---|
-| Description starts lowercase | `feat: add resume upload` | `feat: Add Resume Upload` |
-| Description is imperative mood | `fix: handle null scores` | `fix: handled null scores` |
-| No period at end | `feat: add search` | `feat: add search.` |
-| ≤ 72 chars for subject line | Short and clear | A sentence that wraps three times and tells your life story |
-| Breaking changes use `!` | `feat(api)!: change score response format` | buried in body text |
-| Body explains **why**, not **what** | See example below | Repeats the code diff in English |
+| Rule                                | Good                                       | Bad                                                         |
+| ----------------------------------- | ------------------------------------------ | ----------------------------------------------------------- |
+| Description starts lowercase        | `feat: add resume upload`                  | `feat: Add Resume Upload`                                   |
+| Description is imperative mood      | `fix: handle null scores`                  | `fix: handled null scores`                                  |
+| No period at end                    | `feat: add search`                         | `feat: add search.`                                         |
+| ≤ 72 chars for subject line         | Short and clear                            | A sentence that wraps three times and tells your life story |
+| Breaking changes use `!`            | `feat(api)!: change score response format` | buried in body text                                         |
+| Body explains **why**, not **what** | See example below                          | Repeats the code diff in English                            |
 
 **Good Example (with body)**:
+
 ```
 feat(scoring): add confidence level to fit scores
 
@@ -1382,17 +1477,21 @@ Closes HIR-87
 ```
 
 **Bad Example**:
+
 ```
 updated stuff
 ```
+
 ```
 fixed the thing
 ```
+
 ```
 WIP
 ```
 
 **Common Mistakes**:
+
 - Committing `WIP` to a PR — squash your work-in-progress commits before requesting review
 - Writing "what" instead of "why" in the body — the diff shows what changed, the body should explain why
 - Forgetting the ticket reference in the footer
@@ -1407,20 +1506,25 @@ Every PR must include the following sections. This should be configured as `.git
 
 ```markdown
 ## Summary
+
 <!-- What does this PR do? Link to the ticket. -->
 
 Closes HIR-XXX
 
 ## Changes
+
 <!-- Bullet list of the key changes. -->
 
 ## Why
+
 <!-- Why was this approach chosen? What alternatives were considered? -->
 
 ## Testing
+
 <!-- How was this tested? Include test commands or screenshots. -->
 
 ## Checklist
+
 - [ ] Code follows the Hiron Engineering Guidelines
 - [ ] Type annotations are complete (Python: mypy passes, TS: tsc --noEmit passes)
 - [ ] Unit tests added/updated for new logic
@@ -1437,16 +1541,17 @@ Closes HIR-XXX
 
 ### 11.2 PR Rules 🔴
 
-| Rule | Rationale |
-|---|---|
+| Rule                                                                  | Rationale                                  |
+| --------------------------------------------------------------------- | ------------------------------------------ |
 | PRs must be ≤ 400 lines of code (excluding tests and generated files) | Large PRs get rubber-stamped, not reviewed |
-| PRs must have at least 1 approval before merge | Prevents unreviewed code in production |
-| PRs must pass CI (lint, type check, tests) before review | Don't waste reviewer time on broken code |
-| PRs must link to a ticket | Traceability |
-| Draft PRs are for early feedback — don't request review on drafts | Respect reviewer's time |
-| Review turnaround target: < 4 hours during business hours | Unreviewed PRs block progress |
+| PRs must have at least 1 approval before merge                        | Prevents unreviewed code in production     |
+| PRs must pass CI (lint, type check, tests) before review              | Don't waste reviewer time on broken code   |
+| PRs must link to a ticket                                             | Traceability                               |
+| Draft PRs are for early feedback — don't request review on drafts     | Respect reviewer's time                    |
+| Review turnaround target: < 4 hours during business hours             | Unreviewed PRs block progress              |
 
 **Common Mistakes**:
+
 - Opening a 1,500-line PR and wondering why review takes 3 days — break it up
 - Requesting review before CI passes — fix the build first
 - Not responding to review comments within 24 hours — stale PRs are everyone's problem
@@ -1460,6 +1565,7 @@ Closes HIR-XXX
 **Rule**: All public functions, classes, and modules must have Google-style docstrings. Private functions need docstrings only if non-obvious.
 
 **Good Example**:
+
 ```python
 async def score_candidate(
     resume: ParsedResume,
@@ -1487,12 +1593,14 @@ async def score_candidate(
 ```
 
 **Bad Example**:
+
 ```python
 def score(r, j):
     """Scores stuff."""
 ```
 
 **Common Mistakes**:
+
 - Docstrings that restate the function name: `def get_user(): """Gets the user."""` — add value or skip it
 - Not documenting exceptions that callers need to handle
 - Writing docstrings for trivial getters/setters — these add noise, not value
@@ -1504,7 +1612,8 @@ def score(r, j):
 **Rule**: All exported functions, types, and components must have TSDoc comments. Use `@param`, `@returns`, `@throws`, and `@example` tags.
 
 **Good Example**:
-```typescript
+
+````typescript
 /**
  * Displays a candidate's AI-generated fit score with an explainable breakdown.
  *
@@ -1523,7 +1632,7 @@ def score(r, j):
  * ```
  */
 export function CandidateScoreCard({ candidate, onStageChange }: CandidateScoreCardProps) {
-```
+````
 
 ---
 
@@ -1532,28 +1641,35 @@ export function CandidateScoreCard({ candidate, onStageChange }: CandidateScoreC
 **Rule**: Any architectural decision that affects more than one component must be documented as an ADR in `docs/adrs/`. ADRs are numbered sequentially and are immutable once accepted (superseded, not edited).
 
 **Format**:
+
 ```markdown
 # ADR-{number}: {Title}
 
 ## Status
+
 Proposed | Accepted | Deprecated | Superseded by ADR-XXX
 
 ## Context
+
 What is the problem? What forces are at play?
 
 ## Decision
+
 What did we decide? Be specific.
 
 ## Consequences
+
 What are the positive and negative outcomes of this decision?
 
 ## Alternatives Considered
+
 What other options were evaluated and why were they rejected?
 ```
 
 **Good Example**: `docs/adrs/001-use-pgvector-over-pinecone.md`
 
 **Common Mistakes**:
+
 - Making architectural decisions in Slack and not writing them down
 - Editing accepted ADRs — write a new ADR that supersedes the old one
 - ADRs without "Alternatives Considered" — decisions without alternatives aren't decisions
@@ -1563,12 +1679,14 @@ What other options were evaluated and why were they rejected?
 ### 12.4 API Documentation 🔴
 
 **Rule**: API documentation is auto-generated from FastAPI's OpenAPI spec (Pydantic models + route docstrings). Every endpoint must have:
+
 - Summary (one line)
 - Description (detailed, with examples)
 - Request body example
 - Response examples (success + each error case)
 
 **Common Mistakes**:
+
 - Manually maintaining API docs separately from code — they'll drift
 - Not providing error response examples — clients need to know what `422` looks like
 
@@ -1583,6 +1701,7 @@ What other options were evaluated and why were they rejected?
 **Rationale**: Structured logs can be queried, aggregated, and alerted on in Datadog. Unstructured text logs ("something went wrong") are unsearchable and useless for debugging.
 
 **Good Example**:
+
 ```python
 import structlog
 
@@ -1599,6 +1718,7 @@ logger.info(
 ```
 
 **Output**:
+
 ```json
 {
   "event": "resume_parsed",
@@ -1613,6 +1733,7 @@ logger.info(
 ```
 
 **Bad Example**:
+
 ```python
 print(f"Parsed resume {resume.id}, found {len(skills)} skills")
 logging.info("Resume parsed successfully!")
@@ -1622,21 +1743,23 @@ logging.info("Resume parsed successfully!")
 
 ### 13.2 Log Levels 🔴
 
-| Level | When to Use | Example |
-|---|---|---|
-| `DEBUG` | Detailed diagnostic info (disabled in production) | `logger.debug("embedding_generated", dimensions=1536)` |
-| `INFO` | Normal operations, business events | `logger.info("candidate_scored", score=85)` |
-| `WARNING` | Unexpected but recoverable situations | `logger.warning("openai_rate_limited", retry_after_s=30)` |
-| `ERROR` | Operation failed, requires investigation | `logger.error("resume_parse_failed", error=str(e))` |
-| `CRITICAL` | System is unusable, immediate action needed | `logger.critical("database_connection_lost")` |
+| Level      | When to Use                                       | Example                                                   |
+| ---------- | ------------------------------------------------- | --------------------------------------------------------- |
+| `DEBUG`    | Detailed diagnostic info (disabled in production) | `logger.debug("embedding_generated", dimensions=1536)`    |
+| `INFO`     | Normal operations, business events                | `logger.info("candidate_scored", score=85)`               |
+| `WARNING`  | Unexpected but recoverable situations             | `logger.warning("openai_rate_limited", retry_after_s=30)` |
+| `ERROR`    | Operation failed, requires investigation          | `logger.error("resume_parse_failed", error=str(e))`       |
+| `CRITICAL` | System is unusable, immediate action needed       | `logger.critical("database_connection_lost")`             |
 
 **Rules**:
+
 - `INFO` is the production default level
 - `DEBUG` is enabled only in local/staging or temporarily via feature flag
 - `ERROR` and `CRITICAL` must trigger alerts in Datadog
 - Never log at `ERROR` for expected cases (e.g., validation failures are `WARNING`, not `ERROR`)
 
 **Common Mistakes**:
+
 - Logging every request at `INFO` — use middleware for request logging, don't duplicate
 - Logging at `ERROR` for user input validation — this floods error alerts and hides real errors
 - Not including enough context — a log without `tenant_id` or `request_id` is undebuggable in production
@@ -1646,6 +1769,7 @@ logging.info("Resume parsed successfully!")
 ### 13.3 PII in Logs 🔴
 
 **Rule**: NEVER log PII (personally identifiable information) in plain text. This includes:
+
 - Candidate names
 - Email addresses
 - Phone numbers
@@ -1655,11 +1779,13 @@ logging.info("Resume parsed successfully!")
 If you must reference a candidate, log their `candidate_id` (UUID), never their name or email.
 
 **Good Example**:
+
 ```python
 logger.info("candidate_stage_updated", candidate_id=str(candidate.id), new_stage="interview")
 ```
 
 **Bad Example**:
+
 ```python
 logger.info(f"Moved {candidate.name} ({candidate.email}) to interview stage")
 ```
@@ -1672,16 +1798,16 @@ logger.info(f"Moved {candidate.name} ({candidate.email}) to interview stage")
 
 All errors in Hiron fall into one of these categories:
 
-| Category | HTTP Status | Retryable | Example |
-|---|---|---|---|
-| **Validation Error** | 400 / 422 | No | Invalid file type, missing required field |
-| **Authentication Error** | 401 | No | Expired token, invalid credentials |
-| **Authorization Error** | 403 | No | Recruiter tries to access admin endpoint |
-| **Not Found** | 404 | No | Candidate ID doesn't exist |
-| **Conflict** | 409 | No | Duplicate email in same tenant |
-| **Rate Limited** | 429 | Yes (after backoff) | Too many API requests |
-| **Upstream Error** | 502 | Yes (with circuit breaker) | OpenAI API down |
-| **Internal Error** | 500 | Maybe | Unhandled exception, bug |
+| Category                 | HTTP Status | Retryable                  | Example                                   |
+| ------------------------ | ----------- | -------------------------- | ----------------------------------------- |
+| **Validation Error**     | 400 / 422   | No                         | Invalid file type, missing required field |
+| **Authentication Error** | 401         | No                         | Expired token, invalid credentials        |
+| **Authorization Error**  | 403         | No                         | Recruiter tries to access admin endpoint  |
+| **Not Found**            | 404         | No                         | Candidate ID doesn't exist                |
+| **Conflict**             | 409         | No                         | Duplicate email in same tenant            |
+| **Rate Limited**         | 429         | Yes (after backoff)        | Too many API requests                     |
+| **Upstream Error**       | 502         | Yes (with circuit breaker) | OpenAI API down                           |
+| **Internal Error**       | 500         | Maybe                      | Unhandled exception, bug                  |
 
 ---
 
@@ -1704,12 +1830,14 @@ graph TD
 ```
 
 **Rules**:
+
 1. **Catch specific, not generic**: Catch `openai.RateLimitError`, not `Exception`
 2. **Transform at boundaries**: Convert library-specific exceptions to domain exceptions at service boundaries
 3. **Never expose internals**: Error responses to clients must not include stack traces, SQL queries, or file paths
 4. **Always log before transforming**: Log the original error with full context before converting to a client-facing error
 
 **Good Example**:
+
 ```python
 # In AI Service
 async def generate_score(resume: ParsedResume, job: JobDescription) -> FitScore:
@@ -1732,6 +1860,7 @@ async def handle_upstream_error(request: Request, exc: UpstreamServiceError):
 ```
 
 **Bad Example**:
+
 ```python
 try:
     score = await generate_score(resume, job)
@@ -1740,6 +1869,7 @@ except Exception as e:
 ```
 
 **Common Mistakes**:
+
 - Catching `Exception` in a route handler — let FastAPI's exception handlers do the mapping
 - Returning `200 OK` with error body — use proper HTTP status codes
 - Not chaining exceptions with `from e` — this loses the original traceback
@@ -1750,12 +1880,12 @@ except Exception as e:
 
 **Rule**: Retries are ONLY for transient failures. Never retry validation errors, auth errors, or data errors.
 
-| Operation | Max Retries | Backoff | Circuit Breaker |
-|---|---|---|---|
-| OpenAI API call | 3 | Exponential (1s, 2s, 4s) | Open after 5 failures in 60s |
-| Database query (connection error) | 2 | Fixed 500ms | Open after 10 failures in 60s |
-| S3 upload | 3 | Exponential (1s, 2s, 4s) | None (S3 is highly available) |
-| Resume parsing (spaCy) | 0 | N/A | N/A (local, deterministic) |
+| Operation                         | Max Retries | Backoff                  | Circuit Breaker               |
+| --------------------------------- | ----------- | ------------------------ | ----------------------------- |
+| OpenAI API call                   | 3           | Exponential (1s, 2s, 4s) | Open after 5 failures in 60s  |
+| Database query (connection error) | 2           | Fixed 500ms              | Open after 10 failures in 60s |
+| S3 upload                         | 3           | Exponential (1s, 2s, 4s) | None (S3 is highly available) |
+| Resume parsing (spaCy)            | 0           | N/A                      | N/A (local, deterministic)    |
 
 ---
 
@@ -1773,16 +1903,17 @@ graph LR
     D -->|"Constraints (CHECK, FK, UNIQUE)"| E["Storage"]
 ```
 
-| Layer | Validation Type | Example |
-|---|---|---|
-| **Frontend** | UX-level: field format, required fields | "Email must contain @", "Skills cannot be empty" |
-| **API** | Schema-level: types, ranges, formats | Pydantic model validates `experienceYearsMin >= 0` |
-| **Service** | Business-level: domain rules | "Cannot score a candidate who hasn't been parsed" |
-| **Database** | Integrity-level: constraints | `UNIQUE(tenant_id, email)`, `CHECK(score BETWEEN 0 AND 100)` |
+| Layer        | Validation Type                         | Example                                                      |
+| ------------ | --------------------------------------- | ------------------------------------------------------------ |
+| **Frontend** | UX-level: field format, required fields | "Email must contain @", "Skills cannot be empty"             |
+| **API**      | Schema-level: types, ranges, formats    | Pydantic model validates `experienceYearsMin >= 0`           |
+| **Service**  | Business-level: domain rules            | "Cannot score a candidate who hasn't been parsed"            |
+| **Database** | Integrity-level: constraints            | `UNIQUE(tenant_id, email)`, `CHECK(score BETWEEN 0 AND 100)` |
 
 **Rationale**: Defense in depth. The frontend catches obvious errors for UX. The API catches malformed requests. The service layer enforces business rules. The database is the last line of defense.
 
 **Common Mistakes**:
+
 - Relying only on frontend validation — the API is publicly accessible, the frontend is bypassable
 - Relying only on database constraints — error messages are cryptic (`duplicate key violates unique constraint "uq_..."`)
 - Validating the same thing differently at two layers — keep validation logic DRY where possible (shared Zod/Pydantic schemas)
@@ -1793,15 +1924,16 @@ graph LR
 
 **Rule**: Resume file uploads must be validated for:
 
-| Check | Rule | Rationale |
-|---|---|---|
-| File type | Allowlist: `application/pdf`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document`, `text/plain` | Prevent upload of executables, scripts |
-| File size | Max 10 MB | Prevent storage abuse, DoS |
-| File content | Verify magic bytes match declared content type | Prevent extension spoofing (`.pdf` that's actually `.exe`) |
-| Filename | Sanitize — strip path separators, limit to 255 chars | Prevent path traversal attacks |
-| Virus scan | Future: integrate ClamAV for malware scanning | Defense in depth |
+| Check        | Rule                                                                                                                  | Rationale                                                  |
+| ------------ | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| File type    | Allowlist: `application/pdf`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document`, `text/plain` | Prevent upload of executables, scripts                     |
+| File size    | Max 10 MB                                                                                                             | Prevent storage abuse, DoS                                 |
+| File content | Verify magic bytes match declared content type                                                                        | Prevent extension spoofing (`.pdf` that's actually `.exe`) |
+| Filename     | Sanitize — strip path separators, limit to 255 chars                                                                  | Prevent path traversal attacks                             |
+| Virus scan   | Future: integrate ClamAV for malware scanning                                                                         | Defense in depth                                           |
 
 **Common Mistakes**:
+
 - Checking only the file extension — trivially bypassed
 - Not limiting upload size at the reverse proxy level (ALB) — one large upload can OOM the application
 
@@ -1811,16 +1943,17 @@ graph LR
 
 ### 16.1 Authentication Rules 🔴
 
-| Rule | Implementation |
-|---|---|
-| Passwords hashed with Argon2id | Never MD5, SHA-256, or bcrypt (Argon2id is the current OWASP recommendation) |
-| JWT access tokens: 15-minute TTL | Short-lived to limit blast radius of token theft |
-| Refresh tokens: 7-day TTL, single-use, rotated | Prevents replay attacks |
-| Failed login: constant-time comparison | Prevents timing attacks that reveal valid usernames |
-| Account lockout: 5 failed attempts → 15-min lock | Brute force protection |
-| Session invalidation on password change | Revoke all existing sessions |
+| Rule                                             | Implementation                                                               |
+| ------------------------------------------------ | ---------------------------------------------------------------------------- |
+| Passwords hashed with Argon2id                   | Never MD5, SHA-256, or bcrypt (Argon2id is the current OWASP recommendation) |
+| JWT access tokens: 15-minute TTL                 | Short-lived to limit blast radius of token theft                             |
+| Refresh tokens: 7-day TTL, single-use, rotated   | Prevents replay attacks                                                      |
+| Failed login: constant-time comparison           | Prevents timing attacks that reveal valid usernames                          |
+| Account lockout: 5 failed attempts → 15-min lock | Brute force protection                                                       |
+| Session invalidation on password change          | Revoke all existing sessions                                                 |
 
 **Common Mistakes**:
+
 - Storing JWTs in localStorage — vulnerable to XSS; use httpOnly cookies
 - Not validating JWT `aud` (audience) and `iss` (issuer) claims
 - Long-lived access tokens (> 1 hour) — use short access tokens + refresh tokens
@@ -1829,27 +1962,28 @@ graph LR
 
 ### 16.2 Data Protection Rules 🔴
 
-| Rule | Rationale |
-|---|---|
-| Never log PII | Logs are often less protected than databases |
-| Never return `tenant_id` in API responses | Internal identifier, not client-facing |
-| Never expose database IDs in error messages | Information disclosure |
-| Sanitize all user input before storage | XSS, injection prevention |
-| Use parameterized queries (SQLAlchemy) | SQL injection prevention |
-| Validate Content-Type headers on all endpoints | Prevents content-type confusion attacks |
+| Rule                                           | Rationale                                    |
+| ---------------------------------------------- | -------------------------------------------- |
+| Never log PII                                  | Logs are often less protected than databases |
+| Never return `tenant_id` in API responses      | Internal identifier, not client-facing       |
+| Never expose database IDs in error messages    | Information disclosure                       |
+| Sanitize all user input before storage         | XSS, injection prevention                    |
+| Use parameterized queries (SQLAlchemy)         | SQL injection prevention                     |
+| Validate Content-Type headers on all endpoints | Prevents content-type confusion attacks      |
 
 ---
 
 ### 16.3 Secrets Management 🔴
 
-| Rule | Good | Bad |
-|---|---|---|
-| Store secrets in AWS Secrets Manager | `secret_arn = "arn:aws:secretsmanager:..."` | `OPENAI_API_KEY=sk-abc123` in `.env` |
-| Never commit secrets to Git | Use `.env.example` with placeholders | Actual API keys in `.env` checked into Git |
-| Rotate secrets every 90 days | Automated rotation via Secrets Manager | Same API key for 2 years |
-| Different secrets per environment | Staging and production use different keys | Same database password in staging and production |
+| Rule                                 | Good                                        | Bad                                              |
+| ------------------------------------ | ------------------------------------------- | ------------------------------------------------ |
+| Store secrets in AWS Secrets Manager | `secret_arn = "arn:aws:secretsmanager:..."` | `OPENAI_API_KEY=sk-abc123` in `.env`             |
+| Never commit secrets to Git          | Use `.env.example` with placeholders        | Actual API keys in `.env` checked into Git       |
+| Rotate secrets every 90 days         | Automated rotation via Secrets Manager      | Same API key for 2 years                         |
+| Different secrets per environment    | Staging and production use different keys   | Same database password in staging and production |
 
 **Common Mistakes**:
+
 - Adding `.env` to `.gitignore` but still committing it once accidentally — use `git-secrets` pre-commit hook
 - Hard-coding secrets in Docker Compose files — use environment variable references
 - Sharing secrets via Slack/email — use a secrets manager or 1Password team vault
@@ -1858,13 +1992,13 @@ graph LR
 
 ### 16.4 Dependency Security 🔴
 
-| Rule | Tool | Frequency |
-|---|---|---|
-| Scan Python dependencies for CVEs | `pip audit` | Every CI run |
-| Scan Node dependencies for CVEs | `npm audit` | Every CI run |
-| Auto-update dependencies | Dependabot | Weekly PRs |
-| Review transitive dependencies | `pipdeptree`, `npm ls` | Monthly |
-| Pin all dependency versions | Lockfiles (`poetry.lock`, `package-lock.json`) | Always |
+| Rule                              | Tool                                           | Frequency    |
+| --------------------------------- | ---------------------------------------------- | ------------ |
+| Scan Python dependencies for CVEs | `pip audit`                                    | Every CI run |
+| Scan Node dependencies for CVEs   | `npm audit`                                    | Every CI run |
+| Auto-update dependencies          | Dependabot                                     | Weekly PRs   |
+| Review transitive dependencies    | `pipdeptree`, `npm ls`                         | Monthly      |
+| Pin all dependency versions       | Lockfiles (`poetry.lock`, `package-lock.json`) | Always       |
 
 ---
 
@@ -1874,14 +2008,14 @@ graph LR
 
 **Rule**: Every API endpoint has a latency budget. If an endpoint exceeds its budget, it's a bug.
 
-| Endpoint Category | P50 Target | P99 Target | Example |
-|---|---|---|---|
-| Read (single resource) | < 50ms | < 200ms | `GET /api/v1/candidates/{id}` |
-| Read (list with pagination) | < 100ms | < 500ms | `GET /api/v1/jobs/{id}/candidates` |
-| Write (create/update) | < 100ms | < 300ms | `POST /api/v1/jobs` |
-| Search (semantic) | < 500ms | < 2000ms | `POST /api/v1/search` |
-| AI scoring (single) | < 3000ms | < 5000ms | `POST /api/v1/candidates/{id}/score` |
-| File upload (accept) | < 200ms | < 500ms | `POST /api/v1/resumes` (just acceptance, not parsing) |
+| Endpoint Category           | P50 Target | P99 Target | Example                                               |
+| --------------------------- | ---------- | ---------- | ----------------------------------------------------- |
+| Read (single resource)      | < 50ms     | < 200ms    | `GET /api/v1/candidates/{id}`                         |
+| Read (list with pagination) | < 100ms    | < 500ms    | `GET /api/v1/jobs/{id}/candidates`                    |
+| Write (create/update)       | < 100ms    | < 300ms    | `POST /api/v1/jobs`                                   |
+| Search (semantic)           | < 500ms    | < 2000ms   | `POST /api/v1/search`                                 |
+| AI scoring (single)         | < 3000ms   | < 5000ms   | `POST /api/v1/candidates/{id}/score`                  |
+| File upload (accept)        | < 200ms    | < 500ms    | `POST /api/v1/resumes` (just acceptance, not parsing) |
 
 **Rationale**: Latency budgets are from the approved architecture design. They are non-negotiable targets that inform caching, indexing, and scaling decisions.
 
@@ -1889,15 +2023,16 @@ graph LR
 
 ### 17.2 Database Performance Rules 🔴
 
-| Rule | Rationale |
-|---|---|
-| Every query used in an API handler must have an `EXPLAIN ANALYZE` reviewed during development | Catch full table scans before they hit production |
-| No N+1 queries — use `joinedload()` or `selectinload()` in SQLAlchemy | N+1 is the #1 performance killer in ORM-based apps |
-| All WHERE clause columns must be indexed | Unindexed lookups degrade linearly with data growth |
-| Multi-tenant queries must have `tenant_id` as the first column in composite indexes | PostgreSQL's query planner uses leftmost prefix matching |
-| Use connection pooling (via SQLAlchemy `pool_size` + `max_overflow`) | Prevents connection exhaustion under load |
+| Rule                                                                                          | Rationale                                                |
+| --------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| Every query used in an API handler must have an `EXPLAIN ANALYZE` reviewed during development | Catch full table scans before they hit production        |
+| No N+1 queries — use `joinedload()` or `selectinload()` in SQLAlchemy                         | N+1 is the #1 performance killer in ORM-based apps       |
+| All WHERE clause columns must be indexed                                                      | Unindexed lookups degrade linearly with data growth      |
+| Multi-tenant queries must have `tenant_id` as the first column in composite indexes           | PostgreSQL's query planner uses leftmost prefix matching |
+| Use connection pooling (via SQLAlchemy `pool_size` + `max_overflow`)                          | Prevents connection exhaustion under load                |
 
 **Good Example**:
+
 ```python
 # Eager load related data to avoid N+1
 stmt = (
@@ -1910,6 +2045,7 @@ stmt = (
 ```
 
 **Bad Example**:
+
 ```python
 # N+1: one query per candidate to get scores
 candidates = await db.execute(select(Candidate).where(...))
@@ -1922,16 +2058,17 @@ for candidate in candidates:
 
 ### 17.3 Frontend Performance Rules 🔴
 
-| Rule | Rationale |
-|---|---|
-| Largest Contentful Paint (LCP) < 2.5s | Core Web Vitals threshold |
-| First Input Delay (FID) < 100ms | Core Web Vitals threshold |
-| Cumulative Layout Shift (CLS) < 0.1 | Core Web Vitals threshold |
-| Bundle size per route < 200KB (gzipped) | Prevents slow loads on mobile |
-| Images must use Next.js `<Image>` component | Automatic lazy loading, WebP conversion, responsive sizing |
-| Lists > 50 items must use virtualization (`@tanstack/react-virtual`) | Prevents DOM bloat and layout thrashing |
+| Rule                                                                 | Rationale                                                  |
+| -------------------------------------------------------------------- | ---------------------------------------------------------- |
+| Largest Contentful Paint (LCP) < 2.5s                                | Core Web Vitals threshold                                  |
+| First Input Delay (FID) < 100ms                                      | Core Web Vitals threshold                                  |
+| Cumulative Layout Shift (CLS) < 0.1                                  | Core Web Vitals threshold                                  |
+| Bundle size per route < 200KB (gzipped)                              | Prevents slow loads on mobile                              |
+| Images must use Next.js `<Image>` component                          | Automatic lazy loading, WebP conversion, responsive sizing |
+| Lists > 50 items must use virtualization (`@tanstack/react-virtual`) | Prevents DOM bloat and layout thrashing                    |
 
 **Common Mistakes**:
+
 - Importing entire icon libraries — use tree-shakeable imports
 - Not code-splitting routes — use Next.js dynamic imports for heavy components
 - Re-rendering entire lists on single item change — use React.memo and stable keys
@@ -1956,14 +2093,14 @@ graph TD
 
 ### 18.2 Coverage Targets 🔴
 
-| Component | Minimum Coverage | Focus |
-|---|---|---|
-| **AI scoring logic** | 90% | This is our core IP — must be rock solid |
-| **API endpoints** | 85% | Every endpoint has at least a happy path + one error case test |
-| **Data access layer** | 80% | Test queries against a real PostgreSQL (Docker) |
-| **Frontend components** | 70% | Test user interactions, not implementation details |
-| **Utility functions** | 95% | Pure functions are trivial to test — no excuse for gaps |
-| **Infrastructure code** | N/A | Terraform is validated via `terraform plan` + staging deploy |
+| Component               | Minimum Coverage | Focus                                                          |
+| ----------------------- | ---------------- | -------------------------------------------------------------- |
+| **AI scoring logic**    | 90%              | This is our core IP — must be rock solid                       |
+| **API endpoints**       | 85%              | Every endpoint has at least a happy path + one error case test |
+| **Data access layer**   | 80%              | Test queries against a real PostgreSQL (Docker)                |
+| **Frontend components** | 70%              | Test user interactions, not implementation details             |
+| **Utility functions**   | 95%              | Pure functions are trivial to test — no excuse for gaps        |
+| **Infrastructure code** | N/A              | Terraform is validated via `terraform plan` + staging deploy   |
 
 ---
 
@@ -1976,6 +2113,7 @@ test_<what>_<condition>_<expected_result>
 ```
 
 **Good Example**:
+
 ```python
 def test_score_candidate_with_matching_skills_returns_high_score():
     ...
@@ -1988,6 +2126,7 @@ def test_parse_resume_with_multi_page_pdf_extracts_all_pages():
 ```
 
 **Bad Example**:
+
 ```python
 def test_score():
     ...
@@ -2005,14 +2144,15 @@ def test_it_works():
 
 **Rule**: Every test must be independent and idempotent. Tests must not depend on execution order, shared state, or data from other tests.
 
-| Rule | Implementation |
-|---|---|
-| Each test gets a fresh database transaction (rolled back after test) | Use `pytest` fixtures with `db_session` that rolls back |
-| Each test creates its own test data | Use factory functions, not shared fixtures with mutable state |
-| Tests never call external services | Mock OpenAI, S3, Redis in unit tests |
-| Integration tests use real databases (PostgreSQL in Docker) | `docker-compose.test.yml` spins up test dependencies |
+| Rule                                                                 | Implementation                                                |
+| -------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Each test gets a fresh database transaction (rolled back after test) | Use `pytest` fixtures with `db_session` that rolls back       |
+| Each test creates its own test data                                  | Use factory functions, not shared fixtures with mutable state |
+| Tests never call external services                                   | Mock OpenAI, S3, Redis in unit tests                          |
+| Integration tests use real databases (PostgreSQL in Docker)          | `docker-compose.test.yml` spins up test dependencies          |
 
 **Common Mistakes**:
+
 - Tests that pass individually but fail when run together — shared mutable state
 - Tests that depend on database seed data — create your own data in the test
 - Tests that call the real OpenAI API — these are slow, flaky, and expensive
@@ -2044,11 +2184,13 @@ apps/web/src/components/candidates/candidate-score-card.test.tsx
 When reviewing a PR, verify the following in this order:
 
 **1. Correctness**
+
 - [ ] Does the code do what the PR description claims?
 - [ ] Are edge cases handled (nulls, empty lists, boundary values)?
 - [ ] Are error cases handled appropriately (not swallowed)?
 
 **2. Security**
+
 - [ ] No PII in logs
 - [ ] No secrets in code
 - [ ] Input validation present on all new endpoints
@@ -2056,29 +2198,34 @@ When reviewing a PR, verify the following in this order:
 - [ ] Tenant isolation maintained (tenant_id in all queries)
 
 **3. Architecture**
+
 - [ ] Follows the approved Hiron architecture
 - [ ] No new technologies introduced without ADR
 - [ ] Dependencies between modules flow in the correct direction
 - [ ] No circular imports
 
 **4. Quality**
+
 - [ ] Types are complete (no `Any`, no `as unknown as X`)
 - [ ] Functions are ≤ 30 lines
 - [ ] No dead code, no commented-out code
 - [ ] Naming is clear and consistent
 
 **5. Testing**
+
 - [ ] New logic has unit tests
 - [ ] New endpoints have integration tests
 - [ ] Tests cover at least one happy path and one error path
 - [ ] Tests are independent and don't rely on execution order
 
 **6. Performance**
+
 - [ ] No N+1 queries
 - [ ] New database queries have appropriate indexes
 - [ ] No blocking I/O in async functions
 
 **7. Observability**
+
 - [ ] New operations have structured log entries
 - [ ] Error cases are logged with sufficient context
 - [ ] Latency-sensitive operations include timing logs
@@ -2087,13 +2234,13 @@ When reviewing a PR, verify the following in this order:
 
 ### 19.2 Review Etiquette 🟡
 
-| Rule | Rationale |
-|---|---|
-| Review the code, not the person | "This function could be simplified" not "You wrote this wrong" |
-| Prefix comments with severity: `nit:`, `suggestion:`, `blocker:` | Author knows what must be fixed vs. what's optional |
-| Offer alternatives, not just criticism | "Consider using X because Y" not "This is wrong" |
-| Approve with nits — don't block on style preferences | Distinguish blocking issues from preferences |
-| Respond to all review comments before re-requesting review | Shows you've considered the feedback |
+| Rule                                                             | Rationale                                                      |
+| ---------------------------------------------------------------- | -------------------------------------------------------------- |
+| Review the code, not the person                                  | "This function could be simplified" not "You wrote this wrong" |
+| Prefix comments with severity: `nit:`, `suggestion:`, `blocker:` | Author knows what must be fixed vs. what's optional            |
+| Offer alternatives, not just criticism                           | "Consider using X because Y" not "This is wrong"               |
+| Approve with nits — don't block on style preferences             | Distinguish blocking issues from preferences                   |
+| Respond to all review comments before re-requesting review       | Shows you've considered the feedback                           |
 
 ---
 
@@ -2136,28 +2283,28 @@ When reviewing a PR, verify the following in this order:
 
 ## Appendix: Quick Reference Card
 
-| Area | Standard |
-|---|---|
-| Python formatter | `ruff format` |
-| Python linter | `ruff check` |
-| Python types | `mypy --strict` |
-| TS/JS formatter | `prettier` |
-| TS/JS linter | `eslint` |
-| TS types | `tsc --noEmit` (strict) |
-| Python files | `snake_case.py` |
-| TS/React files | `kebab-case.tsx` |
-| DB tables | `snake_case`, plural |
-| DB columns | `snake_case`, singular |
-| API URLs | `/api/v1/kebab-case` |
-| JSON keys | `camelCase` |
-| Git branches | `type/ticket-id-description` |
-| Commits | `type(scope): description` |
-| Test names | `test_what_condition_expected` |
-| Log format | Structured JSON via `structlog` |
-| Max line length | 100 chars code, 120 chars comments |
-| Max function length | 30 lines of logic |
-| PR size limit | 400 lines (excluding tests) |
-| Review turnaround | < 4 hours (business hours) |
+| Area                | Standard                           |
+| ------------------- | ---------------------------------- |
+| Python formatter    | `ruff format`                      |
+| Python linter       | `ruff check`                       |
+| Python types        | `mypy --strict`                    |
+| TS/JS formatter     | `prettier`                         |
+| TS/JS linter        | `eslint`                           |
+| TS types            | `tsc --noEmit` (strict)            |
+| Python files        | `snake_case.py`                    |
+| TS/React files      | `kebab-case.tsx`                   |
+| DB tables           | `snake_case`, plural               |
+| DB columns          | `snake_case`, singular             |
+| API URLs            | `/api/v1/kebab-case`               |
+| JSON keys           | `camelCase`                        |
+| Git branches        | `type/ticket-id-description`       |
+| Commits             | `type(scope): description`         |
+| Test names          | `test_what_condition_expected`     |
+| Log format          | Structured JSON via `structlog`    |
+| Max line length     | 100 chars code, 120 chars comments |
+| Max function length | 30 lines of logic                  |
+| PR size limit       | 400 lines (excluding tests)        |
+| Review turnaround   | < 4 hours (business hours)         |
 
 ---
 
@@ -2170,11 +2317,13 @@ When reviewing a PR, verify the following in this order:
 ### A.1 Prompt Versioning 🔴
 
 **Rule**: Every prompt used in production must be:
+
 1. Stored as a named, versioned template in a dedicated `prompts/` directory — never inline in application code
 2. Versioned with semantic versioning: `MAJOR.MINOR.PATCH`
 3. Logged with every LLM call so that any AI output can be traced back to the exact prompt that produced it
 
 **Version bumping rules**:
+
 - **PATCH** (e.g., 1.0.0 → 1.0.1): Typo fixes, whitespace changes, clarification of wording with no behavioral intent change
 - **MINOR** (e.g., 1.0.1 → 1.1.0): Added instructions, new output fields, refined scoring criteria
 - **MAJOR** (e.g., 1.1.0 → 2.0.0): Structural overhaul, changed output schema, fundamentally different evaluation logic
@@ -2182,6 +2331,7 @@ When reviewing a PR, verify the following in this order:
 **Rationale**: Prompts are code. They directly determine Hiron's scoring accuracy — the core value proposition. Without versioning, we can't reproduce past results, can't debug regressions, and can't A/B test improvements. A prompt change can silently shift every candidate's score.
 
 **Good Example**:
+
 ```
 services/ai/prompts/
 ├── candidate_scoring/
@@ -2244,6 +2394,7 @@ class PromptRegistry:
 ```
 
 **Bad Example**:
+
 ```python
 # Prompt buried inline in application code — no versioning, no traceability
 async def score_candidate(resume, job):
@@ -2259,6 +2410,7 @@ async def score_candidate(resume, job):
 ```
 
 **Common Mistakes**:
+
 - Editing prompts in place without bumping the version — makes it impossible to reproduce past scores
 - Storing prompts in environment variables or config files — they deserve their own versioned directory
 - Not logging the prompt version with every AI call — the output is meaningless without knowing which prompt produced it
@@ -2273,6 +2425,7 @@ async def score_candidate(resume, job):
 **Rationale**: OpenAI routinely updates models behind aliases (e.g., `gpt-4o` silently points to newer snapshots). A model update can change scoring behavior across your entire candidate pool overnight. Pinning to a specific version (e.g., `gpt-4o-2024-08-06`) ensures reproducibility.
 
 **Good Example**:
+
 ```python
 # config/ai_models.py
 from enum import StrEnum
@@ -2308,6 +2461,7 @@ logger.info(
 ```
 
 **Bad Example**:
+
 ```python
 # Unpinned alias — will silently change behavior when OpenAI updates the model
 response = await client.chat.completions.create(
@@ -2317,6 +2471,7 @@ response = await client.chat.completions.create(
 ```
 
 **Common Mistakes**:
+
 - Using `gpt-4o` instead of `gpt-4o-2024-08-06` — the alias can point to a different model tomorrow
 - Not logging the model version with every AI call — you can't debug a scoring regression if you don't know which model produced the score
 - Upgrading the model across the entire system at once — upgrade in staging first, run the benchmark suite (see A.6), and compare results before promoting to production
@@ -2331,6 +2486,7 @@ response = await client.chat.completions.create(
 **Rationale**: Embeddings from different models live in different vector spaces. Comparing `text-embedding-ada-002` vectors against `text-embedding-3-small` vectors produces meaningless similarity scores. This is a silent data corruption bug — the system returns results, but they're wrong.
 
 **Good Example**:
+
 ```python
 # Database schema — embedding version is stored alongside the vector
 class CandidateEmbedding(TenantBase):
@@ -2377,6 +2533,7 @@ async def migrate_embeddings(
 ```
 
 **Bad Example**:
+
 ```python
 # No model version stored — impossible to know which model generated this
 class CandidateEmbedding(Base):
@@ -2390,6 +2547,7 @@ stmt = select(CandidateEmbedding).order_by(
 ```
 
 **Common Mistakes**:
+
 - Storing embeddings without the model version — a ticking time bomb for the next model upgrade
 - Mixing embeddings from different models in the same search — produces garbage results
 - Not storing the source text hash — you can't verify if an embedding is stale after the source text changed
@@ -2400,6 +2558,7 @@ stmt = select(CandidateEmbedding).order_by(
 ### A.4 AI Cost Monitoring 🔴
 
 **Rule**: Every LLM and embedding API call must track:
+
 1. **Token usage** (input tokens, output tokens, total)
 2. **Cost** (calculated from token count × model pricing)
 3. **Tenant attribution** (which customer incurred this cost)
@@ -2409,6 +2568,7 @@ Cost data must be aggregated per tenant, per operation type, per day.
 **Rationale**: OpenAI costs can spike unexpectedly. A single bulk scoring operation of 500 resumes can cost $10–50+. Without per-tenant cost tracking, we can't build usage-based pricing, can't detect abuse, and can't optimize our biggest expense.
 
 **Good Example**:
+
 ```python
 @dataclass
 class AIUsageRecord:
@@ -2468,6 +2628,7 @@ def calculate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
 ```
 
 **Bad Example**:
+
 ```python
 # No usage tracking — the monthly OpenAI bill is a surprise every time
 response = await client.chat.completions.create(model="gpt-4o", messages=messages)
@@ -2475,6 +2636,7 @@ return response.choices[0].message.content
 ```
 
 **Common Mistakes**:
+
 - Not attributing costs to tenants — can't build usage-based pricing later
 - Tracking total tokens but not input/output split — pricing differs significantly between input and output
 - Not setting cost alerts — a prompt bug that causes infinite retries can run up thousands in API costs
@@ -2485,6 +2647,7 @@ return response.choices[0].message.content
 ### A.5 Prompt Evaluation Strategy 🔴
 
 **Rule**: Every prompt change must be evaluated against a **golden dataset** (see A.6) before deployment. Evaluation must compare:
+
 1. **Accuracy**: Does the output match expected results?
 2. **Consistency**: Does the same input produce similar outputs across runs?
 3. **Regression**: Did scores for existing test cases change unexpectedly?
@@ -2494,6 +2657,7 @@ Evaluation results must be attached to the PR that changes the prompt.
 **Rationale**: Prompts are the most fragile component in Hiron. A word change can shift scoring behavior for every candidate. Without systematic evaluation, prompt changes are untested code changes deployed to production.
 
 **Good Example**:
+
 ```python
 # Evaluation framework
 class PromptEvaluator:
@@ -2542,22 +2706,25 @@ class PromptEvaluator:
 ## PR: Update candidate scoring prompt to v2.0.0
 
 ### Evaluation Results
-| Metric               | v1.1.0 (current) | v2.0.0 (proposed) | Delta  |
-|----------------------|-------------------|--------------------|--------|
-| Mean score delta     | 6.2               | 4.8                | -1.4 ✅ |
-| P95 score delta      | 14.1              | 11.3               | -2.8 ✅ |
-| Skill overlap        | 82%               | 88%                | +6% ✅  |
-| Pass rate (Δ ≤ 10)   | 87%               | 93%                | +6% ✅  |
-| Regressions (Δ > 15) | 4                 | 2                  | -2 ✅   |
-| Mean latency         | 2,340ms           | 2,510ms            | +170ms ⚠️ |
+
+| Metric               | v1.1.0 (current) | v2.0.0 (proposed) | Delta     |
+| -------------------- | ---------------- | ----------------- | --------- |
+| Mean score delta     | 6.2              | 4.8               | -1.4 ✅   |
+| P95 score delta      | 14.1             | 11.3              | -2.8 ✅   |
+| Skill overlap        | 82%              | 88%               | +6% ✅    |
+| Pass rate (Δ ≤ 10)   | 87%              | 93%               | +6% ✅    |
+| Regressions (Δ > 15) | 4                | 2                 | -2 ✅     |
+| Mean latency         | 2,340ms          | 2,510ms           | +170ms ⚠️ |
 ```
 
 **Bad Example**:
+
 ```
 PR Description: "Updated the scoring prompt. Tested with a few resumes, looks good."
 ```
 
 **Common Mistakes**:
+
 - Evaluating with 3–5 hand-picked examples instead of the full golden dataset
 - Not tracking regressions — overall improvement can mask individual case degradation
 - Not including evaluation results in the PR — reviewers can't assess prompt changes without data
@@ -2568,6 +2735,7 @@ PR Description: "Updated the scoring prompt. Tested with a few resumes, looks go
 ### A.6 AI Benchmark Dataset Policy 🔴
 
 **Rule**: Maintain a **golden dataset** of at least 100 curated evaluation cases. Each case must include:
+
 1. Input (resume text + job description)
 2. Expected output (score, skill matches, explanation themes)
 3. Human-annotated ground truth (recruiter-validated)
@@ -2578,6 +2746,7 @@ The golden dataset is versioned in Git and updated quarterly.
 **Rationale**: Without a benchmark, you can't measure AI quality, can't detect regressions, and can't compare model/prompt changes objectively. The golden dataset is the yardstick for every AI decision in Hiron.
 
 **Good Example**:
+
 ```
 services/ai/evaluation/
 ├── golden_dataset/
@@ -2602,26 +2771,27 @@ services/ai/evaluation/
 ```json
 // Single evaluation case
 {
-    "case_id": "case_042",
-    "difficulty": "medium",
-    "description": "Backend engineer with Go experience applying for Python role",
-    "input": {
-        "resume_text": "...",
-        "job_description": "..."
-    },
-    "expected": {
-        "score_range": [55, 75],
-        "must_identify_skills": ["Go", "Kubernetes", "PostgreSQL"],
-        "must_identify_gaps": ["Python", "FastAPI"],
-        "explanation_must_mention": ["transferable backend experience", "language gap"]
-    },
-    "annotated_by": "recruiter_jane",
-    "annotation_date": "2026-08-15",
-    "notes": "Go → Python is a reasonable transition. Should score medium, not low."
+  "case_id": "case_042",
+  "difficulty": "medium",
+  "description": "Backend engineer with Go experience applying for Python role",
+  "input": {
+    "resume_text": "...",
+    "job_description": "..."
+  },
+  "expected": {
+    "score_range": [55, 75],
+    "must_identify_skills": ["Go", "Kubernetes", "PostgreSQL"],
+    "must_identify_gaps": ["Python", "FastAPI"],
+    "explanation_must_mention": ["transferable backend experience", "language gap"]
+  },
+  "annotated_by": "recruiter_jane",
+  "annotation_date": "2026-08-15",
+  "notes": "Go → Python is a reasonable transition. Should score medium, not low."
 }
 ```
 
 **Bad Example**:
+
 ```python
 # "Test data" created by engineers, not recruiters, with no structure
 test_resume = "John Doe, 5 years Python, worked at Google"
@@ -2630,6 +2800,7 @@ assert score(test_resume, test_jd) > 80  # Based on what? Says who?
 ```
 
 **Common Mistakes**:
+
 - Building the dataset from synthetic data only — real resumes have messiness that synthetic data doesn't capture
 - Not involving recruiters in annotation — engineers' intuition about "good fit" differs from recruiters'
 - Never updating the dataset — it becomes stale as you handle new resume formats and job types
@@ -2641,15 +2812,16 @@ assert score(test_resume, test_jd) > 80  # Based on what? Says who?
 
 **Rule**: Prompts must have three levels of automated tests:
 
-| Level | What It Tests | When It Runs | Speed |
-|---|---|---|---|
-| **Schema test** | Output conforms to expected JSON schema | Every CI run | Fast (mocked LLM) |
-| **Snapshot test** | Output for fixed inputs hasn't changed unexpectedly | Every CI run | Fast (cached responses) |
-| **Quality test** | Output quality meets thresholds on golden dataset | Pre-merge (for prompt PRs) | Slow (real LLM calls) |
+| Level             | What It Tests                                       | When It Runs               | Speed                   |
+| ----------------- | --------------------------------------------------- | -------------------------- | ----------------------- |
+| **Schema test**   | Output conforms to expected JSON schema             | Every CI run               | Fast (mocked LLM)       |
+| **Snapshot test** | Output for fixed inputs hasn't changed unexpectedly | Every CI run               | Fast (cached responses) |
+| **Quality test**  | Output quality meets thresholds on golden dataset   | Pre-merge (for prompt PRs) | Slow (real LLM calls)   |
 
 **Rationale**: Schema tests catch structural regressions (e.g., a prompt change that drops a field from the JSON output). Snapshot tests catch unintended behavioral changes. Quality tests verify that scoring accuracy meets the bar.
 
 **Good Example**:
+
 ```python
 # Schema test — runs in CI, fast, uses mocked LLM response
 def test_scoring_prompt_output_schema():
@@ -2693,6 +2865,7 @@ async def test_scoring_quality_on_golden_dataset():
 ```
 
 **Bad Example**:
+
 ```python
 def test_scoring():
     result = score(some_resume, some_job)
@@ -2700,6 +2873,7 @@ def test_scoring():
 ```
 
 **Common Mistakes**:
+
 - Running real LLM calls in every CI run — slow and expensive; use mocks for schema/snapshot tests
 - Not testing the output schema — a prompt change can silently break JSON parsing
 - Snapshot tests without a mechanism to update snapshots when changes are intentional
@@ -2711,25 +2885,26 @@ def test_scoring():
 
 **Rule**: Every AI operation must emit a structured trace containing:
 
-| Field | Type | Description |
-|---|---|---|
-| `trace_id` | UUID | Unique identifier for the entire operation |
-| `tenant_id` | UUID | Customer attribution |
-| `operation` | string | `candidate_scoring`, `embedding_generation`, `semantic_search`, `resume_parsing` |
-| `prompt_name` | string | Name of the prompt template used |
-| `prompt_version` | string | Version of the prompt template |
-| `model_version` | string | Exact model identifier |
-| `input_tokens` | int | Tokens sent to the model |
-| `output_tokens` | int | Tokens received from the model |
-| `latency_ms` | int | End-to-end operation time |
-| `status` | string | `success`, `error`, `timeout`, `rate_limited` |
-| `error_type` | string? | Exception class name if failed |
-| `cache_hit` | bool | Whether a cached result was used |
-| `confidence` | float? | Confidence score of the output (see A.14) |
+| Field            | Type    | Description                                                                      |
+| ---------------- | ------- | -------------------------------------------------------------------------------- |
+| `trace_id`       | UUID    | Unique identifier for the entire operation                                       |
+| `tenant_id`      | UUID    | Customer attribution                                                             |
+| `operation`      | string  | `candidate_scoring`, `embedding_generation`, `semantic_search`, `resume_parsing` |
+| `prompt_name`    | string  | Name of the prompt template used                                                 |
+| `prompt_version` | string  | Version of the prompt template                                                   |
+| `model_version`  | string  | Exact model identifier                                                           |
+| `input_tokens`   | int     | Tokens sent to the model                                                         |
+| `output_tokens`  | int     | Tokens received from the model                                                   |
+| `latency_ms`     | int     | End-to-end operation time                                                        |
+| `status`         | string  | `success`, `error`, `timeout`, `rate_limited`                                    |
+| `error_type`     | string? | Exception class name if failed                                                   |
+| `cache_hit`      | bool    | Whether a cached result was used                                                 |
+| `confidence`     | float?  | Confidence score of the output (see A.14)                                        |
 
 **Rationale**: AI operations are the most opaque part of Hiron. When a recruiter reports "this score doesn't make sense," the observability data is the only way to diagnose whether the issue is the prompt, the model, the input data, or a parsing error.
 
 **Good Example**:
+
 ```python
 @dataclass
 class AITrace:
@@ -2787,6 +2962,7 @@ async with ai_trace("candidate_scoring", tenant_id) as trace:
 ```
 
 **Bad Example**:
+
 ```python
 # Only logging success — errors, latency, and tokens are invisible
 result = await llm.chat(messages)
@@ -2794,6 +2970,7 @@ logger.info("scoring done")
 ```
 
 **Common Mistakes**:
+
 - Not logging failed AI calls — failures are more important than successes for debugging
 - Not including `trace_id` — can't correlate AI operations with the API request that triggered them
 - Logging input/output text in production — these contain resume PII; log tokens and hashes, not content
@@ -2805,16 +2982,17 @@ logger.info("scoring done")
 
 **Rule**: AI outputs must be cached at two levels:
 
-| Level | What's Cached | Cache Key | TTL | Invalidation |
-|---|---|---|---|---|
-| **Embedding cache** | Generated embeddings | `hash(source_text + model_version)` | Indefinite (stored in DB) | On source text change |
-| **Score cache** | Candidate-JD score results | `hash(resume_id + job_id + prompt_version + model_version)` | 24 hours | On resume edit, JD edit, prompt version change, model version change |
+| Level               | What's Cached              | Cache Key                                                   | TTL                       | Invalidation                                                         |
+| ------------------- | -------------------------- | ----------------------------------------------------------- | ------------------------- | -------------------------------------------------------------------- |
+| **Embedding cache** | Generated embeddings       | `hash(source_text + model_version)`                         | Indefinite (stored in DB) | On source text change                                                |
+| **Score cache**     | Candidate-JD score results | `hash(resume_id + job_id + prompt_version + model_version)` | 24 hours                  | On resume edit, JD edit, prompt version change, model version change |
 
 Never cache across prompt or model version boundaries.
 
 **Rationale**: LLM calls are expensive and slow. A single candidate scoring call costs ~$0.01–0.05 and takes 2–5 seconds. Caching avoids recomputing scores when nothing has changed, saving both cost and latency. But stale cache is worse than no cache — a cached score from an old prompt version misleads recruiters.
 
 **Good Example**:
+
 ```python
 def build_score_cache_key(
     resume_id: uuid.UUID,
@@ -2850,12 +3028,14 @@ async def get_or_compute_score(
 ```
 
 **Bad Example**:
+
 ```python
 # Cache key doesn't include model or prompt version — serves stale scores
 cache_key = f"score:{resume_id}:{job_id}"
 ```
 
 **Common Mistakes**:
+
 - Caching without model version in the key — model upgrades serve stale results
 - Setting TTL too long — JD edits don't propagate for days
 - Not tracking cache hit rates — you can't optimize what you don't measure
@@ -2867,17 +3047,18 @@ cache_key = f"score:{resume_id}:{job_id}"
 
 **Rule**: All AI operations that exceed 5 seconds or process multiple items must run as Celery background tasks. Background jobs must follow these rules:
 
-| Rule | Implementation |
-|---|---|
-| Every job must be **idempotent** | Running the same job twice produces the same result, not duplicates |
-| Every job must have a **timeout** | Max execution time per task (default: 5 minutes for single ops, 30 minutes for batch) |
-| Every job must emit **progress updates** | Report items processed / total items for batch operations |
+| Rule                                         | Implementation                                                                            |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Every job must be **idempotent**             | Running the same job twice produces the same result, not duplicates                       |
+| Every job must have a **timeout**            | Max execution time per task (default: 5 minutes for single ops, 30 minutes for batch)     |
+| Every job must emit **progress updates**     | Report items processed / total items for batch operations                                 |
 | Every job must have **dead letter handling** | Failed jobs are retried with backoff, then moved to a dead letter queue for investigation |
-| Every job must be **tenant-scoped** | The tenant_id must be passed in the task arguments, never inferred |
+| Every job must be **tenant-scoped**          | The tenant_id must be passed in the task arguments, never inferred                        |
 
 **Rationale**: AI operations are slow and resource-intensive. Running them synchronously in API handlers blocks the event loop and degrades performance for all users. Background jobs provide reliability (retries), observability (progress tracking), and fairness (queue prevents one tenant from starving others).
 
 **Good Example**:
+
 ```python
 @celery_app.task(
     bind=True,
@@ -2925,6 +3106,7 @@ def score_candidates_batch(
 ```
 
 **Bad Example**:
+
 ```python
 # No timeout, no retries, no progress tracking, not idempotent
 @celery_app.task
@@ -2935,6 +3117,7 @@ def score_all(job_id):
 ```
 
 **Common Mistakes**:
+
 - No timeout — a stuck LLM call hangs the worker forever
 - No idempotency — re-running a failed batch creates duplicate scores
 - Not passing `tenant_id` explicitly — relying on "current context" in async workers is a data leak vector
@@ -2950,6 +3133,7 @@ def score_all(job_id):
 **Rationale**: LLMs produce malformed JSON, hallucinate fields, omit required fields, and return unexpected types. A score of `"excellent"` instead of `85` will crash the application or corrupt data. Validation is the contract between the AI layer and the business logic.
 
 **Good Example**:
+
 ```python
 # Define the exact schema the LLM must produce
 class LLMScoringOutput(BaseModel):
@@ -3003,6 +3187,7 @@ async def parse_llm_scoring_response(raw_response: str) -> LLMScoringOutput:
 ```
 
 **Bad Example**:
+
 ```python
 response = await llm.chat(messages)
 data = json.loads(response.content)  # Crashes on malformed JSON
@@ -3011,6 +3196,7 @@ return score                        # No type validation — could be "great" in
 ```
 
 **Common Mistakes**:
+
 - Using `json.loads()` without a try/except — LLMs produce invalid JSON regularly
 - Not handling markdown-wrapped JSON (` ```json ... ``` `) — LLMs love to wrap output in markdown
 - Trusting LLM-generated field values without range validation — a score of 150 or -10 breaks downstream logic
@@ -3022,18 +3208,19 @@ return score                        # No type validation — could be "great" in
 
 **Rule**: Implement these safeguards against LLM hallucinations in Hiron:
 
-| Safeguard | Implementation | Protects Against |
-|---|---|---|
-| **Grounded scoring** | Prompt instructs: "Only reference information present in the resume. Do not infer or assume." | LLM inventing skills or experience the candidate doesn't have |
-| **Quote extraction** | Prompt requires: "For each identified skill, quote the exact text from the resume." | LLM claiming skills that aren't in the source document |
-| **Closed output schema** | Use Pydantic validation with strict field types and allowed values | LLM generating unexpected response structures |
-| **Score sanity checks** | Post-processing: flag scores that contradict simple heuristics (e.g., score > 80 but 0 skill matches) | LLM producing numerically inconsistent outputs |
-| **No dynamic code execution** | Never `eval()` or `exec()` LLM output | Prompt injection leading to code execution |
-| **Input sanitization** | Strip potentially adversarial instructions from resume text before sending to LLM | Prompt injection via crafted resume content |
+| Safeguard                     | Implementation                                                                                        | Protects Against                                              |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| **Grounded scoring**          | Prompt instructs: "Only reference information present in the resume. Do not infer or assume."         | LLM inventing skills or experience the candidate doesn't have |
+| **Quote extraction**          | Prompt requires: "For each identified skill, quote the exact text from the resume."                   | LLM claiming skills that aren't in the source document        |
+| **Closed output schema**      | Use Pydantic validation with strict field types and allowed values                                    | LLM generating unexpected response structures                 |
+| **Score sanity checks**       | Post-processing: flag scores that contradict simple heuristics (e.g., score > 80 but 0 skill matches) | LLM producing numerically inconsistent outputs                |
+| **No dynamic code execution** | Never `eval()` or `exec()` LLM output                                                                 | Prompt injection leading to code execution                    |
+| **Input sanitization**        | Strip potentially adversarial instructions from resume text before sending to LLM                     | Prompt injection via crafted resume content                   |
 
 **Rationale**: LLMs hallucinate. This is not a bug — it's a fundamental property of the technology. In hiring, a hallucinated skill match can lead to a bad hire. Our mitigation strategy doesn't eliminate hallucinations but detects and flags them.
 
 **Good Example**:
+
 ```python
 # Post-processing sanity check
 def validate_score_consistency(score: LLMScoringOutput) -> list[str]:
@@ -3090,6 +3277,7 @@ def sanitize_resume_for_llm(resume_text: str) -> str:
 ```
 
 **Bad Example**:
+
 ```python
 # Blindly trusting LLM output without any verification
 result = await llm.chat(messages)
@@ -3098,6 +3286,7 @@ save_to_database(score)  # Hallucinated data goes straight to DB
 ```
 
 **Common Mistakes**:
+
 - Trusting that the LLM "just won't hallucinate" because the prompt says "be accurate"
 - Not sanitizing resume text before sending to the LLM — resumes can be crafted with prompt injection attacks
 - Using `eval()` or `exec()` on any LLM output — this is a code execution vulnerability
@@ -3109,19 +3298,20 @@ save_to_database(score)  # Hallucinated data goes straight to DB
 
 **Rule**: AI service calls must implement a layered retry strategy:
 
-| Failure Type | Retry? | Strategy | Max Retries |
-|---|---|---|---|
-| **Rate limit** (429) | Yes | Wait for `retry-after` header, then retry | 3 |
-| **Server error** (500, 502, 503) | Yes | Exponential backoff: 1s → 2s → 4s | 3 |
-| **Timeout** | Yes | Retry once with 1.5x timeout | 1 |
-| **Malformed output** | Yes | Retry with same prompt (LLM may produce valid output on next attempt) | 2 |
-| **Validation error** (400) | No | Log and raise — our input is wrong | 0 |
-| **Auth error** (401, 403) | No | Log and alert — credential issue | 0 |
-| **Content filter** (policy violation) | No | Log, flag the input, return graceful error | 0 |
+| Failure Type                          | Retry? | Strategy                                                              | Max Retries |
+| ------------------------------------- | ------ | --------------------------------------------------------------------- | ----------- |
+| **Rate limit** (429)                  | Yes    | Wait for `retry-after` header, then retry                             | 3           |
+| **Server error** (500, 502, 503)      | Yes    | Exponential backoff: 1s → 2s → 4s                                     | 3           |
+| **Timeout**                           | Yes    | Retry once with 1.5x timeout                                          | 1           |
+| **Malformed output**                  | Yes    | Retry with same prompt (LLM may produce valid output on next attempt) | 2           |
+| **Validation error** (400)            | No     | Log and raise — our input is wrong                                    | 0           |
+| **Auth error** (401, 403)             | No     | Log and alert — credential issue                                      | 0           |
+| **Content filter** (policy violation) | No     | Log, flag the input, return graceful error                            | 0           |
 
 **Rationale**: LLM APIs are inherently unreliable — rate limits, transient server errors, and non-deterministic output quality are normal. A robust retry strategy is the difference between "our AI is flaky" and "our AI is reliable."
 
 **Good Example**:
+
 ```python
 class LLMClient:
     async def chat_with_retry(
@@ -3190,6 +3380,7 @@ class LLMClient:
 ```
 
 **Bad Example**:
+
 ```python
 # Retry everything the same way — including errors that will never succeed
 for i in range(10):
@@ -3200,6 +3391,7 @@ for i in range(10):
 ```
 
 **Common Mistakes**:
+
 - Retrying auth errors — they will never succeed until the credential is fixed
 - Using `time.sleep()` in async code — blocks the event loop (use `asyncio.sleep()`)
 - Fixed delay instead of exponential backoff — hammers the API during outages
@@ -3214,15 +3406,16 @@ for i in range(10):
 
 **Confidence levels**:
 
-| Level | Range | Meaning | UI Treatment |
-|---|---|---|---|
-| **High** | 0.8–1.0 | Complete resume, well-defined JD, consistent scoring output | Show score normally |
-| **Medium** | 0.5–0.79 | Partial resume data or ambiguous JD | Show score with "⚠️ Limited data" badge |
-| **Low** | 0.0–0.49 | Minimal resume, missing key sections, inconsistent AI output | Show score with "⚠️ Low confidence — review manually" warning |
+| Level      | Range    | Meaning                                                      | UI Treatment                                                  |
+| ---------- | -------- | ------------------------------------------------------------ | ------------------------------------------------------------- |
+| **High**   | 0.8–1.0  | Complete resume, well-defined JD, consistent scoring output  | Show score normally                                           |
+| **Medium** | 0.5–0.79 | Partial resume data or ambiguous JD                          | Show score with "⚠️ Limited data" badge                       |
+| **Low**    | 0.0–0.49 | Minimal resume, missing key sections, inconsistent AI output | Show score with "⚠️ Low confidence — review manually" warning |
 
 **Rationale**: Not all AI scores are equally reliable. A score based on a 3-page detailed resume is more trustworthy than a score based on a 1-paragraph summary. Displaying confidence helps recruiters calibrate their trust in the AI's recommendations.
 
 **Good Example**:
+
 ```python
 def calculate_confidence(
     resume: ParsedResume,
@@ -3304,6 +3497,7 @@ def compute_resume_completeness(resume: ParsedResume) -> float:
 ```
 
 **Bad Example**:
+
 ```python
 # Asking the LLM how confident it is — LLMs are not calibrated for this
 prompt = "...Also rate your confidence from 0 to 1."
@@ -3311,6 +3505,7 @@ prompt = "...Also rate your confidence from 0 to 1."
 ```
 
 **Common Mistakes**:
+
 - Using the LLM's self-reported confidence — LLMs almost always say they're highly confident
 - Not displaying confidence in the UI — recruiters need to know when to double-check
 - Binary confidence (confident/not confident) — a gradient is more useful
@@ -3324,33 +3519,34 @@ prompt = "...Also rate your confidence from 0 to 1."
 
 #### Operational Metrics (Datadog)
 
-| Metric | Description | Alert Threshold |
-|---|---|---|
-| `ai.scoring.latency_p50` | Median scoring latency | > 3,000ms |
-| `ai.scoring.latency_p99` | 99th percentile scoring latency | > 8,000ms |
-| `ai.scoring.error_rate` | % of scoring calls that fail | > 5% |
-| `ai.scoring.timeout_rate` | % of calls that hit timeout | > 2% |
-| `ai.embedding.latency_p50` | Median embedding generation time | > 500ms |
-| `ai.search.latency_p50` | Median semantic search time | > 1,000ms |
-| `ai.cache.hit_rate` | % of requests served from cache | < 30% (investigate if too low) |
-| `ai.cost.daily_usd` | Total daily AI API spend | > $50 (early stage) |
-| `ai.cost.per_score_usd` | Average cost per candidate score | > $0.05 |
-| `ai.llm.rate_limit_count` | Number of rate limit errors per hour | > 10 |
+| Metric                     | Description                          | Alert Threshold                |
+| -------------------------- | ------------------------------------ | ------------------------------ |
+| `ai.scoring.latency_p50`   | Median scoring latency               | > 3,000ms                      |
+| `ai.scoring.latency_p99`   | 99th percentile scoring latency      | > 8,000ms                      |
+| `ai.scoring.error_rate`    | % of scoring calls that fail         | > 5%                           |
+| `ai.scoring.timeout_rate`  | % of calls that hit timeout          | > 2%                           |
+| `ai.embedding.latency_p50` | Median embedding generation time     | > 500ms                        |
+| `ai.search.latency_p50`    | Median semantic search time          | > 1,000ms                      |
+| `ai.cache.hit_rate`        | % of requests served from cache      | < 30% (investigate if too low) |
+| `ai.cost.daily_usd`        | Total daily AI API spend             | > $50 (early stage)            |
+| `ai.cost.per_score_usd`    | Average cost per candidate score     | > $0.05                        |
+| `ai.llm.rate_limit_count`  | Number of rate limit errors per hour | > 10                           |
 
 #### Quality Metrics (Weekly Report)
 
-| Metric | Description | Target | Measurement |
-|---|---|---|---|
-| `scoring.accuracy` | Golden dataset pass rate | ≥ 85% | Automated weekly eval run |
-| `scoring.consistency` | Same input → same output variance | σ ≤ 5 points | 3-run test on 20 random cases |
-| `scoring.regression_count` | Cases where score changed > 15 pts from last week | 0 | Diff against previous eval run |
-| `parsing.field_accuracy` | % of fields correctly extracted | ≥ 90% | Monthly manual audit of 50 resumes |
-| `search.relevance` | Top-10 recall against human-judged relevance | ≥ 70% | Monthly manual eval of 20 queries |
-| `confidence.calibration` | High-confidence scores should be more accurate than low | Monotonic | Bucketed accuracy by confidence tier |
+| Metric                     | Description                                             | Target       | Measurement                          |
+| -------------------------- | ------------------------------------------------------- | ------------ | ------------------------------------ |
+| `scoring.accuracy`         | Golden dataset pass rate                                | ≥ 85%        | Automated weekly eval run            |
+| `scoring.consistency`      | Same input → same output variance                       | σ ≤ 5 points | 3-run test on 20 random cases        |
+| `scoring.regression_count` | Cases where score changed > 15 pts from last week       | 0            | Diff against previous eval run       |
+| `parsing.field_accuracy`   | % of fields correctly extracted                         | ≥ 90%        | Monthly manual audit of 50 resumes   |
+| `search.relevance`         | Top-10 recall against human-judged relevance            | ≥ 70%        | Monthly manual eval of 20 queries    |
+| `confidence.calibration`   | High-confidence scores should be more accurate than low | Monotonic    | Bucketed accuracy by confidence tier |
 
 **Rationale**: You can't improve what you don't measure. Operational metrics catch outages and cost spikes. Quality metrics catch accuracy regressions before customers notice. Together, they ensure Hiron's AI remains reliable, accurate, and cost-effective.
 
 **Good Example**:
+
 ```python
 # Emitting operational metrics
 from datadog import statsd
@@ -3421,6 +3617,7 @@ def run_weekly_ai_quality_report():
 ```
 
 **Bad Example**:
+
 ```python
 # No metrics — AI quality is invisible until a customer complains
 result = await score(resume, job)
@@ -3428,6 +3625,7 @@ return result
 ```
 
 **Common Mistakes**:
+
 - Tracking only latency but not accuracy — fast wrong answers are worse than slow right answers
 - Not setting alerts on cost metrics — a prompt bug that increases token usage 10x can cost thousands before anyone notices
 - Running quality evaluations manually and infrequently — automate on a weekly schedule

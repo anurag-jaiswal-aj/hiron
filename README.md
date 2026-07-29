@@ -60,18 +60,22 @@ hiron/
 ## 🚀 Getting Started
 
 1. **Clone the repository**:
+
    ```bash
    git clone https://github.com/anurag-jaiswal-aj/hiron.git
    cd hiron
    ```
 
 2. **Initialize local environment file (`.env.local`)**:
+
    > ⚠️ **IMPORTANT**: You MUST run `make setup` before running `docker compose up` because `.env.local` is required by the container environment.
+
    ```bash
    make setup
    ```
 
 3. **Start local development containers**:
+
    ```bash
    make dev
    ```

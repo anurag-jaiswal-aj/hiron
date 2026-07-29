@@ -23,13 +23,13 @@ Deliver a production-ready AI-powered Hiring Intelligence Platform that:
 
 ### Development Philosophy
 
-| Principle | Meaning |
-|---|---|
-| **Backend-first** | Build APIs before UI. Every feature starts with the database migration, then the API endpoint, then the frontend. This prevents frontend teams from blocking on backend decisions. |
-| **Vertical slices** | Each phase delivers a complete, testable feature — not a "backend phase" followed by a "frontend phase." A phase ships a working feature from database to UI. |
-| **Continuous testing** | Tests are written during each phase, not after. No phase is "done" until tests pass. No "testing sprint" at the end. |
-| **Infrastructure early** | CI/CD, Docker, and deployment are set up in Phase 0. Every subsequent phase deploys to a staging environment. No "big bang" production deployment. |
-| **AI is a feature, not a foundation** | The core CRUD and pipeline work without AI. AI scoring, parsing, and search are layered on top. If the AI service goes down, the pipeline still works. |
+| Principle                             | Meaning                                                                                                                                                                            |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Backend-first**                     | Build APIs before UI. Every feature starts with the database migration, then the API endpoint, then the frontend. This prevents frontend teams from blocking on backend decisions. |
+| **Vertical slices**                   | Each phase delivers a complete, testable feature — not a "backend phase" followed by a "frontend phase." A phase ships a working feature from database to UI.                      |
+| **Continuous testing**                | Tests are written during each phase, not after. No phase is "done" until tests pass. No "testing sprint" at the end.                                                               |
+| **Infrastructure early**              | CI/CD, Docker, and deployment are set up in Phase 0. Every subsequent phase deploys to a staging environment. No "big bang" production deployment.                                 |
+| **AI is a feature, not a foundation** | The core CRUD and pipeline work without AI. AI scoring, parsing, and search are layered on top. If the AI service goes down, the pipeline still works.                             |
 
 ### Definition of Implementation Complete
 
@@ -86,24 +86,24 @@ graph TD
     INFRA --> FE
 ```
 
-| Layer | Must Be Ready Before |
-|---|---|
+| Layer              | Must Be Ready Before                                              |
+| ------------------ | ----------------------------------------------------------------- |
 | **Infrastructure** | Everything — Docker, CI/CD, and local dev environment are Phase 0 |
-| **Database** | Each feature's API — migrations run before endpoint code |
-| **Backend API** | Each feature's frontend — UI consumes API endpoints |
-| **AI Service** | Scoring (Phase 8), parsing (Phase 6), search (Phase 9) |
-| **Frontend** | Nothing — frontend is the last layer for each feature |
+| **Database**       | Each feature's API — migrations run before endpoint code          |
+| **Backend API**    | Each feature's frontend — UI consumes API endpoints               |
+| **AI Service**     | Scoring (Phase 8), parsing (Phase 6), search (Phase 9)            |
+| **Frontend**       | Nothing — frontend is the last layer for each feature             |
 
 ### Risk Reduction Strategy
 
 The highest-risk items are tackled early:
 
-| Risk | When Addressed | Why Early |
-|---|---|---|
-| Multi-tenant isolation (RLS) | Phase 1 | A bug here leaks data between tenants. Validate immediately. |
-| AI pipeline (parsing → embedding → scoring) | Phases 6–8 | This is the novel technology. Prove it works before building UI on top. |
-| File upload → S3 → async processing | Phase 5–6 | Async processing is architecturally complex. Validate the queue pipeline early. |
-| Vector search performance | Phase 9 | If pgvector can't handle our load, we need to know before launch, not after. |
+| Risk                                        | When Addressed | Why Early                                                                       |
+| ------------------------------------------- | -------------- | ------------------------------------------------------------------------------- |
+| Multi-tenant isolation (RLS)                | Phase 1        | A bug here leaks data between tenants. Validate immediately.                    |
+| AI pipeline (parsing → embedding → scoring) | Phases 6–8     | This is the novel technology. Prove it works before building UI on top.         |
+| File upload → S3 → async processing         | Phase 5–6      | Async processing is architecturally complex. Validate the queue pipeline early. |
+| Vector search performance                   | Phase 9        | If pgvector can't handle our load, we need to know before launch, not after.    |
 
 ---
 
@@ -118,6 +118,7 @@ The highest-risk items are tackled early:
 **Features**: No user-facing features. Developer tooling only.
 
 **Backend Tasks**:
+
 - Initialize Python project with `pyproject.toml` (Poetry)
 - Create FastAPI application skeleton with health endpoints (`GET /api/v1/health`, `GET /api/v1/health/ready`)
 - Configure `mypy --strict`, `ruff`, `black`, `isort`
@@ -127,6 +128,7 @@ The highest-risk items are tackled early:
 - Set up pytest with fixtures for test database, test client
 
 **Frontend Tasks**:
+
 - Initialize Next.js 15 project with App Router and TypeScript
 - Install and configure Tailwind CSS + shadcn/ui
 - Set up ESLint + Prettier
@@ -136,6 +138,7 @@ The highest-risk items are tackled early:
 - Create base API client (`httpClient`) per Engineering Guidelines §4.5
 
 **Database Tasks**:
+
 - Configure Alembic with naming conventions per Engineering Guidelines §8
 - Create initial migration: `tenants` table (schema only — populated in Phase 1)
 - Set up pgvector extension: `CREATE EXTENSION vector`
@@ -144,6 +147,7 @@ The highest-risk items are tackled early:
 **AI Tasks**: None
 
 **Infrastructure Tasks**:
+
 - Create monorepo structure per Engineering Guidelines §5.1:
   ```
   hiron/
@@ -164,16 +168,19 @@ The highest-risk items are tackled early:
 - Write development `README.md` with setup instructions
 
 **Testing Tasks**:
+
 - Verify `docker-compose up` starts all services
 - Verify health endpoints return `200`
 - Verify CI pipeline passes on clean repo
 - Verify linters and type checkers pass with zero errors
 
 **Documentation Tasks**:
+
 - Development setup guide in `README.md`
 - Copy frozen design docs into `docs/`
 
 **Deliverables**:
+
 - Running local development environment with one command (`docker-compose up`)
 - Passing CI pipeline
 - Health endpoints live
@@ -182,6 +189,7 @@ The highest-risk items are tackled early:
 **Dependencies**: None (this is the starting point)
 
 **Acceptance Criteria**:
+
 - [ ] `docker-compose up` starts PostgreSQL, Redis, API, Web, Worker
 - [ ] `GET /api/v1/health` returns `200 { "status": "healthy" }`
 - [ ] `GET /api/v1/health/ready` returns `200` with DB and Redis checks passing
@@ -193,6 +201,7 @@ The highest-risk items are tackled early:
 - [ ] All frozen design docs present in `docs/`
 
 **Risks**:
+
 - Docker environment inconsistencies across developer machines → Mitigate with `.env.local.example` and setup script
 - pgvector extension installation failure → Document PostgreSQL 16 + pgvector Docker image
 
@@ -205,6 +214,7 @@ The highest-risk items are tackled early:
 **Objective**: Implement the complete authentication system (login, logout, token refresh, password hashing) and multi-tenant isolation (tenant_id extraction, RLS policies). After this phase, every subsequent feature is automatically tenant-isolated.
 
 **Features**:
+
 - Email/password login
 - JWT access token (15-min TTL) + refresh token (7-day TTL, httpOnly cookie)
 - Refresh token rotation (single-use)
@@ -213,6 +223,7 @@ The highest-risk items are tackled early:
 - Row-Level Security enforcement on all queries
 
 **Backend Tasks**:
+
 - Implement Argon2id password hashing utility
 - Implement JWT creation/validation (RS256)
 - Create auth endpoints: `POST /auth/login`, `POST /auth/logout`, `POST /auth/refresh`, `GET /auth/me`
@@ -223,6 +234,7 @@ The highest-risk items are tackled early:
 - Create seed script for development: create tenant + admin user
 
 **Frontend Tasks**:
+
 - Build Login page per UI/UX Design §Login
 - Build Forgot Password page (email-only flow)
 - Implement auth state management (access token in memory, refresh via httpOnly cookie)
@@ -232,6 +244,7 @@ The highest-risk items are tackled early:
 - Build app shell with sidebar navigation per UI/UX Design §25
 
 **Database Tasks**:
+
 - Migration: `tenants` table (full schema per Database Design §5.1)
 - Migration: `users` table (full schema per Database Design §5.2)
 - Migration: `refresh_tokens` table (full schema per Database Design §5.3)
@@ -241,10 +254,12 @@ The highest-risk items are tackled early:
 **AI Tasks**: None
 
 **Infrastructure Tasks**:
+
 - Configure JWT key pair (RS256) generation and storage
 - Add secrets management to Docker Compose (JWT keys, DB password)
 
 **Testing Tasks**:
+
 - Unit: password hashing round-trip, JWT creation/validation, token expiry
 - Integration: login flow (correct credentials → tokens), login failure (wrong password → 401)
 - Integration: refresh token rotation (use → get new tokens → old token rejected)
@@ -253,9 +268,11 @@ The highest-risk items are tackled early:
 - Frontend: Login page renders, form validation, error display, redirect on success
 
 **Documentation Tasks**:
+
 - Auth flow documented in API docs (auto-generated from OpenAPI)
 
 **Deliverables**:
+
 - Working login/logout flow
 - Protected routes — unauthenticated users redirect to login
 - Multi-tenant RLS verified with two test tenants
@@ -263,6 +280,7 @@ The highest-risk items are tackled early:
 **Dependencies**: Phase 0
 
 **Acceptance Criteria**:
+
 - [ ] User can log in with email + password
 - [ ] Access token expires after 15 minutes
 - [ ] Refresh token successfully rotates (old token rejected)
@@ -274,6 +292,7 @@ The highest-risk items are tackled early:
 - [ ] Rate limiting on login endpoint (10/min per IP)
 
 **Risks**:
+
 - RLS misconfiguration leaks data → Mitigate with dedicated integration tests that assert zero cross-tenant rows
 - JWT key management complexity → Use RS256 with key pair stored in environment variables (production: AWS Secrets Manager)
 
@@ -286,6 +305,7 @@ The highest-risk items are tackled early:
 **Objective**: Enable org admins to manage their team — invite users, change roles, deactivate/reactivate accounts.
 
 **Features**:
+
 - List team members
 - Invite user by email
 - Update user profile and role
@@ -293,6 +313,7 @@ The highest-risk items are tackled early:
 - Role-based access control enforcement
 
 **Backend Tasks**:
+
 - Implement user endpoints: `GET /users`, `GET /users/{id}`, `POST /users/invite`, `PATCH /users/{id}`, `POST /users/{id}/deactivate`, `POST /users/{id}/reactivate`
 - Implement role-based authorization decorator (check `role` claim from JWT)
 - Enforce: org_admin can manage all users, recruiters/HMs can only view
@@ -300,6 +321,7 @@ The highest-risk items are tackled early:
 - Create email invitation flow (generate temporary password or magic link)
 
 **Frontend Tasks**:
+
 - Build User Management page per UI/UX Design §User Management
 - Build Invite User modal (email, name, role selection)
 - Build role badge component
@@ -307,6 +329,7 @@ The highest-risk items are tackled early:
 - Implement permission-based UI (hide invite/edit buttons for non-admins)
 
 **Database Tasks**:
+
 - Users table already migrated in Phase 1 — no new migrations
 - Seed: Add recruiter and hiring_manager users for testing
 
@@ -315,6 +338,7 @@ The highest-risk items are tackled early:
 **Infrastructure Tasks**: None
 
 **Testing Tasks**:
+
 - Unit: role authorization logic
 - Integration: invite user → user appears in list
 - Integration: role change (recruiter → admin)
@@ -323,12 +347,14 @@ The highest-risk items are tackled early:
 - Integration: RBAC — recruiter cannot invite users (403)
 
 **Deliverables**:
+
 - Team management page with invite, role change, deactivate
 - RBAC enforcement on all existing endpoints
 
 **Dependencies**: Phase 1
 
 **Acceptance Criteria**:
+
 - [ ] Org admin can invite a user with a specific role
 - [ ] Org admin can change a user's role
 - [ ] Org admin can deactivate/reactivate users
@@ -338,6 +364,7 @@ The highest-risk items are tackled early:
 - [ ] All actions create audit log entries
 
 **Risks**:
+
 - Email delivery for invitations → Use a simple email service (SES) or skip email in MVP and share invite links manually
 
 **Estimated Complexity**: Medium
@@ -349,6 +376,7 @@ The highest-risk items are tackled early:
 **Objective**: Implement the job lifecycle — create, edit, open, close, archive jobs. Auto-create pipeline stages from tenant settings. First feature that represents core business value.
 
 **Features**:
+
 - Job CRUD (create, read, update, archive)
 - Job status transitions (draft → open → paused → closed → archived)
 - Auto-creation of default pipeline stages
@@ -356,6 +384,7 @@ The highest-risk items are tackled early:
 - Full-text search on jobs
 
 **Backend Tasks**:
+
 - Implement job endpoints: `GET /jobs`, `GET /jobs/{id}`, `POST /jobs`, `PATCH /jobs/{id}`, `POST /jobs/{id}/archive`, `POST /jobs/{id}/open`, `POST /jobs/{id}/close`
 - Auto-create pipeline stages from `tenants.settings.defaults.pipelineStages` on job creation
 - Implement full-text search trigger (update `search_vector` on INSERT/UPDATE)
@@ -364,6 +393,7 @@ The highest-risk items are tackled early:
 - Implement sorting per API Contract §11
 
 **Frontend Tasks**:
+
 - Build Jobs List page per UI/UX Design §Jobs List
 - Build Create Job page with live preview per UI/UX Design §Create Job
 - Build Job Detail page with tabs per UI/UX Design §Job Detail (Kanban tab deferred to Phase 10)
@@ -372,6 +402,7 @@ The highest-risk items are tackled early:
 - Build skills input component (tag-style multi-select)
 
 **Database Tasks**:
+
 - Migration: `jobs` table (full schema per Database Design §5.4)
 - Migration: `pipeline_stages` table (full schema per Database Design §5.8)
 - Migration: Full-text search trigger on `jobs.search_vector`
@@ -382,6 +413,7 @@ The highest-risk items are tackled early:
 **Infrastructure Tasks**: None
 
 **Testing Tasks**:
+
 - Unit: job status transition validation (draft → open ✓, closed → open ✗)
 - Integration: CRUD cycle (create → read → update → archive)
 - Integration: pipeline stages auto-created on job creation
@@ -391,6 +423,7 @@ The highest-risk items are tackled early:
 - Frontend: form validation, filter interaction, pagination navigation
 
 **Deliverables**:
+
 - Complete job management with pipeline stages
 - Full-text search on jobs
 - Paginated, filterable job list
@@ -398,6 +431,7 @@ The highest-risk items are tackled early:
 **Dependencies**: Phase 1 (auth), Phase 2 (RBAC)
 
 **Acceptance Criteria**:
+
 - [ ] Recruiter can create a job with title, description, skills
 - [ ] Default pipeline stages auto-created from tenant settings
 - [ ] Job status transitions enforce valid state machine
@@ -418,6 +452,7 @@ The highest-risk items are tackled early:
 **Objective**: Implement candidate pool management — create candidates, view profiles, link candidates to jobs. The candidate pool is the data foundation for all AI features.
 
 **Features**:
+
 - Candidate CRUD
 - Candidate profile with parsed resume display
 - Add candidate to job (creates `job_candidates` junction record)
@@ -425,6 +460,7 @@ The highest-risk items are tackled early:
 - Duplicate detection by email
 
 **Backend Tasks**:
+
 - Implement candidate endpoints: `GET /candidates`, `GET /candidates/{id}`, `POST /candidates`, `PATCH /candidates/{id}`, `POST /candidates/{id}/archive`
 - Implement `POST /jobs/{jobId}/candidates` (add candidate to job, set initial stage)
 - Implement full-text search trigger on `candidates.search_vector`
@@ -432,6 +468,7 @@ The highest-risk items are tackled early:
 - Implement duplicate detection: reject if `(tenant_id, email)` already exists
 
 **Frontend Tasks**:
+
 - Build Candidates List page per UI/UX Design §Candidates List
 - Build Candidate Detail page per UI/UX Design §Candidate Detail (Profile tab only, other tabs in later phases)
 - Build Create Candidate form
@@ -439,6 +476,7 @@ The highest-risk items are tackled early:
 - Implement filter bar with skills, experience, location, source filters
 
 **Database Tasks**:
+
 - Migration: `candidates` table (full schema per Database Design §5.5)
 - Migration: `job_candidates` table (full schema per Database Design §5.9)
 - Migration: Full-text search trigger on `candidates.search_vector`
@@ -449,6 +487,7 @@ The highest-risk items are tackled early:
 **Infrastructure Tasks**: None
 
 **Testing Tasks**:
+
 - Integration: CRUD cycle for candidates
 - Integration: add candidate to job → appears in job's candidate list
 - Integration: duplicate email detection → 409 Conflict
@@ -458,6 +497,7 @@ The highest-risk items are tackled early:
 - Frontend: form validation, filter interaction, candidate detail navigation
 
 **Deliverables**:
+
 - Complete candidate pool management
 - Candidate-to-job association with initial stage placement
 - Filterable, searchable candidate list
@@ -465,6 +505,7 @@ The highest-risk items are tackled early:
 **Dependencies**: Phase 3 (jobs + pipeline stages)
 
 **Acceptance Criteria**:
+
 - [ ] Recruiter can create a candidate manually
 - [ ] Recruiter can add a candidate to a job (auto-placed in first stage)
 - [ ] Duplicate email per tenant returns 409
@@ -483,6 +524,7 @@ The highest-risk items are tackled early:
 **Objective**: Implement file upload to S3 and the resume record lifecycle. This phase handles the file upload mechanics WITHOUT parsing (parsing is Phase 6).
 
 **Features**:
+
 - Single resume upload (drag-and-drop)
 - Bulk resume upload (up to 500 files)
 - S3 storage with tenant-isolated key structure
@@ -490,6 +532,7 @@ The highest-risk items are tackled early:
 - Resume file download via pre-signed URL
 
 **Backend Tasks**:
+
 - Implement `POST /resumes/upload` (multipart/form-data)
 - Implement `POST /resumes/bulk-upload`
 - Implement `GET /resumes/{id}/status`
@@ -501,6 +544,7 @@ The highest-risk items are tackled early:
 - Implement idempotency (prevent duplicate uploads via `Idempotency-Key`)
 
 **Frontend Tasks**:
+
 - Build Resume Upload page per UI/UX Design §Resume Upload
 - Implement react-dropzone with drag-and-drop zone
 - Implement client-side validation (file type, size) with immediate feedback
@@ -509,17 +553,20 @@ The highest-risk items are tackled early:
 - Build resume download button (pre-signed URL)
 
 **Database Tasks**:
+
 - Migration: `resumes` table (full schema per Database Design §5.6)
 - Migration: `resume_files` table (full schema per Database Design §5.7)
 
 **AI Tasks**: None (parsing in Phase 6)
 
 **Infrastructure Tasks**:
+
 - Create S3 bucket with tenant-isolated key structure
 - Configure S3 bucket policy (no public access)
 - Configure pre-signed URL generation (15-minute expiry)
 
 **Testing Tasks**:
+
 - Integration: upload PDF → stored in S3 → resume record created with `status: pending`
 - Integration: file type validation (reject `.jpg`, accept `.pdf`)
 - Integration: file size validation (reject > 10 MB)
@@ -529,6 +576,7 @@ The highest-risk items are tackled early:
 - Frontend: drag-and-drop interaction, progress display, error handling
 
 **Deliverables**:
+
 - Working file upload to S3
 - Resume status tracking
 - Bulk upload support
@@ -536,6 +584,7 @@ The highest-risk items are tackled early:
 **Dependencies**: Phase 4 (candidates)
 
 **Acceptance Criteria**:
+
 - [ ] User can drag-and-drop a PDF/DOCX/TXT resume
 - [ ] File uploaded to S3 at `{tenantId}/{resumeId}/original.{ext}`
 - [ ] Resume record created with `status: pending`
@@ -546,6 +595,7 @@ The highest-risk items are tackled early:
 - [ ] Idempotency prevents duplicate uploads
 
 **Risks**:
+
 - S3 configuration errors (CORS, bucket policy) → Test in CI with localstack or MinIO
 - Large file upload timeouts → Configure appropriate timeouts on ALB and FastAPI
 
@@ -558,6 +608,7 @@ The highest-risk items are tackled early:
 **Objective**: Implement the AI-powered resume parsing pipeline. This is the first AI integration — it validates the entire async processing architecture (Celery queue → Worker → AI Service → database update).
 
 **Features**:
+
 - Async resume parsing via Celery worker
 - spaCy NER extraction (name, email, phone, skills, experience, education)
 - Candidate profile auto-enrichment from parsed data
@@ -566,6 +617,7 @@ The highest-risk items are tackled early:
 - Raw text extraction and hashing
 
 **Backend Tasks**:
+
 - Implement Celery task: `parse_resume`
 - Implement text extraction (PDF → text via `pdfplumber`, DOCX → text via `python-docx`)
 - Compute `raw_text_hash` (SHA-256) for staleness detection
@@ -578,16 +630,19 @@ The highest-risk items are tackled early:
 - Log to `ai_usage_logs`
 
 **Frontend Tasks**:
+
 - Update Resume Upload page: show parsed data when complete
 - Build resume parsed data display in Candidate Detail (experience timeline, education, skills)
 - Show parse confidence badge
 - Show retry button for failed parses
 
 **Database Tasks**:
+
 - No new migrations (tables created in Phase 5)
 - Seed: sample parsed resume data for development
 
 **AI Tasks**:
+
 - Set up AI Service (FastAPI)
 - Implement spaCy NER pipeline for resume parsing
 - Create Pydantic models for parsed resume data (per Database Design §5.6 `parsed_data` schema)
@@ -595,11 +650,13 @@ The highest-risk items are tackled early:
 - Version the parser model (`parser_model_version` field)
 
 **Infrastructure Tasks**:
+
 - Configure Celery with Redis broker
 - Set up Celery worker container in Docker Compose
 - Configure task retry policy (3 retries, exponential backoff)
 
 **Testing Tasks**:
+
 - Unit: text extraction from sample PDF/DOCX/TXT
 - Unit: NER extraction accuracy on 10+ sample resumes
 - Integration: upload → queue → parse → candidate enriched (full pipeline)
@@ -608,6 +665,7 @@ The highest-risk items are tackled early:
 - AI evaluation: parser accuracy benchmarks on test dataset
 
 **Deliverables**:
+
 - End-to-end resume parsing pipeline
 - Candidate auto-enrichment from parsed data
 - Parse confidence scoring
@@ -616,6 +674,7 @@ The highest-risk items are tackled early:
 **Dependencies**: Phase 5 (resume upload), Phase 0 (Celery/Redis infrastructure)
 
 **Acceptance Criteria**:
+
 - [ ] Uploaded resume is automatically parsed within 30 seconds
 - [ ] Parsed data includes: name, email, phone, skills, experience, education
 - [ ] Candidate profile auto-enriched with parsed data
@@ -626,6 +685,7 @@ The highest-risk items are tackled early:
 - [ ] Status polling reflects real-time parse progress
 
 **Risks**:
+
 - spaCy model accuracy on diverse resume formats → Start with `en_core_web_trf` (transformer-based), plan to fine-tune
 - PDF text extraction failures (scanned PDFs, encrypted files) → Log errors clearly, mark as `failed` with descriptive error message
 - Celery worker stability → Health checks on worker container, auto-restart policy
@@ -639,6 +699,7 @@ The highest-risk items are tackled early:
 **Objective**: Generate vector embeddings for candidates (from resume text) and jobs (from description text). This phase creates the data foundation for scoring (Phase 8) and semantic search (Phase 9).
 
 **Features**:
+
 - Candidate embedding generation (from `resumes.raw_text`)
 - Job embedding generation (from `jobs.description`)
 - Embedding staleness detection via `source_text_hash`
@@ -646,6 +707,7 @@ The highest-risk items are tackled early:
 - Embedding status dashboard
 
 **Backend Tasks**:
+
 - Implement embedding generation Celery task
 - Call OpenAI `text-embedding-3-small` API (1536 dimensions)
 - Store embedding in `candidate_embeddings` / `job_embeddings`
@@ -658,25 +720,30 @@ The highest-risk items are tackled early:
 - Log to `ai_usage_logs`
 
 **Frontend Tasks**:
+
 - Build Embedding Status page per UI/UX Design §Embeddings
 - Show embedding status indicators on candidate/job detail pages
 - Add "Regenerate Embedding" action to candidate/job menus
 
 **Database Tasks**:
+
 - Migration: `candidate_embeddings` table with HNSW index (per Database Design §5.11)
 - Migration: `job_embeddings` table (per Database Design §5.12)
 - Configure HNSW index: `m=16`, `ef_construction=64`, cosine distance
 
 **AI Tasks**:
+
 - Implement embedding service in AI Service
 - Create embedding request/response models
 - Implement batch embedding for efficiency (process multiple texts in one API call)
 - Handle OpenAI API rate limits with retry and backoff
 
 **Infrastructure Tasks**:
+
 - Configure OpenAI API key in environment/secrets
 
 **Testing Tasks**:
+
 - Unit: embedding dimension validation (1536)
 - Integration: parse complete → embedding auto-generated
 - Integration: job description update → new embedding with updated `source_text_hash`
@@ -685,6 +752,7 @@ The highest-risk items are tackled early:
 - Performance: HNSW index build time on 10K sample vectors
 
 **Deliverables**:
+
 - Automatic embedding generation for candidates and jobs
 - Staleness detection and regeneration
 - Embedding coverage dashboard
@@ -692,6 +760,7 @@ The highest-risk items are tackled early:
 **Dependencies**: Phase 6 (parsed resume text), Phase 3 (job descriptions)
 
 **Acceptance Criteria**:
+
 - [ ] Candidate embedding auto-generated after resume parsing
 - [ ] Job embedding auto-generated after job creation
 - [ ] Embeddings are 1536-dimensional vectors
@@ -701,6 +770,7 @@ The highest-risk items are tackled early:
 - [ ] `ai_usage_logs` tracks token usage and cost
 
 **Risks**:
+
 - OpenAI API costs at scale → Monitor via `ai_usage_logs`, implement batch processing
 - HNSW index build time on large datasets → Acceptable at < 10M vectors per Architecture decision
 
@@ -713,6 +783,7 @@ The highest-risk items are tackled early:
 **Objective**: Implement the core AI feature — scoring candidates against job descriptions using LLM evaluation with structured output. This is the highest-value feature in Hiron.
 
 **Features**:
+
 - Score a single candidate against a job (synchronous)
 - Batch score all candidates for a job (async)
 - Re-score with updated prompts/models
@@ -724,6 +795,7 @@ The highest-risk items are tackled early:
 - AI provenance (prompt version, model version, token usage)
 
 **Backend Tasks**:
+
 - Implement `POST /jobs/{jobId}/candidates/{candidateId}/score` (single, sync)
 - Implement `POST /jobs/{jobId}/score-batch` (async via Celery)
 - Implement `GET /jobs/{jobId}/candidates/{candidateId}/score` (current score)
@@ -738,6 +810,7 @@ The highest-risk items are tackled early:
 - Log to `ai_usage_logs` with full token breakdown
 
 **Frontend Tasks**:
+
 - Build AI Scoring page per UI/UX Design §AI Scoring
 - Build score gauge component (circular progress with color coding)
 - Build breakdown bar chart
@@ -750,9 +823,11 @@ The highest-risk items are tackled early:
 - Build batch scoring progress indicator
 
 **Database Tasks**:
+
 - Migration: `scores` table (full schema per Database Design §5.10)
 
 **AI Tasks**:
+
 - Design scoring prompt template (version 1.0.0)
 - Implement LLM call with structured output (JSON mode)
 - Implement scoring pipeline in AI Service:
@@ -768,6 +843,7 @@ The highest-risk items are tackled early:
 **Infrastructure Tasks**: None
 
 **Testing Tasks**:
+
 - Unit: cosine similarity calculation
 - Unit: structured output parsing (valid JSON → score object)
 - Unit: hallucination check (claimed skills not in resume → warning)
@@ -780,6 +856,7 @@ The highest-risk items are tackled early:
 - AI evaluation: measure prompt latency (target < 5s per score)
 
 **Deliverables**:
+
 - Single and batch candidate scoring
 - Score breakdown with explanation
 - Confidence scoring and hallucination detection
@@ -788,6 +865,7 @@ The highest-risk items are tackled early:
 **Dependencies**: Phase 7 (embeddings), Phase 4 (candidates + job_candidates)
 
 **Acceptance Criteria**:
+
 - [ ] Single candidate score completes in < 5 seconds
 - [ ] Score includes: fitScore (0–100), breakdown (skills/experience/education), explanation, confidence
 - [ ] Skills gap analysis shows matched and missing skills
@@ -799,6 +877,7 @@ The highest-risk items are tackled early:
 - [ ] `ai_usage_logs` records cost per score
 
 **Risks**:
+
 - LLM output format inconsistency → Enforce JSON mode + Pydantic validation + retry on parse failure
 - Scoring latency > 5s → Monitor latency, consider caching aggressive
 - OpenAI API outages → Implement graceful degradation (show "AI unavailable" banner, pipeline works without scores)
@@ -812,6 +891,7 @@ The highest-risk items are tackled early:
 **Objective**: Implement natural language search across the candidate pool using vector embeddings and pgvector.
 
 **Features**:
+
 - Natural language query → embedding → vector similarity search
 - Combined with metadata filters (experience, skills, location)
 - Relevance scores on results
@@ -819,6 +899,7 @@ The highest-risk items are tackled early:
 - Save and re-run searches (Phase 2 feature — save endpoint implemented but UI deferred)
 
 **Backend Tasks**:
+
 - Implement `POST /search/candidates`
 - Generate query embedding via AI Service
 - Execute pgvector similarity search: `ORDER BY embedding <=> query_vector LIMIT K`
@@ -828,6 +909,7 @@ The highest-risk items are tackled early:
 - Log to `ai_usage_logs`
 
 **Frontend Tasks**:
+
 - Build Semantic Search page per UI/UX Design §Semantic Search
 - Build search input with placeholder examples
 - Build filter chips below search
@@ -836,16 +918,19 @@ The highest-risk items are tackled early:
 - Implement search loading state with skeleton cards
 
 **Database Tasks**:
+
 - No new migrations (embedding tables created in Phase 7)
 - Migration: `saved_searches` table (Phase 2 feature, per Database Design §5.18)
 
 **AI Tasks**:
+
 - Implement query embedding in AI Service (same model as candidate embeddings)
 - Implement relevance score normalization (cosine distance → 0–100% relevance)
 
 **Infrastructure Tasks**: None
 
 **Testing Tasks**:
+
 - Integration: search query → embedding generated → similar candidates returned
 - Integration: filters applied alongside vector search
 - Integration: empty result set for unrelated query
@@ -853,6 +938,7 @@ The highest-risk items are tackled early:
 - Performance: search latency on 100K candidate pool (target < 2s per NFR)
 
 **Deliverables**:
+
 - Working semantic search with relevance scores
 - Combined vector + metadata filtering
 - Saved searches (data layer)
@@ -860,6 +946,7 @@ The highest-risk items are tackled early:
 **Dependencies**: Phase 7 (populated embeddings)
 
 **Acceptance Criteria**:
+
 - [ ] Natural language query returns relevant candidates ranked by similarity
 - [ ] Relevance scores displayed as percentages
 - [ ] Filters combine with semantic search (AND logic)
@@ -868,6 +955,7 @@ The highest-risk items are tackled early:
 - [ ] Saved search creates record (basic functionality)
 
 **Risks**:
+
 - Search quality depends on embedding coverage → Show warning if < 80% candidates have embeddings
 - pgvector performance at scale → Monitor query plans with `EXPLAIN ANALYZE`
 
@@ -880,6 +968,7 @@ The highest-risk items are tackled early:
 **Objective**: Implement the drag-and-drop Kanban board for managing candidate stages within a job. This is the primary operational interface for recruiters.
 
 **Features**:
+
 - Kanban board with draggable candidate cards
 - Move candidate between stages (drag-and-drop)
 - Stage transition history (timeline)
@@ -888,6 +977,7 @@ The highest-risk items are tackled early:
 - Candidate count per stage
 
 **Backend Tasks**:
+
 - Implement `POST /pipeline/move` (move candidate to stage)
 - Implement `GET /jobs/{jobId}/candidates/{candidateId}/stage-history`
 - Implement `POST /jobs/{jobId}/candidates/{candidateId}/shortlist`
@@ -897,6 +987,7 @@ The highest-risk items are tackled early:
 - Update `job_candidates.current_stage_id` atomically
 
 **Frontend Tasks**:
+
 - Build Pipeline/Kanban page per UI/UX Design §Pipeline
 - Implement @dnd-kit drag-and-drop with columns per stage
 - Build candidate card component (name, title, score badge, confidence indicator)
@@ -907,6 +998,7 @@ The highest-risk items are tackled early:
 - Handle mobile: single-column with stage selector dropdown
 
 **Database Tasks**:
+
 - Migration: `candidate_stage_history` table (per Database Design §5.13)
 - `pipeline_stages` and `job_candidates` already migrated
 
@@ -915,6 +1007,7 @@ The highest-risk items are tackled early:
 **Infrastructure Tasks**: None
 
 **Testing Tasks**:
+
 - Integration: move candidate from Applied → Screening → history record created
 - Integration: reject candidate → moved to rejected stage + reason stored
 - Integration: shortlist → `is_shortlisted = TRUE`
@@ -923,6 +1016,7 @@ The highest-risk items are tackled early:
 - Frontend: drag-and-drop interaction, optimistic update, error rollback
 
 **Deliverables**:
+
 - Fully functional Kanban pipeline board
 - Stage transitions with audit trail
 - Shortlist and reject workflows
@@ -930,6 +1024,7 @@ The highest-risk items are tackled early:
 **Dependencies**: Phase 4 (job_candidates), Phase 3 (pipeline_stages)
 
 **Acceptance Criteria**:
+
 - [ ] Kanban board shows all stages with candidate cards
 - [ ] Drag-and-drop moves candidate between stages
 - [ ] Move creates stage history record with actor and timestamp
@@ -940,6 +1035,7 @@ The highest-risk items are tackled early:
 - [ ] Cards show score and confidence from Phase 8
 
 **Risks**:
+
 - Drag-and-drop accessibility → Implement keyboard-based move (Space to pick up, arrows to navigate, Enter to drop)
 - Optimistic update conflicts (two users moving same candidate) → Implement server-side conflict detection, show toast on conflict
 
@@ -952,6 +1048,7 @@ The highest-risk items are tackled early:
 **Objective**: Implement collaborative features — notes with @mentions and tagging system for candidate organization.
 
 **Features**:
+
 - Candidate notes CRUD
 - @mention other team members in notes
 - Private notes (visible only to author)
@@ -959,6 +1056,7 @@ The highest-risk items are tackled early:
 - Filter candidates by tag
 
 **Backend Tasks**:
+
 - Implement `GET /candidates/{id}/notes`, `POST /candidates/{id}/notes`, `PATCH /candidates/{id}/notes/{noteId}`, `DELETE /candidates/{id}/notes/{noteId}`
 - Implement `GET /candidates/{id}/tags`, `POST /candidates/{id}/tags`, `DELETE /candidates/{id}/tags/{tagId}`
 - Private note filtering (only author can see `is_private = TRUE` notes)
@@ -966,6 +1064,7 @@ The highest-risk items are tackled early:
 - Duplicate tag prevention (409 on existing tag)
 
 **Frontend Tasks**:
+
 - Build Notes tab in Candidate Detail per UI/UX Design §Candidate Notes
 - Implement Tiptap rich text editor for notes with @mention support
 - Build private note toggle
@@ -975,12 +1074,14 @@ The highest-risk items are tackled early:
 - Add tag filter to Candidates List filter bar
 
 **Database Tasks**:
+
 - Migration: `candidate_notes` table (per Database Design §5.14)
 - Migration: `candidate_tags` table (per Database Design §5.15)
 
 **AI Tasks**: None
 
 **Testing Tasks**:
+
 - Integration: CRUD cycle for notes and tags
 - Integration: private notes invisible to other users
 - Integration: duplicate tag returns 409
@@ -988,12 +1089,14 @@ The highest-risk items are tackled early:
 - Integration: org_admin can delete any note
 
 **Deliverables**:
+
 - Notes with @mentions and privacy controls
 - Tags with autocomplete and filtering
 
 **Dependencies**: Phase 4 (candidates)
 
 **Acceptance Criteria**:
+
 - [ ] Users can create, edit, and delete notes
 - [ ] Private notes visible only to author
 - [ ] @mentions render as linked user names
@@ -1013,16 +1116,19 @@ The highest-risk items are tackled early:
 **Objective**: Build the dashboard landing page with aggregated metrics, pipeline overview, and recent activity feed.
 
 **Features**:
+
 - Metric cards: open jobs, total candidates, scored candidates, hired count
 - Pipeline overview (jobs with candidate counts and progress bars)
 - Recent activity feed (from audit logs)
 - Onboarding wizard (for new tenants with no data)
 
 **Backend Tasks**:
+
 - Implement dashboard metrics endpoint (or derive from existing endpoints)
 - Optimize queries for dashboard aggregation (ensure indexes support COUNT queries)
 
 **Frontend Tasks**:
+
 - Build Dashboard page per UI/UX Design §Dashboard
 - Build MetricCard component with trend indicator
 - Build PipelineOverview component with mini progress bars
@@ -1035,17 +1141,20 @@ The highest-risk items are tackled early:
 **AI Tasks**: None
 
 **Testing Tasks**:
+
 - Integration: dashboard metrics match actual data counts
 - Frontend: empty state shows onboarding wizard
 - Frontend: metric cards display correct values
 
 **Deliverables**:
+
 - Fully functional dashboard with live metrics
 - Onboarding experience for new tenants
 
 **Dependencies**: Phase 3 (jobs), Phase 4 (candidates), Phase 8 (scores), Phase 13 (audit logs)
 
 **Acceptance Criteria**:
+
 - [ ] Dashboard shows correct counts for open jobs, candidates, scores, hired
 - [ ] Pipeline overview shows top 5 open jobs with candidate counts
 - [ ] Recent activity shows last 10 audit log entries
@@ -1063,41 +1172,48 @@ The highest-risk items are tackled early:
 **Objective**: Implement the queryable audit log viewer. The audit log TABLE has been populated by all previous phases (each mutation creates an audit entry). This phase builds the UI and API for querying it.
 
 **Features**:
+
 - Filterable, paginated audit log viewer
 - Filter by entity type, action, actor, date range
 - Entity-specific audit trail
 
 **Backend Tasks**:
+
 - Implement `GET /audit-logs` with query parameters
 - Implement `GET /audit-logs/entity/{entity_type}/{entity_id}`
 - Ensure audit log middleware is capturing all mutations from Phases 1–12
 - Implement org_admin vs. recruiter (own actions only) authorization
 
 **Frontend Tasks**:
+
 - Build Audit Logs page per UI/UX Design §Audit Logs
 - Build filter bar (entity type, action, actor, date range)
 - Build activity timeline with actor, action, entity, and timestamp
 - Build expandable change diff (before/after values)
 
 **Database Tasks**:
+
 - Migration: `audit_logs` table (per Database Design §5.17) — if not already created
 - Ensure audit log insertion is happening across all service endpoints
 
 **AI Tasks**: None
 
 **Testing Tasks**:
+
 - Integration: creating a candidate → audit log entry exists
 - Integration: updating a job → audit log entry with changes (before/after)
 - Integration: recruiter sees only own actions
 - Integration: org_admin sees all actions
 
 **Deliverables**:
+
 - Queryable audit log with filtering and pagination
 - Per-entity audit trail
 
 **Dependencies**: Phase 1 (auth/tenancy for audit actor tracking)
 
 **Acceptance Criteria**:
+
 - [ ] All mutations from Phases 1–12 create audit entries
 - [ ] Audit log supports filtering by entity type, action, actor, date
 - [ ] Changes show before/after values for updates
@@ -1116,6 +1232,7 @@ The highest-risk items are tackled early:
 **Objective**: Build the AI cost and usage analytics dashboard for org admins.
 
 **Features**:
+
 - Total cost, tokens, operations metrics
 - Daily cost trend chart
 - Cost breakdown by operation type
@@ -1123,11 +1240,13 @@ The highest-risk items are tackled early:
 - Average latency per operation
 
 **Backend Tasks**:
+
 - Implement `GET /ai-usage/summary` with period and groupBy parameters
 - Implement `GET /ai-usage/logs` with filtering
 - Optimize aggregation queries on `ai_usage_logs`
 
 **Frontend Tasks**:
+
 - Build AI Usage Analytics page per UI/UX Design §AI Usage Analytics
 - Build metric cards (total cost, tokens, operations, cache rate)
 - Build daily cost trend line chart (Recharts)
@@ -1139,16 +1258,19 @@ The highest-risk items are tackled early:
 **AI Tasks**: None
 
 **Testing Tasks**:
+
 - Integration: aggregation queries return correct sums
 - Integration: period filtering works correctly
 - Integration: groupBy operation produces per-operation breakdown
 
 **Deliverables**:
+
 - AI cost monitoring dashboard with charts and metrics
 
 **Dependencies**: Phase 6–9 (AI operations populating `ai_usage_logs`)
 
 **Acceptance Criteria**:
+
 - [ ] Dashboard shows total cost, tokens, operations for selected period
 - [ ] Daily trend chart renders correctly
 - [ ] Per-operation breakdown shows cost and latency
@@ -1168,6 +1290,7 @@ The highest-risk items are tackled early:
 **Features**: No new features. Performance improvements only.
 
 **Backend Tasks**:
+
 - Profile all API endpoints with `EXPLAIN ANALYZE` on their queries
 - Identify and fix N+1 queries (add eager loading)
 - Add Redis caching for hot queries (current user, tenant settings, active pipeline stages)
@@ -1177,6 +1300,7 @@ The highest-risk items are tackled early:
 - Set up `pg_stat_statements` for query performance monitoring
 
 **Frontend Tasks**:
+
 - Implement code splitting per route (Next.js dynamic imports)
 - Optimize bundle size (analyze with `@next/bundle-analyzer`)
 - Implement image optimization (if applicable)
@@ -1184,21 +1308,25 @@ The highest-risk items are tackled early:
 - Verify Lighthouse scores (target: 90+ performance)
 
 **Database Tasks**:
+
 - Review all indexes — remove unused, add missing
 - Verify partial indexes are being used by the query planner
 - Run `VACUUM ANALYZE` on all tables
 - Benchmark HNSW search at 100K vectors
 
 **AI Tasks**:
+
 - Optimize prompt length (reduce token usage where possible)
 - Implement response caching for repeated scoring requests
 - Benchmark batch embedding performance
 
 **Infrastructure Tasks**:
+
 - Configure Redis caching with appropriate TTLs
 - Review ECS task resource allocations (CPU, memory)
 
 **Testing Tasks**:
+
 - Performance: API response time benchmarks (all endpoints < target per API Contract)
 - Performance: semantic search at 100K candidates < 2s
 - Performance: dashboard load < 500ms
@@ -1206,6 +1334,7 @@ The highest-risk items are tackled early:
 - Load testing: simulate 100 concurrent users
 
 **Deliverables**:
+
 - Performance benchmark report
 - All endpoints meet NFR targets
 - Optimized queries and caching
@@ -1213,6 +1342,7 @@ The highest-risk items are tackled early:
 **Dependencies**: Phases 1–14 (all features implemented)
 
 **Acceptance Criteria**:
+
 - [ ] All API endpoints meet performance targets from API Contract
 - [ ] Semantic search < 2s on 100K pool
 - [ ] Dashboard loads in < 500ms
@@ -1221,6 +1351,7 @@ The highest-risk items are tackled early:
 - [ ] Load test: 100 concurrent users with < 200ms average response time
 
 **Risks**:
+
 - pgvector performance at scale may require tuning → Monitor with EXPLAIN ANALYZE, adjust HNSW parameters
 
 **Estimated Complexity**: Medium
@@ -1232,6 +1363,7 @@ The highest-risk items are tackled early:
 **Objective**: Security audit, penetration testing, and hardening of all surfaces.
 
 **Backend Tasks**:
+
 - Audit all endpoints for proper authorization checks
 - Verify no raw SQL — all queries parameterized via SQLAlchemy
 - Verify no PII in error responses or logs
@@ -1245,28 +1377,33 @@ The highest-risk items are tackled early:
 - Implement input sanitization (prevent XSS in notes, candidate names)
 
 **Frontend Tasks**:
+
 - XSS prevention audit (no `dangerouslySetInnerHTML` without sanitization)
 - CSP compliance verification
 - Verify auth tokens not stored in localStorage (access token in memory, refresh in httpOnly cookie)
 - Verify no sensitive data in browser console or network tab responses
 
 **Database Tasks**:
+
 - RLS policy audit: verify every tenant-scoped table has correct policy
 - Verify no `SECURITY DEFINER` functions that bypass RLS
 - Verify database user permissions (app user has minimal privileges)
 
 **AI Tasks**:
+
 - Audit prompt injection vectors (user-controlled text in prompts)
 - Implement prompt injection detection in AI Service
 - Verify no API keys in client-side code or logs
 
 **Infrastructure Tasks**:
+
 - Configure AWS WAF rules
 - Enable VPC security groups (DB not publicly accessible)
 - Enable S3 bucket encryption (AES-256)
 - Configure TLS 1.3 on ALB
 
 **Testing Tasks**:
+
 - Security: OWASP Top 10 checklist verification
 - Security: SQL injection testing (automated with sqlmap)
 - Security: XSS testing
@@ -1275,6 +1412,7 @@ The highest-risk items are tackled early:
 - Security: rate limiting validation
 
 **Deliverables**:
+
 - Security audit report
 - All critical/high findings resolved
 - Security headers verified
@@ -1282,6 +1420,7 @@ The highest-risk items are tackled early:
 **Dependencies**: Phases 1–14
 
 **Acceptance Criteria**:
+
 - [ ] OWASP Top 10 checklist passes
 - [ ] No SQL injection vulnerabilities
 - [ ] No XSS vulnerabilities
@@ -1292,6 +1431,7 @@ The highest-risk items are tackled early:
 - [ ] RLS bypass tests pass (zero cross-tenant leakage)
 
 **Risks**:
+
 - Discovering a fundamental security flaw late → Mitigate by including RLS tests in every phase
 
 **Estimated Complexity**: Medium
@@ -1303,22 +1443,26 @@ The highest-risk items are tackled early:
 **Objective**: Comprehensive testing pass across all features. Fill gaps in test coverage, run E2E tests, verify accessibility.
 
 **Backend Tasks**:
+
 - Achieve ≥ 80% unit test coverage
 - Complete integration test suite for all 60 endpoints
 - Run full API contract compliance tests
 
 **Frontend Tasks**:
+
 - Component tests for all critical components (score card, Kanban, forms)
 - Accessibility audit with axe-core on all 17 screens
 - Cross-browser testing (Chrome, Firefox, Safari, Edge)
 - Responsive testing at all breakpoints
 
 **AI Tasks**:
+
 - Run scoring benchmark on 100-candidate evaluation dataset
 - Verify score distribution is reasonable (not all 90+ or all < 50)
 - Verify confidence scores correlate with data completeness
 
 **Testing Tasks**:
+
 - E2E: complete user journey (login → create job → upload resume → parse → score → move stage → hire)
 - E2E: multi-tenant isolation journey (Tenant A and B cannot see each other's data)
 - E2E: role-based journeys (org_admin, recruiter, hiring_manager see appropriate UI)
@@ -1326,6 +1470,7 @@ The highest-risk items are tackled early:
 - Performance: re-run all benchmarks from Phase 15
 
 **Deliverables**:
+
 - Complete test suite
 - Test coverage report
 - Accessibility audit report
@@ -1334,6 +1479,7 @@ The highest-risk items are tackled early:
 **Dependencies**: All feature phases (1–14)
 
 **Acceptance Criteria**:
+
 - [ ] Backend unit test coverage ≥ 80%
 - [ ] All 60 API endpoints have integration tests
 - [ ] E2E tests pass for all user journeys
@@ -1353,15 +1499,18 @@ The highest-risk items are tackled early:
 **Objective**: Deploy Hiron to production AWS infrastructure with monitoring, alerting, and operational readiness.
 
 **Backend Tasks**:
+
 - Final migration dry-run against production-like data
 - Configure production environment variables
 - Verify health and readiness endpoints in production
 
 **Frontend Tasks**:
+
 - Production build optimization
 - Configure Vercel production deployment
 
 **Database Tasks**:
+
 - Create production RDS instance (Multi-AZ, encrypted, automated backups)
 - Run all migrations against production database
 - Verify RLS policies in production
@@ -1369,11 +1518,13 @@ The highest-risk items are tackled early:
 - Set up monitoring (pg_stat_statements, slow query logging)
 
 **AI Tasks**:
+
 - Verify OpenAI API key for production
 - Configure production rate limits for AI endpoints
 - Verify AI usage logging in production
 
 **Infrastructure Tasks**:
+
 - Provision AWS infrastructure via Terraform:
   - VPC with public/private subnets
   - ECS Fargate cluster (Core API, AI Service, Workers)
@@ -1395,6 +1546,7 @@ The highest-risk items are tackled early:
 - Set up CI/CD deployment pipeline (GitHub Actions → ECR → ECS)
 
 **Testing Tasks**:
+
 - Smoke test: all health endpoints return 200 in production
 - Smoke test: login flow works in production
 - Smoke test: create job → upload resume → parse → score works
@@ -1403,6 +1555,7 @@ The highest-risk items are tackled early:
 - Disaster recovery: test backup restore to staging
 
 **Deliverables**:
+
 - Production environment live
 - Monitoring and alerting operational
 - Deployment pipeline working
@@ -1411,6 +1564,7 @@ The highest-risk items are tackled early:
 **Dependencies**: All phases (1–17)
 
 **Acceptance Criteria**:
+
 - [ ] Production environment accessible at `api.hiron.ai` and `app.hiron.ai`
 - [ ] TLS 1.3 configured with valid certificate
 - [ ] Health endpoints return 200
@@ -1421,6 +1575,7 @@ The highest-risk items are tackled early:
 - [ ] Runbook complete with incident response procedures
 
 **Risks**:
+
 - Terraform state management → Use S3 backend with DynamoDB locking
 - DNS propagation delays → Configure low TTL during initial deployment
 - Production data migration → Run migrations in maintenance window
@@ -1434,6 +1589,7 @@ The highest-risk items are tackled early:
 **Objective**: First iteration cycle based on real user feedback and production metrics.
 
 **Features** (tentative, based on feedback):
+
 - Google OAuth integration
 - Email notifications (candidate scored, stage changed)
 - Saved searches UI (data layer built in Phase 9)
@@ -1447,11 +1603,13 @@ The highest-risk items are tackled early:
 **Frontend Tasks**: Based on user feedback
 
 **AI Tasks**:
+
 - Prompt tuning based on scoring feedback
 - Monitor AI quality metrics (confidence distribution, user override rate)
 - Evaluate alternative embedding models if cost is an issue
 
 **Infrastructure Tasks**:
+
 - Set up read replica if needed (analytics offloading)
 - Evaluate PgBouncer if connection count exceeds 100
 - Cost optimization (right-size ECS tasks based on actual usage)
@@ -1509,11 +1667,11 @@ graph TD
 
 Some phases can run in parallel if multiple developers are available:
 
-| Stream A (Backend + AI) | Stream B (Frontend) | Stream C (Infrastructure) |
-|---|---|---|
-| Phase 6: Resume Parsing | Phase 10: Pipeline/Kanban | Phase 13: Audit Logs |
-| Phase 7: Embeddings | Phase 11: Notes & Tags | Phase 14: AI Usage |
-| Phase 8: AI Scoring | Phase 12: Dashboard | — |
+| Stream A (Backend + AI) | Stream B (Frontend)       | Stream C (Infrastructure) |
+| ----------------------- | ------------------------- | ------------------------- |
+| Phase 6: Resume Parsing | Phase 10: Pipeline/Kanban | Phase 13: Audit Logs      |
+| Phase 7: Embeddings     | Phase 11: Notes & Tags    | Phase 14: AI Usage        |
+| Phase 8: AI Scoring     | Phase 12: Dashboard       | —                         |
 
 ---
 
@@ -1521,21 +1679,21 @@ Some phases can run in parallel if multiple developers are available:
 
 Assuming **2-week sprints** with a **2–3 person team**.
 
-| Sprint | Phases | Goal | Duration |
-|---|---|---|---|
-| **Sprint 1** | Phase 0 | Repo scaffolding, Docker, CI/CD, dev environment | 2 weeks |
-| **Sprint 2** | Phase 1 | Auth + multi-tenancy + RLS + login UI | 2 weeks |
-| **Sprint 3** | Phase 2 + Phase 3 | User management + jobs module | 2 weeks |
-| **Sprint 4** | Phase 4 + Phase 5 | Candidates + resume upload | 2 weeks |
-| **Sprint 5** | Phase 6 | Resume parsing (AI pipeline) | 2 weeks |
-| **Sprint 6** | Phase 7 + Phase 8 (start) | Embeddings + scoring (partial) | 2 weeks |
-| **Sprint 7** | Phase 8 (complete) + Phase 9 | Scoring (complete) + semantic search | 2 weeks |
-| **Sprint 8** | Phase 10 | Pipeline / Kanban | 2 weeks |
-| **Sprint 9** | Phase 11 + Phase 12 | Notes, tags + dashboard | 2 weeks |
-| **Sprint 10** | Phase 13 + Phase 14 | Audit logs + AI usage monitoring | 2 weeks |
-| **Sprint 11** | Phase 15 + Phase 16 | Performance + security hardening | 2 weeks |
-| **Sprint 12** | Phase 17 | Testing & QA | 2 weeks |
-| **Sprint 13** | Phase 18 | Production deployment | 2 weeks |
+| Sprint        | Phases                       | Goal                                             | Duration |
+| ------------- | ---------------------------- | ------------------------------------------------ | -------- |
+| **Sprint 1**  | Phase 0                      | Repo scaffolding, Docker, CI/CD, dev environment | 2 weeks  |
+| **Sprint 2**  | Phase 1                      | Auth + multi-tenancy + RLS + login UI            | 2 weeks  |
+| **Sprint 3**  | Phase 2 + Phase 3            | User management + jobs module                    | 2 weeks  |
+| **Sprint 4**  | Phase 4 + Phase 5            | Candidates + resume upload                       | 2 weeks  |
+| **Sprint 5**  | Phase 6                      | Resume parsing (AI pipeline)                     | 2 weeks  |
+| **Sprint 6**  | Phase 7 + Phase 8 (start)    | Embeddings + scoring (partial)                   | 2 weeks  |
+| **Sprint 7**  | Phase 8 (complete) + Phase 9 | Scoring (complete) + semantic search             | 2 weeks  |
+| **Sprint 8**  | Phase 10                     | Pipeline / Kanban                                | 2 weeks  |
+| **Sprint 9**  | Phase 11 + Phase 12          | Notes, tags + dashboard                          | 2 weeks  |
+| **Sprint 10** | Phase 13 + Phase 14          | Audit logs + AI usage monitoring                 | 2 weeks  |
+| **Sprint 11** | Phase 15 + Phase 16          | Performance + security hardening                 | 2 weeks  |
+| **Sprint 12** | Phase 17                     | Testing & QA                                     | 2 weeks  |
+| **Sprint 13** | Phase 18                     | Production deployment                            | 2 weeks  |
 
 **Total: 26 weeks (~6.5 months)**
 
@@ -1545,14 +1703,14 @@ Post-launch: Phase 19 runs as continuous iteration cycles.
 
 ## 6. Milestones
 
-| Milestone | Phase | Target | Definition |
-|---|---|---|---|
-| **M1: Dev Environment Ready** | Phase 0 | Sprint 1 complete | Docker up, CI green, health endpoints live |
-| **M2: Auth + Core CRUD** | Phase 4 | Sprint 4 complete | Users can log in, create jobs, add candidates, upload resumes |
-| **M3: AI Pipeline Working** | Phase 8 | Sprint 7 complete | End-to-end: upload → parse → embed → score → explain |
-| **M4: Full Feature Set** | Phase 14 | Sprint 10 complete | All 60 endpoints, all 17 screens, all features functional |
-| **M5: Production Ready** | Phase 17 | Sprint 12 complete | Tests pass, security audit clean, performance meets NFRs |
-| **M6: Production Launch** | Phase 18 | Sprint 13 complete | Live on `hiron.ai`, monitoring active, runbook complete |
+| Milestone                     | Phase    | Target             | Definition                                                    |
+| ----------------------------- | -------- | ------------------ | ------------------------------------------------------------- |
+| **M1: Dev Environment Ready** | Phase 0  | Sprint 1 complete  | Docker up, CI green, health endpoints live                    |
+| **M2: Auth + Core CRUD**      | Phase 4  | Sprint 4 complete  | Users can log in, create jobs, add candidates, upload resumes |
+| **M3: AI Pipeline Working**   | Phase 8  | Sprint 7 complete  | End-to-end: upload → parse → embed → score → explain          |
+| **M4: Full Feature Set**      | Phase 14 | Sprint 10 complete | All 60 endpoints, all 17 screens, all features functional     |
+| **M5: Production Ready**      | Phase 17 | Sprint 12 complete | Tests pass, security audit clean, performance meets NFRs      |
+| **M6: Production Launch**     | Phase 18 | Sprint 13 complete | Live on `hiron.ai`, monitoring active, runbook complete       |
 
 ---
 
@@ -1572,21 +1730,22 @@ Post-launch: Phase 19 runs as continuous iteration cycles.
 
 ### Testing by Type
 
-| Test Type | Tool | When Run | Coverage Target | Responsibility |
-|---|---|---|---|---|
-| **Unit (Python)** | pytest | Every commit (CI) | ≥ 80% | Backend dev |
-| **Unit (TypeScript)** | Vitest | Every commit (CI) | ≥ 70% | Frontend dev |
-| **Integration (API)** | pytest + httpx | Every PR (CI) | All 60 endpoints | Backend dev |
-| **Component (UI)** | Vitest + Testing Library | Every PR (CI) | Critical components | Frontend dev |
-| **E2E** | Playwright | Nightly + pre-release | 10 critical user journeys | QA / Dev |
-| **AI Evaluation** | Custom benchmark suite | Per prompt/model change | 50-candidate dataset | AI dev |
-| **Performance** | k6 / Locust | Weekly + pre-release | All NFR targets | Backend dev |
-| **Security** | OWASP ZAP + manual | Pre-release | OWASP Top 10 | Backend dev |
-| **Accessibility** | axe-core + manual | Pre-release | WCAG 2.2 AA | Frontend dev |
+| Test Type             | Tool                     | When Run                | Coverage Target           | Responsibility |
+| --------------------- | ------------------------ | ----------------------- | ------------------------- | -------------- |
+| **Unit (Python)**     | pytest                   | Every commit (CI)       | ≥ 80%                     | Backend dev    |
+| **Unit (TypeScript)** | Vitest                   | Every commit (CI)       | ≥ 70%                     | Frontend dev   |
+| **Integration (API)** | pytest + httpx           | Every PR (CI)           | All 60 endpoints          | Backend dev    |
+| **Component (UI)**    | Vitest + Testing Library | Every PR (CI)           | Critical components       | Frontend dev   |
+| **E2E**               | Playwright               | Nightly + pre-release   | 10 critical user journeys | QA / Dev       |
+| **AI Evaluation**     | Custom benchmark suite   | Per prompt/model change | 50-candidate dataset      | AI dev         |
+| **Performance**       | k6 / Locust              | Weekly + pre-release    | All NFR targets           | Backend dev    |
+| **Security**          | OWASP ZAP + manual       | Pre-release             | OWASP Top 10              | Backend dev    |
+| **Accessibility**     | axe-core + manual        | Pre-release             | WCAG 2.2 AA               | Frontend dev   |
 
 ### Testing per Phase
 
 Every phase includes:
+
 1. **Unit tests** for new business logic
 2. **Integration tests** for new API endpoints
 3. **Component tests** for new UI components
@@ -1595,13 +1754,13 @@ Every phase includes:
 
 ### AI-Specific Testing (per Appendix A.7)
 
-| Test | What | When |
-|---|---|---|
-| **Prompt regression** | Run benchmark dataset against new prompt versions, compare score distributions | Every prompt change |
-| **Output validation** | Verify Pydantic parsing succeeds on 100% of LLM outputs | Every scoring call |
-| **Hallucination check** | Verify claimed skills exist in resume text | Every scoring call |
-| **Confidence calibration** | Verify confidence correlates with data completeness | Monthly |
-| **Cost monitoring** | Verify actual costs match expected per-operation costs | Weekly |
+| Test                       | What                                                                           | When                |
+| -------------------------- | ------------------------------------------------------------------------------ | ------------------- |
+| **Prompt regression**      | Run benchmark dataset against new prompt versions, compare score distributions | Every prompt change |
+| **Output validation**      | Verify Pydantic parsing succeeds on 100% of LLM outputs                        | Every scoring call  |
+| **Hallucination check**    | Verify claimed skills exist in resume text                                     | Every scoring call  |
+| **Confidence calibration** | Verify confidence correlates with data completeness                            | Monthly             |
+| **Cost monitoring**        | Verify actual costs match expected per-operation costs                         | Weekly              |
 
 ---
 
@@ -1609,42 +1768,42 @@ Every phase includes:
 
 Every phase must satisfy ALL of the following before the next phase begins:
 
-| # | Criterion | Verification |
-|---|---|---|
-| 1 | All planned endpoints implemented | Check against API Contract |
-| 2 | All planned migrations applied | Check against Database Design |
-| 3 | All planned screens built | Check against UI/UX Design |
-| 4 | Unit tests pass | `pytest` / `vitest` green in CI |
-| 5 | Integration tests pass | All endpoint tests green |
-| 6 | Type checking passes | `mypy --strict` and `tsc --noEmit` green |
-| 7 | Linting passes | `ruff` and `eslint` green with zero errors |
-| 8 | No critical/high security issues | Manual review |
-| 9 | RLS isolation verified | Cross-tenant test passes |
-| 10 | Audit log entries created for all mutations | Integration test |
-| 11 | Loading/empty/error states implemented | UI review |
-| 12 | Responsive behavior verified | Test at mobile, tablet, desktop |
-| 13 | Accessibility requirements met | axe-core scan, keyboard navigation test |
-| 14 | API documentation auto-generated | OpenAPI spec up to date |
-| 15 | Code reviewed and approved | At least one PR approval per Engineering Guidelines §19 |
+| #   | Criterion                                   | Verification                                            |
+| --- | ------------------------------------------- | ------------------------------------------------------- |
+| 1   | All planned endpoints implemented           | Check against API Contract                              |
+| 2   | All planned migrations applied              | Check against Database Design                           |
+| 3   | All planned screens built                   | Check against UI/UX Design                              |
+| 4   | Unit tests pass                             | `pytest` / `vitest` green in CI                         |
+| 5   | Integration tests pass                      | All endpoint tests green                                |
+| 6   | Type checking passes                        | `mypy --strict` and `tsc --noEmit` green                |
+| 7   | Linting passes                              | `ruff` and `eslint` green with zero errors              |
+| 8   | No critical/high security issues            | Manual review                                           |
+| 9   | RLS isolation verified                      | Cross-tenant test passes                                |
+| 10  | Audit log entries created for all mutations | Integration test                                        |
+| 11  | Loading/empty/error states implemented      | UI review                                               |
+| 12  | Responsive behavior verified                | Test at mobile, tablet, desktop                         |
+| 13  | Accessibility requirements met              | axe-core scan, keyboard navigation test                 |
+| 14  | API documentation auto-generated            | OpenAPI spec up to date                                 |
+| 15  | Code reviewed and approved                  | At least one PR approval per Engineering Guidelines §19 |
 
 ---
 
 ## 9. Risk Register
 
-| # | Risk | Likelihood | Impact | Mitigation |
-|---|---|---|---|---|
-| 1 | **RLS misconfiguration leaks tenant data** | Low | Critical | Dedicated cross-tenant integration tests in every phase. Fail CI on any cross-tenant data leakage. |
-| 2 | **OpenAI API outages disrupt scoring** | Medium | High | Graceful degradation — pipeline works without scores. Show "AI temporarily unavailable" banner. Retry with backoff. |
-| 3 | **Resume parsing accuracy too low** | Medium | High | Start with transformer-based spaCy model. Plan fine-tuning sprint if accuracy < 85% on benchmark. |
-| 4 | **pgvector performance degrades at scale** | Low | High | Benchmark at 100K vectors in Phase 9. HNSW parameter tuning. Migration path to dedicated vector DB documented. |
-| 5 | **OpenAI API costs exceed budget** | Medium | Medium | Track via `ai_usage_logs`. Implement aggressive caching. Consider switching to `text-embedding-3-small` (cheaper) or self-hosted models. |
-| 6 | **LLM output format inconsistency** | Medium | Medium | JSON mode + Pydantic validation + 3 retries. If all retries fail, mark score as `failed`. |
-| 7 | **Scope creep during implementation** | High | Medium | All design documents are frozen. New features go to Phase 19 backlog. No scope changes without explicit approval. |
-| 8 | **Docker/local environment inconsistencies** | Medium | Low | Standardize on Docker Compose. Document setup in README. Use `.env.local.example`. |
-| 9 | **Frontend bundle size too large** | Low | Low | Code splitting per route. Bundle analyzer in CI. Lazy load heavy components (Recharts, Tiptap). |
-| 10 | **Celery worker failures** | Medium | Medium | Health checks on worker containers. Auto-restart. Dead letter queue for permanently failed tasks. |
-| 11 | **JWT key compromise** | Low | Critical | RS256 (asymmetric keys). Keys in AWS Secrets Manager (production). Key rotation procedure documented. |
-| 12 | **Team velocity slower than estimated** | Medium | Medium | Sprints are estimates, not commitments. Cut scope from Phase 19, not from core phases. Focus on M3 (AI pipeline) as the critical milestone. |
+| #   | Risk                                         | Likelihood | Impact   | Mitigation                                                                                                                                  |
+| --- | -------------------------------------------- | ---------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **RLS misconfiguration leaks tenant data**   | Low        | Critical | Dedicated cross-tenant integration tests in every phase. Fail CI on any cross-tenant data leakage.                                          |
+| 2   | **OpenAI API outages disrupt scoring**       | Medium     | High     | Graceful degradation — pipeline works without scores. Show "AI temporarily unavailable" banner. Retry with backoff.                         |
+| 3   | **Resume parsing accuracy too low**          | Medium     | High     | Start with transformer-based spaCy model. Plan fine-tuning sprint if accuracy < 85% on benchmark.                                           |
+| 4   | **pgvector performance degrades at scale**   | Low        | High     | Benchmark at 100K vectors in Phase 9. HNSW parameter tuning. Migration path to dedicated vector DB documented.                              |
+| 5   | **OpenAI API costs exceed budget**           | Medium     | Medium   | Track via `ai_usage_logs`. Implement aggressive caching. Consider switching to `text-embedding-3-small` (cheaper) or self-hosted models.    |
+| 6   | **LLM output format inconsistency**          | Medium     | Medium   | JSON mode + Pydantic validation + 3 retries. If all retries fail, mark score as `failed`.                                                   |
+| 7   | **Scope creep during implementation**        | High       | Medium   | All design documents are frozen. New features go to Phase 19 backlog. No scope changes without explicit approval.                           |
+| 8   | **Docker/local environment inconsistencies** | Medium     | Low      | Standardize on Docker Compose. Document setup in README. Use `.env.local.example`.                                                          |
+| 9   | **Frontend bundle size too large**           | Low        | Low      | Code splitting per route. Bundle analyzer in CI. Lazy load heavy components (Recharts, Tiptap).                                             |
+| 10  | **Celery worker failures**                   | Medium     | Medium   | Health checks on worker containers. Auto-restart. Dead letter queue for permanently failed tasks.                                           |
+| 11  | **JWT key compromise**                       | Low        | Critical | RS256 (asymmetric keys). Keys in AWS Secrets Manager (production). Key rotation procedure documented.                                       |
+| 12  | **Team velocity slower than estimated**      | Medium     | Medium   | Sprints are estimates, not commitments. Cut scope from Phase 19, not from core phases. Focus on M3 (AI pipeline) as the critical milestone. |
 
 ---
 

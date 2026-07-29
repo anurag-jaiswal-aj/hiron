@@ -24,7 +24,7 @@ repos:
       - id: check-yaml
       - id: check-json
       - id: check-added-large-files
-        args: ['--maxkb=10240'] # 10MB limit per §15.2
+        args: ["--maxkb=10240"] # 10MB limit per §15.2
       - id: check-merge-conflict
       - id: detect-private-key
 
@@ -60,4 +60,4 @@ repos:
     hooks:
       - id: commitlint
         stages: [commit-msg]
-        additional_dependencies: ['@commitlint/config-conventional']
+        additional_dependencies: ["@commitlint/config-conventional"]

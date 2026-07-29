@@ -5,7 +5,7 @@
     "source.fixAll.eslint": "explicit"
   },
   "editor.defaultFormatter": "esbenp.prettier-vscode",
-  
+
   // Python Settings (§3.1)
   "[python]": {
     "editor.defaultFormatter": "astral-sh.ruff",
@@ -13,7 +13,7 @@
   },
   "python.analysis.typeCheckingMode": "strict",
   "python.analysis.autoImportCompletions": true,
-  
+
   // TypeScript & React Settings (§4.1 & §4.2)
   "[typescript]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
@@ -27,7 +27,7 @@
   "[jsonc]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
-  
+
   // Exclude non-source files from search
   "search.exclude": {
     "**/node_modules": true,

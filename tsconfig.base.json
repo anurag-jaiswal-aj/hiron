@@ -8,7 +8,7 @@
     "jsx": "preserve",
     "allowJs": false,
     "checkJs": false,
-    
+
     /* Strict Type-Checking Options (§4.1) */
     "strict": true,
     "noImplicitAny": true,
@@ -18,7 +18,7 @@
     "strictPropertyInitialization": true,
     "noImplicitThis": true,
     "alwaysStrict": true,
-    
+
     /* Additional Checks (§4.1) */
     "noUnusedLocals": true,
     "noUnusedParameters": true,

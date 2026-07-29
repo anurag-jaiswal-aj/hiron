@@ -13,23 +13,23 @@
 
 ### Core Principles
 
-| # | Principle | Meaning |
-|---|---|---|
-| 1 | **Data-dense, not overwhelming** | Recruiters process hundreds of candidates daily. Show maximum information with minimum visual noise. Think Bloomberg Terminal for hiring — information-rich, scannable, actionable. |
-| 2 | **AI is the assistant, not the boss** | AI scores and explanations are prominent but never presented as final decisions. Every AI output has a confidence indicator and a "why" link. Humans always have the final say. |
-| 3 | **Speed equals trust** | If the UI feels slow, recruiters won't trust it. Optimistic updates, skeleton loaders, and perceived performance matter as much as actual performance. |
-| 4 | **Progressive disclosure** | Show the summary first, details on demand. A candidate card shows the score; clicking reveals the full breakdown. A job list shows status; expanding shows pipeline metrics. |
-| 5 | **Consistent vocabulary** | The same concept uses the same word everywhere. "Score" is always "Score" (not "rating" or "match"). "Stage" is always "Stage" (not "step" or "phase"). |
-| 6 | **Accessible by default** | WCAG 2.2 AA compliance is not optional. Every interactive element has keyboard access, ARIA labels, and sufficient contrast. |
+| #   | Principle                             | Meaning                                                                                                                                                                             |
+| --- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **Data-dense, not overwhelming**      | Recruiters process hundreds of candidates daily. Show maximum information with minimum visual noise. Think Bloomberg Terminal for hiring — information-rich, scannable, actionable. |
+| 2   | **AI is the assistant, not the boss** | AI scores and explanations are prominent but never presented as final decisions. Every AI output has a confidence indicator and a "why" link. Humans always have the final say.     |
+| 3   | **Speed equals trust**                | If the UI feels slow, recruiters won't trust it. Optimistic updates, skeleton loaders, and perceived performance matter as much as actual performance.                              |
+| 4   | **Progressive disclosure**            | Show the summary first, details on demand. A candidate card shows the score; clicking reveals the full breakdown. A job list shows status; expanding shows pipeline metrics.        |
+| 5   | **Consistent vocabulary**             | The same concept uses the same word everywhere. "Score" is always "Score" (not "rating" or "match"). "Stage" is always "Stage" (not "step" or "phase").                             |
+| 6   | **Accessible by default**             | WCAG 2.2 AA compliance is not optional. Every interactive element has keyboard access, ARIA labels, and sufficient contrast.                                                        |
 
 ### Design Personality
 
-| Attribute | Expression |
-|---|---|
-| **Professional** | Clean layouts, restrained color usage, business-appropriate typography |
-| **Intelligent** | AI insights are woven into every view — not a separate "AI tab" but part of the workflow |
-| **Trustworthy** | Confidence indicators on AI outputs, audit trails visible, explainable scores |
-| **Efficient** | Keyboard shortcuts for power users, bulk actions, minimal clicks to common tasks |
+| Attribute        | Expression                                                                               |
+| ---------------- | ---------------------------------------------------------------------------------------- |
+| **Professional** | Clean layouts, restrained color usage, business-appropriate typography                   |
+| **Intelligent**  | AI insights are woven into every view — not a separate "AI tab" but part of the workflow |
+| **Trustworthy**  | Confidence indicators on AI outputs, audit trails visible, explainable scores            |
+| **Efficient**    | Keyboard shortcuts for power users, bulk actions, minimal clicks to common tasks         |
 
 ---
 
@@ -37,18 +37,18 @@
 
 ### Technology Mapping
 
-| Design Concept | Implementation |
-|---|---|
+| Design Concept    | Implementation                          |
+| ----------------- | --------------------------------------- |
 | Component library | shadcn/ui (Radix primitives + Tailwind) |
-| Styling | Tailwind CSS utility classes |
-| Icons | Lucide React |
-| Charts | Recharts |
-| Drag & drop | @dnd-kit (Kanban) |
-| Date picker | shadcn/ui DatePicker (Radix + date-fns) |
-| Rich text | Tiptap (for notes with @mentions) |
-| File upload | react-dropzone |
-| State (server) | TanStack Query |
-| State (client) | Zustand (sidebar, theme, modals) |
+| Styling           | Tailwind CSS utility classes            |
+| Icons             | Lucide React                            |
+| Charts            | Recharts                                |
+| Drag & drop       | @dnd-kit (Kanban)                       |
+| Date picker       | shadcn/ui DatePicker (Radix + date-fns) |
+| Rich text         | Tiptap (for notes with @mentions)       |
+| File upload       | react-dropzone                          |
+| State (server)    | TanStack Query                          |
+| State (client)    | Zustand (sidebar, theme, modals)        |
 
 ### Component Hierarchy
 
@@ -75,41 +75,41 @@ App Shell
 
 ### Semantic Colors
 
-| Token | Light Mode | Dark Mode | Usage |
-|---|---|---|---|
-| `--background` | `hsl(0, 0%, 100%)` | `hsl(224, 71%, 4%)` | Page background |
-| `--foreground` | `hsl(224, 71%, 4%)` | `hsl(210, 20%, 98%)` | Primary text |
-| `--card` | `hsl(0, 0%, 100%)` | `hsl(224, 71%, 4%)` | Card backgrounds |
-| `--card-foreground` | `hsl(224, 71%, 4%)` | `hsl(210, 20%, 98%)` | Card text |
-| `--primary` | `hsl(262, 83%, 58%)` | `hsl(263, 70%, 50%)` | Primary buttons, links, active states |
-| `--primary-foreground` | `hsl(210, 20%, 98%)` | `hsl(210, 20%, 98%)` | Text on primary backgrounds |
-| `--secondary` | `hsl(220, 14%, 96%)` | `hsl(215, 27%, 17%)` | Secondary buttons, subtle backgrounds |
-| `--muted` | `hsl(220, 14%, 96%)` | `hsl(215, 27%, 17%)` | Muted backgrounds, disabled states |
-| `--muted-foreground` | `hsl(220, 9%, 46%)` | `hsl(217, 10%, 65%)` | Placeholder text, secondary labels |
-| `--accent` | `hsl(220, 14%, 96%)` | `hsl(215, 27%, 17%)` | Hover states, selected items |
-| `--destructive` | `hsl(0, 84%, 60%)` | `hsl(0, 62%, 30%)` | Delete buttons, error states |
-| `--border` | `hsl(220, 13%, 91%)` | `hsl(215, 27%, 17%)` | Borders, dividers |
-| `--ring` | `hsl(262, 83%, 58%)` | `hsl(263, 70%, 50%)` | Focus rings |
+| Token                  | Light Mode           | Dark Mode            | Usage                                 |
+| ---------------------- | -------------------- | -------------------- | ------------------------------------- |
+| `--background`         | `hsl(0, 0%, 100%)`   | `hsl(224, 71%, 4%)`  | Page background                       |
+| `--foreground`         | `hsl(224, 71%, 4%)`  | `hsl(210, 20%, 98%)` | Primary text                          |
+| `--card`               | `hsl(0, 0%, 100%)`   | `hsl(224, 71%, 4%)`  | Card backgrounds                      |
+| `--card-foreground`    | `hsl(224, 71%, 4%)`  | `hsl(210, 20%, 98%)` | Card text                             |
+| `--primary`            | `hsl(262, 83%, 58%)` | `hsl(263, 70%, 50%)` | Primary buttons, links, active states |
+| `--primary-foreground` | `hsl(210, 20%, 98%)` | `hsl(210, 20%, 98%)` | Text on primary backgrounds           |
+| `--secondary`          | `hsl(220, 14%, 96%)` | `hsl(215, 27%, 17%)` | Secondary buttons, subtle backgrounds |
+| `--muted`              | `hsl(220, 14%, 96%)` | `hsl(215, 27%, 17%)` | Muted backgrounds, disabled states    |
+| `--muted-foreground`   | `hsl(220, 9%, 46%)`  | `hsl(217, 10%, 65%)` | Placeholder text, secondary labels    |
+| `--accent`             | `hsl(220, 14%, 96%)` | `hsl(215, 27%, 17%)` | Hover states, selected items          |
+| `--destructive`        | `hsl(0, 84%, 60%)`   | `hsl(0, 62%, 30%)`   | Delete buttons, error states          |
+| `--border`             | `hsl(220, 13%, 91%)` | `hsl(215, 27%, 17%)` | Borders, dividers                     |
+| `--ring`               | `hsl(262, 83%, 58%)` | `hsl(263, 70%, 50%)` | Focus rings                           |
 
 ### AI-Specific Colors
 
-| Token | Value | Usage |
-|---|---|---|
-| `--ai-score-high` | `hsl(142, 71%, 45%)` | Scores 80–100 |
-| `--ai-score-medium` | `hsl(38, 92%, 50%)` | Scores 50–79 |
-| `--ai-score-low` | `hsl(0, 84%, 60%)` | Scores 0–49 |
-| `--ai-confidence-high` | `hsl(142, 71%, 45%)` | Confidence 0.8–1.0 |
-| `--ai-confidence-medium` | `hsl(38, 92%, 50%)` | Confidence 0.5–0.79 |
-| `--ai-confidence-low` | `hsl(0, 84%, 60%)` | Confidence 0.0–0.49 |
-| `--ai-badge` | `hsl(262, 83%, 58%)` | AI-generated content indicators |
+| Token                    | Value                | Usage                           |
+| ------------------------ | -------------------- | ------------------------------- |
+| `--ai-score-high`        | `hsl(142, 71%, 45%)` | Scores 80–100                   |
+| `--ai-score-medium`      | `hsl(38, 92%, 50%)`  | Scores 50–79                    |
+| `--ai-score-low`         | `hsl(0, 84%, 60%)`   | Scores 0–49                     |
+| `--ai-confidence-high`   | `hsl(142, 71%, 45%)` | Confidence 0.8–1.0              |
+| `--ai-confidence-medium` | `hsl(38, 92%, 50%)`  | Confidence 0.5–0.79             |
+| `--ai-confidence-low`    | `hsl(0, 84%, 60%)`   | Confidence 0.0–0.49             |
+| `--ai-badge`             | `hsl(262, 83%, 58%)` | AI-generated content indicators |
 
 ### Pipeline Stage Colors
 
-| Stage Type | Color | Usage |
-|---|---|---|
-| Active stages | `hsl(220, 70%, 50%)` | Applied, Screening, Interview, Offer |
-| Hired (terminal) | `hsl(142, 71%, 45%)` | Successful outcome |
-| Rejected (terminal) | `hsl(0, 84%, 60%)` | Rejected outcome |
+| Stage Type          | Color                | Usage                                |
+| ------------------- | -------------------- | ------------------------------------ |
+| Active stages       | `hsl(220, 70%, 50%)` | Applied, Screening, Interview, Offer |
+| Hired (terminal)    | `hsl(142, 71%, 45%)` | Successful outcome                   |
+| Rejected (terminal) | `hsl(0, 84%, 60%)`   | Rejected outcome                     |
 
 ---
 
@@ -117,25 +117,25 @@ App Shell
 
 ### Font Stack
 
-| Usage | Font | Fallback | Source |
-|---|---|---|---|
-| Primary (UI) | Inter | system-ui, -apple-system, sans-serif | Google Fonts |
-| Monospace (code, IDs) | JetBrains Mono | ui-monospace, monospace | Google Fonts |
+| Usage                 | Font           | Fallback                             | Source       |
+| --------------------- | -------------- | ------------------------------------ | ------------ |
+| Primary (UI)          | Inter          | system-ui, -apple-system, sans-serif | Google Fonts |
+| Monospace (code, IDs) | JetBrains Mono | ui-monospace, monospace              | Google Fonts |
 
 ### Type Scale
 
-| Token | Size | Weight | Line Height | Usage |
-|---|---|---|---|---|
-| `heading-1` | 30px / 1.875rem | 700 (Bold) | 1.2 | Page titles |
-| `heading-2` | 24px / 1.5rem | 600 (Semibold) | 1.3 | Section titles |
-| `heading-3` | 20px / 1.25rem | 600 (Semibold) | 1.4 | Card titles |
-| `heading-4` | 16px / 1rem | 600 (Semibold) | 1.4 | Subsection titles |
-| `body-large` | 16px / 1rem | 400 (Regular) | 1.6 | Primary body text |
-| `body` | 14px / 0.875rem | 400 (Regular) | 1.5 | Default body text |
-| `body-small` | 13px / 0.8125rem | 400 (Regular) | 1.5 | Secondary text, table cells |
-| `caption` | 12px / 0.75rem | 500 (Medium) | 1.4 | Labels, timestamps, badges |
-| `overline` | 11px / 0.6875rem | 600 (Semibold) | 1.3 | Section overlines, uppercase labels |
-| `mono` | 13px / 0.8125rem | 400 (Regular) | 1.4 | UUIDs, technical values |
+| Token        | Size             | Weight         | Line Height | Usage                               |
+| ------------ | ---------------- | -------------- | ----------- | ----------------------------------- |
+| `heading-1`  | 30px / 1.875rem  | 700 (Bold)     | 1.2         | Page titles                         |
+| `heading-2`  | 24px / 1.5rem    | 600 (Semibold) | 1.3         | Section titles                      |
+| `heading-3`  | 20px / 1.25rem   | 600 (Semibold) | 1.4         | Card titles                         |
+| `heading-4`  | 16px / 1rem      | 600 (Semibold) | 1.4         | Subsection titles                   |
+| `body-large` | 16px / 1rem      | 400 (Regular)  | 1.6         | Primary body text                   |
+| `body`       | 14px / 0.875rem  | 400 (Regular)  | 1.5         | Default body text                   |
+| `body-small` | 13px / 0.8125rem | 400 (Regular)  | 1.5         | Secondary text, table cells         |
+| `caption`    | 12px / 0.75rem   | 500 (Medium)   | 1.4         | Labels, timestamps, badges          |
+| `overline`   | 11px / 0.6875rem | 600 (Semibold) | 1.3         | Section overlines, uppercase labels |
+| `mono`       | 13px / 0.8125rem | 400 (Regular)  | 1.4         | UUIDs, technical values             |
 
 ### Typography Rules
 
@@ -150,19 +150,19 @@ App Shell
 
 ### Base Unit: 4px
 
-| Token | Value | Usage |
-|---|---|---|
-| `space-0` | 0px | Reset |
-| `space-1` | 4px | Tight inline spacing |
-| `space-2` | 8px | Icon-to-text gap, compact lists |
-| `space-3` | 12px | Form field internal padding |
-| `space-4` | 16px | Default component padding |
-| `space-5` | 20px | Card padding |
-| `space-6` | 24px | Section gaps |
-| `space-8` | 32px | Page section spacing |
-| `space-10` | 40px | Major section gaps |
-| `space-12` | 48px | Page top/bottom padding |
-| `space-16` | 64px | Large layout gaps |
+| Token      | Value | Usage                           |
+| ---------- | ----- | ------------------------------- |
+| `space-0`  | 0px   | Reset                           |
+| `space-1`  | 4px   | Tight inline spacing            |
+| `space-2`  | 8px   | Icon-to-text gap, compact lists |
+| `space-3`  | 12px  | Form field internal padding     |
+| `space-4`  | 16px  | Default component padding       |
+| `space-5`  | 20px  | Card padding                    |
+| `space-6`  | 24px  | Section gaps                    |
+| `space-8`  | 32px  | Page section spacing            |
+| `space-10` | 40px  | Major section gaps              |
+| `space-12` | 48px  | Page top/bottom padding         |
+| `space-16` | 64px  | Large layout gaps               |
 
 ### Spacing Rules
 
@@ -178,14 +178,14 @@ App Shell
 
 ### Icon Library: Lucide React
 
-| Category | Icons | Usage |
-|---|---|---|
-| Navigation | `LayoutDashboard`, `Briefcase`, `Users`, `Search`, `Settings`, `LogOut` | Sidebar navigation |
-| Actions | `Plus`, `Pencil`, `Trash2`, `Archive`, `Download`, `Upload`, `RefreshCw` | Action buttons |
-| Status | `CheckCircle2`, `XCircle`, `AlertTriangle`, `Clock`, `Loader2` | Status indicators |
-| AI | `Sparkles`, `Brain`, `Zap`, `Target` | AI-related features |
-| Pipeline | `GitBranch`, `ArrowRight`, `MoveRight`, `ThumbsUp`, `ThumbsDown` | Pipeline actions |
-| Data | `FileText`, `Mail`, `Phone`, `MapPin`, `Building2`, `GraduationCap` | Candidate/job fields |
+| Category   | Icons                                                                    | Usage                |
+| ---------- | ------------------------------------------------------------------------ | -------------------- |
+| Navigation | `LayoutDashboard`, `Briefcase`, `Users`, `Search`, `Settings`, `LogOut`  | Sidebar navigation   |
+| Actions    | `Plus`, `Pencil`, `Trash2`, `Archive`, `Download`, `Upload`, `RefreshCw` | Action buttons       |
+| Status     | `CheckCircle2`, `XCircle`, `AlertTriangle`, `Clock`, `Loader2`           | Status indicators    |
+| AI         | `Sparkles`, `Brain`, `Zap`, `Target`                                     | AI-related features  |
+| Pipeline   | `GitBranch`, `ArrowRight`, `MoveRight`, `ThumbsUp`, `ThumbsDown`         | Pipeline actions     |
+| Data       | `FileText`, `Mail`, `Phone`, `MapPin`, `Building2`, `GraduationCap`      | Candidate/job fields |
 
 ### Icon Rules
 
@@ -199,12 +199,12 @@ App Shell
 
 ## 7. Elevation & Shadows
 
-| Token | Value | Usage |
-|---|---|---|
-| `shadow-sm` | `0 1px 2px rgba(0,0,0,0.05)` | Subtle cards, form inputs |
-| `shadow-md` | `0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.06)` | Elevated cards, dropdowns |
-| `shadow-lg` | `0 10px 15px rgba(0,0,0,0.10), 0 4px 6px rgba(0,0,0,0.05)` | Modals, popovers |
-| `shadow-xl` | `0 20px 25px rgba(0,0,0,0.10), 0 8px 10px rgba(0,0,0,0.04)` | Command palette |
+| Token       | Value                                                       | Usage                     |
+| ----------- | ----------------------------------------------------------- | ------------------------- |
+| `shadow-sm` | `0 1px 2px rgba(0,0,0,0.05)`                                | Subtle cards, form inputs |
+| `shadow-md` | `0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.06)`    | Elevated cards, dropdowns |
+| `shadow-lg` | `0 10px 15px rgba(0,0,0,0.10), 0 4px 6px rgba(0,0,0,0.05)`  | Modals, popovers          |
+| `shadow-xl` | `0 20px 25px rgba(0,0,0,0.10), 0 8px 10px rgba(0,0,0,0.04)` | Command palette           |
 
 ### Elevation Rules
 
@@ -218,13 +218,13 @@ App Shell
 
 ## 8. Border Radius
 
-| Token | Value | Usage |
-|---|---|---|
-| `radius-sm` | 4px | Small elements (badges, chips) |
-| `radius-md` | 6px | Buttons, inputs, cards |
-| `radius-lg` | 8px | Modals, large cards |
-| `radius-xl` | 12px | Score cards, AI panels |
-| `radius-full` | 9999px | Avatars, circular buttons |
+| Token         | Value  | Usage                          |
+| ------------- | ------ | ------------------------------ |
+| `radius-sm`   | 4px    | Small elements (badges, chips) |
+| `radius-md`   | 6px    | Buttons, inputs, cards         |
+| `radius-lg`   | 8px    | Modals, large cards            |
+| `radius-xl`   | 12px   | Score cards, AI panels         |
+| `radius-full` | 9999px | Avatars, circular buttons      |
 
 ---
 
@@ -232,47 +232,47 @@ App Shell
 
 ### Layout Grid
 
-| Breakpoint | Columns | Gutter | Margin |
-|---|---|---|---|
-| Mobile (< 640px) | 4 | 16px | 16px |
-| Tablet (640–1024px) | 8 | 20px | 24px |
-| Desktop (1024–1440px) | 12 | 24px | 32px |
-| Wide (> 1440px) | 12 | 24px | auto (max-width: 1440px, centered) |
+| Breakpoint            | Columns | Gutter | Margin                             |
+| --------------------- | ------- | ------ | ---------------------------------- |
+| Mobile (< 640px)      | 4       | 16px   | 16px                               |
+| Tablet (640–1024px)   | 8       | 20px   | 24px                               |
+| Desktop (1024–1440px) | 12      | 24px   | 32px                               |
+| Wide (> 1440px)       | 12      | 24px   | auto (max-width: 1440px, centered) |
 
 ### Content Width
 
-| Context | Max Width |
-|---|---|
+| Context                  | Max Width             |
+| ------------------------ | --------------------- |
 | Full page (with sidebar) | `calc(100vw - 256px)` |
-| Content column | 1200px |
-| Form column | 640px |
-| Narrow dialog | 480px |
-| Wide dialog | 720px |
-| Full-width table | 100% of content area |
+| Content column           | 1200px                |
+| Form column              | 640px                 |
+| Narrow dialog            | 480px                 |
+| Wide dialog              | 720px                 |
+| Full-width table         | 100% of content area  |
 
 ---
 
 ## 10. Responsive Breakpoints
 
-| Token | Value | Tailwind | Target |
-|---|---|---|---|
-| `mobile` | < 640px | Default | Phones |
-| `sm` | ≥ 640px | `sm:` | Large phones, small tablets |
-| `md` | ≥ 768px | `md:` | Tablets (portrait) |
-| `lg` | ≥ 1024px | `lg:` | Tablets (landscape), small laptops |
-| `xl` | ≥ 1280px | `xl:` | Standard desktops |
-| `2xl` | ≥ 1536px | `2xl:` | Wide screens |
+| Token    | Value    | Tailwind | Target                             |
+| -------- | -------- | -------- | ---------------------------------- |
+| `mobile` | < 640px  | Default  | Phones                             |
+| `sm`     | ≥ 640px  | `sm:`    | Large phones, small tablets        |
+| `md`     | ≥ 768px  | `md:`    | Tablets (portrait)                 |
+| `lg`     | ≥ 1024px | `lg:`    | Tablets (landscape), small laptops |
+| `xl`     | ≥ 1280px | `xl:`    | Standard desktops                  |
+| `2xl`    | ≥ 1536px | `2xl:`   | Wide screens                       |
 
 ### Responsive Strategy
 
-| Pattern | Mobile | Tablet | Desktop |
-|---|---|---|---|
-| Sidebar | Hidden (hamburger menu) | Collapsed (icons only, 64px) | Expanded (256px) |
-| Data tables | Card list view | Scrollable table | Full table |
-| Kanban board | Single column (swipe) | 3 visible columns | All columns |
-| Forms | Full width, stacked | 2-column where appropriate | 2-column with sidebar preview |
-| Score card | Stacked layout | Side-by-side score + explanation | Full width with all panels |
-| Filters | Bottom sheet | Side panel | Inline above table |
+| Pattern      | Mobile                  | Tablet                           | Desktop                       |
+| ------------ | ----------------------- | -------------------------------- | ----------------------------- |
+| Sidebar      | Hidden (hamburger menu) | Collapsed (icons only, 64px)     | Expanded (256px)              |
+| Data tables  | Card list view          | Scrollable table                 | Full table                    |
+| Kanban board | Single column (swipe)   | 3 visible columns                | All columns                   |
+| Forms        | Full width, stacked     | 2-column where appropriate       | 2-column with sidebar preview |
+| Score card   | Stacked layout          | Side-by-side score + explanation | Full width with all panels    |
+| Filters      | Bottom sheet            | Side panel                       | Inline above table            |
 
 ---
 
@@ -280,29 +280,29 @@ App Shell
 
 ### Requirements
 
-| Standard | Implementation |
-|---|---|
-| **Color contrast** | All text meets 4.5:1 ratio (AA). Large text: 3:1. UI components: 3:1 against background. |
-| **Keyboard navigation** | Every interactive element reachable via Tab. Focus order follows visual order. Visible focus ring (`--ring` color, 2px offset). |
-| **Screen readers** | All images have `alt` text. Icons have `aria-label`. Dynamic content uses `aria-live` regions. |
-| **Focus management** | Modals trap focus. Closing returns focus to trigger element. Page navigation announces new page title. |
-| **Motion** | Respect `prefers-reduced-motion`. Disable animations when set. Score gauge animation skipped. |
-| **Target size** | All click/touch targets are at least 44×44px. |
-| **Error identification** | Form errors use both color AND icon AND text. Never color alone. |
-| **Labels** | All form inputs have visible labels (no placeholder-only inputs). |
+| Standard                 | Implementation                                                                                                                  |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| **Color contrast**       | All text meets 4.5:1 ratio (AA). Large text: 3:1. UI components: 3:1 against background.                                        |
+| **Keyboard navigation**  | Every interactive element reachable via Tab. Focus order follows visual order. Visible focus ring (`--ring` color, 2px offset). |
+| **Screen readers**       | All images have `alt` text. Icons have `aria-label`. Dynamic content uses `aria-live` regions.                                  |
+| **Focus management**     | Modals trap focus. Closing returns focus to trigger element. Page navigation announces new page title.                          |
+| **Motion**               | Respect `prefers-reduced-motion`. Disable animations when set. Score gauge animation skipped.                                   |
+| **Target size**          | All click/touch targets are at least 44×44px.                                                                                   |
+| **Error identification** | Form errors use both color AND icon AND text. Never color alone.                                                                |
+| **Labels**               | All form inputs have visible labels (no placeholder-only inputs).                                                               |
 
 ### ARIA Patterns
 
-| Component | ARIA Pattern |
-|---|---|
-| Sidebar | `navigation` landmark with `aria-label="Main navigation"` |
-| Kanban board | `aria-roledescription="kanban board"` with `aria-label` per column |
-| Score gauge | `role="meter"` with `aria-valuenow`, `aria-valuemin`, `aria-valuemax` |
-| Data table | Standard `table` role with `aria-sort` on sortable columns |
-| Tabs | `tablist` / `tab` / `tabpanel` pattern |
-| Toast | `role="status"` with `aria-live="polite"` |
-| Modal | `dialog` role with `aria-modal="true"` |
-| Dropdown | `combobox` or `listbox` depending on context |
+| Component    | ARIA Pattern                                                          |
+| ------------ | --------------------------------------------------------------------- |
+| Sidebar      | `navigation` landmark with `aria-label="Main navigation"`             |
+| Kanban board | `aria-roledescription="kanban board"` with `aria-label` per column    |
+| Score gauge  | `role="meter"` with `aria-valuenow`, `aria-valuemin`, `aria-valuemax` |
+| Data table   | Standard `table` role with `aria-sort` on sortable columns            |
+| Tabs         | `tablist` / `tab` / `tabpanel` pattern                                |
+| Toast        | `role="status"` with `aria-live="polite"`                             |
+| Modal        | `dialog` role with `aria-modal="true"`                                |
+| Dropdown     | `combobox` or `listbox` depending on context                          |
 
 ---
 
@@ -312,14 +312,14 @@ App Shell
 
 Every component has a matching skeleton variant that shows the approximate shape of the content. Skeletons use a pulsing animation on `--muted` background.
 
-| Component | Skeleton Behavior |
-|---|---|
-| Data table | 5 rows of animated gray bars matching column widths |
-| Card grid | Gray rectangles matching card dimensions |
-| Score card | Circle skeleton (gauge) + bar skeletons (breakdown) |
-| Candidate profile | Avatar circle + name bar + detail bars |
-| Kanban column | 3 card skeletons per column |
-| Chart | Gray rectangle with subtle pulse |
+| Component         | Skeleton Behavior                                   |
+| ----------------- | --------------------------------------------------- |
+| Data table        | 5 rows of animated gray bars matching column widths |
+| Card grid         | Gray rectangles matching card dimensions            |
+| Score card        | Circle skeleton (gauge) + bar skeletons (breakdown) |
+| Candidate profile | Avatar circle + name bar + detail bars              |
+| Kanban column     | 3 card skeletons per column                         |
+| Chart             | Gray rectangle with subtle pulse                    |
 
 ### Loading Button State
 
@@ -352,15 +352,15 @@ Every list/table/grid has a purpose-built empty state.
 
 ### Empty States per Screen
 
-| Screen | Icon | Primary Message | Action |
-|---|---|---|---|
-| Jobs list | `Briefcase` | No jobs yet | "Create your first job" |
-| Candidates list | `Users` | No candidates in your pool | "Upload resumes" |
-| Pipeline (no candidates) | `GitBranch` | No candidates in this pipeline | "Add candidates to this job" |
-| Score (not scored) | `Sparkles` | This candidate hasn't been scored | "Score now" |
-| Notes (empty) | `MessageSquare` | No notes on this candidate | "Add a note" |
-| Search results (no matches) | `Search` | No candidates match your search | "Try different keywords" |
-| Audit logs (empty) | `ScrollText` | No activity recorded yet | — (informational) |
+| Screen                      | Icon            | Primary Message                   | Action                       |
+| --------------------------- | --------------- | --------------------------------- | ---------------------------- |
+| Jobs list                   | `Briefcase`     | No jobs yet                       | "Create your first job"      |
+| Candidates list             | `Users`         | No candidates in your pool        | "Upload resumes"             |
+| Pipeline (no candidates)    | `GitBranch`     | No candidates in this pipeline    | "Add candidates to this job" |
+| Score (not scored)          | `Sparkles`      | This candidate hasn't been scored | "Score now"                  |
+| Notes (empty)               | `MessageSquare` | No notes on this candidate        | "Add a note"                 |
+| Search results (no matches) | `Search`        | No candidates match your search   | "Try different keywords"     |
+| Audit logs (empty)          | `ScrollText`    | No activity recorded yet          | — (informational)            |
 
 ---
 
@@ -391,16 +391,16 @@ Every list/table/grid has a purpose-built empty state.
 
 ### API Error Handling
 
-| API Error Code | UI Behavior |
-|---|---|
-| `VALIDATION_ERROR` (422) | Highlight specific fields, show per-field error messages |
-| `AUTHENTICATION_REQUIRED` (401) | Redirect to login. Show toast: "Session expired. Please log in again." |
-| `INSUFFICIENT_PERMISSIONS` (403) | Show inline error: "You don't have permission for this action." |
-| `RESOURCE_NOT_FOUND` (404) | Show 404 page with navigation options |
-| `RESOURCE_CONFLICT` (409) | Show toast: "This [entity] already exists." |
-| `RATE_LIMIT_EXCEEDED` (429) | Show toast: "Slow down! Try again in [N] seconds." |
-| `AI_SERVICE_UNAVAILABLE` (503) | Show inline banner: "AI scoring is temporarily unavailable. Your data is safe." |
-| `INTERNAL_ERROR` (500) | Show generic error page. Log to Sentry. |
+| API Error Code                   | UI Behavior                                                                     |
+| -------------------------------- | ------------------------------------------------------------------------------- |
+| `VALIDATION_ERROR` (422)         | Highlight specific fields, show per-field error messages                        |
+| `AUTHENTICATION_REQUIRED` (401)  | Redirect to login. Show toast: "Session expired. Please log in again."          |
+| `INSUFFICIENT_PERMISSIONS` (403) | Show inline error: "You don't have permission for this action."                 |
+| `RESOURCE_NOT_FOUND` (404)       | Show 404 page with navigation options                                           |
+| `RESOURCE_CONFLICT` (409)        | Show toast: "This [entity] already exists."                                     |
+| `RATE_LIMIT_EXCEEDED` (429)      | Show toast: "Slow down! Try again in [N] seconds."                              |
+| `AI_SERVICE_UNAVAILABLE` (503)   | Show inline banner: "AI scoring is temporarily unavailable. Your data is safe." |
+| `INTERNAL_ERROR` (500)           | Show generic error page. Log to Sentry.                                         |
 
 ---
 
@@ -412,13 +412,13 @@ Bottom-right corner. Stacks vertically (newest on top). Max 3 visible toasts.
 
 ### Toast Types
 
-| Type | Icon | Background | Duration | Example |
-|---|---|---|---|---|
-| Success | `CheckCircle2` | Green tint | 4 seconds | "Job created successfully" |
-| Error | `XCircle` | Red tint | 8 seconds (or manual dismiss) | "Failed to save changes" |
-| Warning | `AlertTriangle` | Amber tint | 6 seconds | "Resume parsing took longer than expected" |
-| Info | `Info` | Blue tint | 5 seconds | "Score recalculated with latest prompt" |
-| AI Progress | `Sparkles` + progress bar | Purple tint | Until complete | "Scoring 23 of 47 candidates..." |
+| Type        | Icon                      | Background  | Duration                      | Example                                    |
+| ----------- | ------------------------- | ----------- | ----------------------------- | ------------------------------------------ |
+| Success     | `CheckCircle2`            | Green tint  | 4 seconds                     | "Job created successfully"                 |
+| Error       | `XCircle`                 | Red tint    | 8 seconds (or manual dismiss) | "Failed to save changes"                   |
+| Warning     | `AlertTriangle`           | Amber tint  | 6 seconds                     | "Resume parsing took longer than expected" |
+| Info        | `Info`                    | Blue tint   | 5 seconds                     | "Score recalculated with latest prompt"    |
+| AI Progress | `Sparkles` + progress bar | Purple tint | Until complete                | "Scoring 23 of 47 candidates..."           |
 
 ### Toast Anatomy
 
@@ -436,12 +436,12 @@ Bottom-right corner. Stacks vertically (newest on top). Max 3 visible toasts.
 
 ### Modal Sizes
 
-| Size | Width | Usage |
-|---|---|---|
-| Small | 400px | Confirmations, simple forms (delete, archive) |
-| Medium | 560px | Create/edit forms, score details |
-| Large | 720px | Complex forms, full score explanation |
-| Full | 90vw, max 1200px | Bulk upload, full candidate comparison |
+| Size   | Width            | Usage                                         |
+| ------ | ---------------- | --------------------------------------------- |
+| Small  | 400px            | Confirmations, simple forms (delete, archive) |
+| Medium | 560px            | Create/edit forms, score details              |
+| Large  | 720px            | Complex forms, full score explanation         |
+| Full   | 90vw, max 1200px | Bulk upload, full candidate comparison        |
 
 ### Modal Rules
 
@@ -482,12 +482,12 @@ Bottom-right corner. Stacks vertically (newest on top). Max 3 visible toasts.
 
 ### Validation Strategy
 
-| Timing | What | How |
-|---|---|---|
-| On blur | Field-level validation | Validate when user leaves a field. Show error immediately. |
-| On submit | Full form validation | Validate all fields. Scroll to first error. Focus the errored field. |
-| Real-time | Character count, format preview | Show counter for text areas. Show email format feedback. |
-| Server-side | Uniqueness, business rules | Show server error after submission (e.g., "Email already exists"). |
+| Timing      | What                            | How                                                                  |
+| ----------- | ------------------------------- | -------------------------------------------------------------------- |
+| On blur     | Field-level validation          | Validate when user leaves a field. Show error immediately.           |
+| On submit   | Full form validation            | Validate all fields. Scroll to first error. Focus the errored field. |
+| Real-time   | Character count, format preview | Show counter for text areas. Show email format feedback.             |
+| Server-side | Uniqueness, business rules      | Show server error after submission (e.g., "Email already exists").   |
 
 ### Required Field Indicator
 
@@ -520,16 +520,16 @@ Required fields are marked with a red asterisk (`*`) after the label. The form h
 
 ### Table Features
 
-| Feature | Implementation |
-|---|---|
-| **Sorting** | Click column header to sort. Arrow indicator shows direction. |
-| **Row selection** | Checkbox column. Header checkbox selects all on page. |
-| **Bulk actions** | Bar appears above table when rows selected: "3 selected — [Score] [Add to Job] [Archive]" |
-| **Row actions** | Three-dot menu (⋯) with contextual actions |
-| **Row click** | Click row navigates to detail page. Action menu and checkbox don't trigger navigation. |
-| **Column width** | Fixed widths for checkbox, score, actions. Flexible for text columns. |
-| **Sticky header** | Table header sticks on scroll |
-| **Mobile** | Switch to card layout (one card per row) |
+| Feature           | Implementation                                                                            |
+| ----------------- | ----------------------------------------------------------------------------------------- |
+| **Sorting**       | Click column header to sort. Arrow indicator shows direction.                             |
+| **Row selection** | Checkbox column. Header checkbox selects all on page.                                     |
+| **Bulk actions**  | Bar appears above table when rows selected: "3 selected — [Score] [Add to Job] [Archive]" |
+| **Row actions**   | Three-dot menu (⋯) with contextual actions                                                |
+| **Row click**     | Click row navigates to detail page. Action menu and checkbox don't trigger navigation.    |
+| **Column width**  | Fixed widths for checkbox, score, actions. Flexible for text columns.                     |
+| **Sticky header** | Table header sticks on scroll                                                             |
+| **Mobile**        | Switch to card layout (one card per row)                                                  |
 
 ---
 
@@ -577,13 +577,13 @@ Dedicated page with a large input field, AI badge, and structured results with r
 
 ### Filter Behavior
 
-| Pattern | Implementation |
-|---|---|
-| Single select | Dropdown with radio buttons (Status: Open / Closed / Draft) |
-| Multi select | Dropdown with checkboxes (Skills: Python, Go, PostgreSQL) |
-| Range | Two inputs — Min / Max (Experience: 3–8 years) |
-| Boolean | Toggle switch (Shortlisted: Yes/No) |
-| Date range | Date picker with presets ("Last 7 days", "Last 30 days", custom) |
+| Pattern       | Implementation                                                   |
+| ------------- | ---------------------------------------------------------------- |
+| Single select | Dropdown with radio buttons (Status: Open / Closed / Draft)      |
+| Multi select  | Dropdown with checkboxes (Skills: Python, Go, PostgreSQL)        |
+| Range         | Two inputs — Min / Max (Experience: 3–8 years)                   |
+| Boolean       | Toggle switch (Shortlisted: Yes/No)                              |
+| Date range    | Date picker with presets ("Last 7 days", "Last 30 days", custom) |
 
 ### Active Filters
 
@@ -651,11 +651,11 @@ All AI-generated content shows a small `✨ AI` badge to distinguish it from hum
 
 ### Confidence Indicators
 
-| Level | Badge | Color | Tooltip |
-|---|---|---|---|
-| High (0.8–1.0) | `⚡ High Confidence` | Green | "Complete resume data, consistent scoring output" |
-| Medium (0.5–0.79) | `⚠️ Limited Data` | Amber | "Partial resume or ambiguous job description" |
-| Low (0.0–0.49) | `⚠️ Review Manually` | Red | "Incomplete resume, scoring may be unreliable" |
+| Level             | Badge                | Color | Tooltip                                           |
+| ----------------- | -------------------- | ----- | ------------------------------------------------- |
+| High (0.8–1.0)    | `⚡ High Confidence` | Green | "Complete resume data, consistent scoring output" |
+| Medium (0.5–0.79) | `⚠️ Limited Data`    | Amber | "Partial resume or ambiguous job description"     |
+| Low (0.0–0.49)    | `⚠️ Review Manually` | Red   | "Incomplete resume, scoring may be unreliable"    |
 
 ### AI Explanation Panel
 
@@ -685,14 +685,14 @@ Every AI output shows a subtle footer: `✨ Scored by gpt-4o-2024-08-06 • Prom
 
 ### Upload States
 
-| State | Visual |
-|---|---|
-| **Default** | Dashed border, upload icon, instructional text |
-| **Drag over** | Border becomes solid primary color, background tints primary |
-| **Uploading** | File name + progress bar + percentage |
-| **Processing** | File name + spinner + "Parsing..." |
-| **Complete** | File name + green check + "Parsed" + link to candidate |
-| **Failed** | File name + red X + error message + "Retry" link |
+| State            | Visual                                                                       |
+| ---------------- | ---------------------------------------------------------------------------- |
+| **Default**      | Dashed border, upload icon, instructional text                               |
+| **Drag over**    | Border becomes solid primary color, background tints primary                 |
+| **Uploading**    | File name + progress bar + percentage                                        |
+| **Processing**   | File name + spinner + "Parsing..."                                           |
+| **Complete**     | File name + green check + "Parsed" + link to candidate                       |
+| **Failed**       | File name + red X + error message + "Retry" link                             |
 | **Invalid file** | Shake animation + error toast: "Only PDF, DOCX, and TXT files are supported" |
 
 ### Bulk Upload Progress
@@ -716,18 +716,18 @@ Every AI output shows a subtle footer: `✨ Scored by gpt-4o-2024-08-06 • Prom
 
 ## 24. Keyboard Shortcuts
 
-| Shortcut | Action | Context |
-|---|---|---|
-| `Cmd/Ctrl + K` | Open global search / command palette | Global |
-| `Cmd/Ctrl + N` | Create new (context-aware: new job, new candidate) | Global |
-| `Cmd/Ctrl + U` | Open upload dialog | Global |
-| `Escape` | Close modal / popover / command palette | Overlay open |
-| `J` / `K` | Navigate down / up in lists | Table / list view |
-| `Enter` | Open selected item | Table / list view |
-| `S` | Score selected candidate | Candidate detail |
-| `M` | Move to next stage | Pipeline view |
-| `N` | Add note | Candidate detail |
-| `?` | Show keyboard shortcuts overlay | Global |
+| Shortcut       | Action                                             | Context           |
+| -------------- | -------------------------------------------------- | ----------------- |
+| `Cmd/Ctrl + K` | Open global search / command palette               | Global            |
+| `Cmd/Ctrl + N` | Create new (context-aware: new job, new candidate) | Global            |
+| `Cmd/Ctrl + U` | Open upload dialog                                 | Global            |
+| `Escape`       | Close modal / popover / command palette            | Overlay open      |
+| `J` / `K`      | Navigate down / up in lists                        | Table / list view |
+| `Enter`        | Open selected item                                 | Table / list view |
+| `S`            | Score selected candidate                           | Candidate detail  |
+| `M`            | Move to next stage                                 | Pipeline view     |
+| `N`            | Add note                                           | Candidate detail  |
+| `?`            | Show keyboard shortcuts overlay                    | Global            |
 
 ### Keyboard Shortcut Overlay
 
@@ -794,26 +794,26 @@ graph TD
 
 ### URL Structure (Next.js App Router)
 
-| Route | Page |
-|---|---|
-| `/login` | Login |
-| `/forgot-password` | Forgot password |
-| `/` | Dashboard |
-| `/jobs` | Jobs list |
-| `/jobs/new` | Create job |
-| `/jobs/[jobId]` | Job detail + pipeline |
-| `/jobs/[jobId]/edit` | Edit job |
-| `/jobs/[jobId]/pipeline` | Kanban view |
-| `/candidates` | Candidates list |
-| `/candidates/new` | Create candidate |
-| `/candidates/upload` | Upload resumes |
-| `/candidates/[candidateId]` | Candidate detail |
-| `/search` | Semantic search |
-| `/settings` | Workspace settings |
-| `/settings/team` | User management |
-| `/settings/audit-log` | Audit logs |
-| `/settings/ai-usage` | AI usage analytics |
-| `/profile` | Current user profile |
+| Route                       | Page                  |
+| --------------------------- | --------------------- |
+| `/login`                    | Login                 |
+| `/forgot-password`          | Forgot password       |
+| `/`                         | Dashboard             |
+| `/jobs`                     | Jobs list             |
+| `/jobs/new`                 | Create job            |
+| `/jobs/[jobId]`             | Job detail + pipeline |
+| `/jobs/[jobId]/edit`        | Edit job              |
+| `/jobs/[jobId]/pipeline`    | Kanban view           |
+| `/candidates`               | Candidates list       |
+| `/candidates/new`           | Create candidate      |
+| `/candidates/upload`        | Upload resumes        |
+| `/candidates/[candidateId]` | Candidate detail      |
+| `/search`                   | Semantic search       |
+| `/settings`                 | Workspace settings    |
+| `/settings/team`            | User management       |
+| `/settings/audit-log`       | Audit logs            |
+| `/settings/ai-usage`        | AI usage analytics    |
+| `/profile`                  | Current user profile  |
 
 ---
 
@@ -824,6 +824,7 @@ graph TD
 ## Screen: Login
 
 ### Purpose
+
 Authenticate the user. Entry point for all users. Must feel premium and trustworthy.
 
 ### ASCII Wireframe
@@ -861,9 +862,11 @@ Authenticate the user. Entry point for all users. Must feel premium and trustwor
 ```
 
 ### Layout
+
 Centered card on a gradient background (`--primary` to dark). No sidebar or navigation. Full-page layout.
 
 ### Components
+
 - Logo + tagline
 - Email input (text, autofocus)
 - Password input (password toggle visibility)
@@ -874,15 +877,18 @@ Centered card on a gradient background (`--primary` to dark). No sidebar or navi
 - Contact sales link
 
 ### API Endpoints
+
 - `POST /api/v1/auth/login` — email/password auth
 - Google OAuth flow (redirect-based)
 
 ### User Actions
+
 1. Enter email → Tab → Enter password → Enter (submit)
 2. Click "Forgot password?" → navigate to forgot password page
 3. Click "Sign in with Google" → OAuth redirect flow
 
 ### States
+
 - **Empty**: Default form state
 - **Loading**: "Sign In" button shows spinner, disabled
 - **Error (invalid credentials)**: Red toast: "Invalid email or password". Clear password field. Focus email.
@@ -891,18 +897,22 @@ Centered card on a gradient background (`--primary` to dark). No sidebar or navi
 - **Success**: Redirect to Dashboard
 
 ### Validation
+
 - Email: Required, valid email format (on blur)
 - Password: Required, non-empty (on submit)
 
 ### Permissions
+
 - Public (no auth required)
 
 ### Responsive Behavior
+
 - **Mobile**: Card takes full width with padding. Logo smaller.
 - **Tablet**: Card centered, 420px wide.
 - **Desktop**: Card centered, 420px wide. Background pattern visible.
 
 ### Accessibility
+
 - `autofocus` on email input
 - Password visibility toggle has `aria-label="Show password"` / `"Hide password"`
 - Form has `role="form"` with `aria-label="Sign in"`
@@ -913,6 +923,7 @@ Centered card on a gradient background (`--primary` to dark). No sidebar or navi
 ## Screen: Forgot Password
 
 ### Purpose
+
 Allow users to reset their password via email link.
 
 ### ASCII Wireframe
@@ -937,6 +948,7 @@ Allow users to reset their password via email link.
 ```
 
 ### States
+
 - **Success**: Show confirmation: "Check your email. We sent a reset link to jane@acme.com." (Don't reveal if email exists — security best practice)
 - **Error**: Generic message regardless of whether email exists
 
@@ -945,6 +957,7 @@ Allow users to reset their password via email link.
 ## Screen: Dashboard
 
 ### Purpose
+
 Landing page after login. Overview of recruiting activity — open jobs, pipeline health, recent activity, and key metrics.
 
 ### ASCII Wireframe
@@ -980,25 +993,30 @@ Landing page after login. Overview of recruiting activity — open jobs, pipelin
 ```
 
 ### Layout
+
 - 4-column metric cards at top
 - 2-column layout below: Pipeline Overview (left, wider) + Recent Activity (right, narrower)
 
 ### Components
+
 - MetricCard (4x): icon, value, label, trend indicator
 - PipelineOverview: list of open jobs with candidate counts and mini progress bars
 - RecentActivity: chronological feed of actions
 
 ### API Endpoints
+
 - `GET /api/v1/jobs?status=open&limit=5` — Pipeline overview
 - `GET /api/v1/audit-logs?limit=10` — Recent activity
 - Metrics: derived from jobs + candidates + scores counts
 
 ### States
+
 - **Empty (new tenant)**: Welcome screen with onboarding steps: "1. Create your first job → 2. Upload resumes → 3. Let AI score candidates"
 - **Loading**: Skeleton for all cards and lists
 - **Error**: Error banner at top, retry button
 
 ### Responsive Behavior
+
 - **Mobile**: Metric cards 2×2 grid. Pipeline and Activity stack vertically.
 - **Tablet**: Metric cards in a row. Pipeline and Activity side by side.
 - **Desktop**: Full layout as wireframed.
@@ -1008,6 +1026,7 @@ Landing page after login. Overview of recruiting activity — open jobs, pipelin
 ## Screen: Jobs List
 
 ### Purpose
+
 View and manage all job descriptions. Primary starting point for the recruiting workflow.
 
 ### ASCII Wireframe
@@ -1032,9 +1051,11 @@ View and manage all job descriptions. Primary starting point for the recruiting 
 ```
 
 ### API Endpoints
+
 - `GET /api/v1/jobs` with query params for filters, sort, pagination
 
 ### User Actions
+
 - Click row → navigate to `/jobs/[jobId]`
 - Click "Create Job" → navigate to `/jobs/new`
 - Three-dot menu: Edit, Open/Close, Archive
@@ -1043,11 +1064,13 @@ View and manage all job descriptions. Primary starting point for the recruiting 
 - Search by title/description
 
 ### States
+
 - **Empty**: "No jobs yet. Create your first job to start evaluating candidates." + Create button
 - **Loading**: 4-row skeleton table
 - **Filtered empty**: "No jobs match your filters." + Clear filters link
 
 ### Permissions
+
 - All roles can view
 - `org_admin`, `recruiter` see "Create Job" button and edit actions
 - `hiring_manager` sees read-only list
@@ -1057,6 +1080,7 @@ View and manage all job descriptions. Primary starting point for the recruiting 
 ## Screen: Create Job
 
 ### Purpose
+
 Create a new job description. Form-focused screen with live preview.
 
 ### ASCII Wireframe
@@ -1100,18 +1124,22 @@ Create a new job description. Form-focused screen with live preview.
 ```
 
 ### Layout
+
 Two-column on desktop: form (left), live preview (right). Stacked on mobile.
 
 ### API Endpoints
+
 - `POST /api/v1/jobs`
 
 ### Validation
+
 - Title: required, 1–200 chars
 - Description: required, 1–10,000 chars
 - Experience range: max >= min
 - Skills: each 1–100 chars, max 50
 
 ### Permissions
+
 - `org_admin`, `recruiter` only
 
 ---
@@ -1119,6 +1147,7 @@ Two-column on desktop: form (left), live preview (right). Stacked on mobile.
 ## Screen: Job Detail
 
 ### Purpose
+
 Full view of a job: description, pipeline summary, candidates, and scores. Hub page for a specific role.
 
 ### ASCII Wireframe
@@ -1141,12 +1170,14 @@ Full view of a job: description, pipeline summary, candidates, and scores. Hub p
 ```
 
 ### Tabs
+
 1. **Kanban**: Pipeline Kanban board (see Pipeline screen)
 2. **Candidates**: Table of candidates for this job with scores
 3. **Scores**: Ranked list by fit score
 4. **Details**: Full JD text, extracted requirements, skills
 
 ### API Endpoints
+
 - `GET /api/v1/jobs/{jobId}`
 - `GET /api/v1/jobs/{jobId}/candidates` (per tab)
 
@@ -1155,6 +1186,7 @@ Full view of a job: description, pipeline summary, candidates, and scores. Hub p
 ## Screen: Candidates List
 
 ### Purpose
+
 Browse the entire candidate pool with search, filtering, and bulk actions.
 
 ### ASCII Wireframe
@@ -1181,10 +1213,12 @@ Browse the entire candidate pool with search, filtering, and bulk actions.
 ```
 
 ### API Endpoints
+
 - `GET /api/v1/candidates` with filters, sort, pagination
 - Bulk actions: `POST /api/v1/jobs/{jobId}/candidates` (add to job)
 
 ### Permissions
+
 - `hiring_manager`: sees only shortlisted candidates (reduced view)
 
 ---
@@ -1192,6 +1226,7 @@ Browse the entire candidate pool with search, filtering, and bulk actions.
 ## Screen: Candidate Detail
 
 ### Purpose
+
 Complete candidate profile — resume, scores across jobs, notes, tags, pipeline status. The most information-dense screen.
 
 ### ASCII Wireframe
@@ -1230,20 +1265,24 @@ Complete candidate profile — resume, scores across jobs, notes, tags, pipeline
 ```
 
 ### Layout
+
 Two-column: fixed sidebar (candidate summary) + tabbed content area. Sidebar collapses to top bar on mobile.
 
 ### Tabs
+
 1. **Profile**: Parsed resume data (experience, education, certifications)
 2. **Scores**: Scores across all jobs the candidate is in
 3. **Notes**: Chronological notes feed with add form
 4. **Tags**: Tag management
 
 ### API Endpoints
+
 - `GET /api/v1/candidates/{candidateId}`
 - `GET /api/v1/candidates/{candidateId}/notes`
 - `GET /api/v1/candidates/{candidateId}/tags`
 
 ### User Actions
+
 - View/download resume
 - Score for a job (opens job selector → triggers scoring)
 - Add/remove tags
@@ -1252,15 +1291,18 @@ Two-column: fixed sidebar (candidate summary) + tabbed content area. Sidebar col
 - Navigate to associated jobs
 
 ### States
+
 - **Loading**: Skeleton on sidebar + tab content
 - **Error**: Error banner in content area
 - **No resume**: "No resume uploaded" + Upload button in resume section
 - **No scores**: "Not scored for any job yet" + "Score Now" button
 
 ### Permissions
+
 - `hiring_manager`: read-only, sees only shortlisted candidate data. No edit/tag/score actions.
 
 ### Responsive Behavior
+
 - **Mobile**: Sidebar becomes a collapsible header card. Tabs become a scrollable horizontal pill bar.
 - **Tablet**: Sidebar narrower (200px). Tabs full width.
 - **Desktop**: Full two-column layout.
@@ -1270,6 +1312,7 @@ Two-column: fixed sidebar (candidate summary) + tabbed content area. Sidebar col
 ## Screen: Resume Upload
 
 ### Purpose
+
 Upload single or bulk resumes. Optionally associate with a job.
 
 ### ASCII Wireframe
@@ -1305,6 +1348,7 @@ Upload single or bulk resumes. Optionally associate with a job.
 ```
 
 ### API Endpoints
+
 - `POST /api/v1/resumes/upload` (single)
 - `POST /api/v1/resumes/bulk-upload` (multiple)
 - `GET /api/v1/resumes/{resumeId}/status` (polling)
@@ -1314,6 +1358,7 @@ Upload single or bulk resumes. Optionally associate with a job.
 ## Screen: AI Scoring
 
 ### Purpose
+
 View the full AI score for a candidate-job pair. Includes the score gauge, dimension breakdown, explanation, skill analysis, and AI provenance.
 
 ### ASCII Wireframe
@@ -1354,17 +1399,20 @@ View the full AI score for a candidate-job pair. Includes the score gauge, dimen
 ```
 
 ### API Endpoints
+
 - `GET /api/v1/jobs/{jobId}/candidates/{candidateId}/score`
 - `GET /api/v1/scores/{scoreId}/explanation`
 - `POST /api/v1/jobs/{jobId}/candidates/{candidateId}/score` (re-score)
 - `GET /api/v1/jobs/{jobId}/candidates/{candidateId}/scores/history`
 
 ### User Actions
+
 - Re-score (triggers new AI scoring)
 - View score history (expandable panel showing previous scores with prompt/model versions)
 - "Report Issue" (flags score for review)
 
 ### States
+
 - **Not scored**: "Score Now" button prominent
 - **Scoring in progress**: Animated spinner with "Analyzing resume against job requirements..."
 - **Scored**: Full display as wireframed
@@ -1376,6 +1424,7 @@ View the full AI score for a candidate-job pair. Includes the score gauge, dimen
 ## Screen: Semantic Search
 
 ### Purpose
+
 Natural language search across the candidate pool using AI embeddings.
 
 ### ASCII Wireframe
@@ -1416,10 +1465,12 @@ Natural language search across the candidate pool using AI embeddings.
 ```
 
 ### API Endpoints
+
 - `POST /api/v1/search/candidates`
 - `POST /api/v1/saved-searches` (save)
 
 ### States
+
 - **Empty**: Placeholder text with example queries: "Try: 'Python developers with ML experience' or 'Project managers with agile certification'"
 - **Loading**: Skeleton result cards with pulsing animation
 - **No results**: "No candidates match your search. Try broader terms or adjust your filters."
@@ -1430,6 +1481,7 @@ Natural language search across the candidate pool using AI embeddings.
 ## Screen: Pipeline (Kanban)
 
 ### Purpose
+
 Kanban board for a specific job. Drag-and-drop candidates between stages. The core operational view for recruiters.
 
 ### ASCII Wireframe
@@ -1458,35 +1510,42 @@ Kanban board for a specific job. Drag-and-drop candidates between stages. The co
 ```
 
 ### Components
+
 - KanbanColumn: header (stage name + count), droppable area, card list
 - CandidateCard: name, current title, score badge with confidence, quick actions
 - Drag handle on cards for drag-and-drop
 
 ### API Endpoints
+
 - `GET /api/v1/jobs/{jobId}` (includes pipeline stages with candidate counts)
 - `GET /api/v1/jobs/{jobId}/candidates?sort=fitScore:desc` (candidates per stage)
 - `POST /api/v1/pipeline/move` (on drag-and-drop)
 
 ### User Actions
+
 - **Drag card** between columns → triggers `POST /pipeline/move`
 - **Click card** → navigate to candidate detail
 - **Right-click / long-press card** → context menu: Score, Shortlist, Reject, Add Note
 - **Click column header** → sort candidates within column
 
 ### States
+
 - **Empty pipeline**: "Add candidates to start building your pipeline" + button
 - **Loading**: Skeleton columns with 2 card skeletons each
 - **Drag in progress**: Source card faded (opacity 0.5), target column highlighted with primary border
 
 ### Move Confirmation
+
 When dragging to "Rejected" stage → modal asks for rejection reason (optional).
 
 ### Responsive Behavior
+
 - **Mobile**: Single column visible. Horizontal swipe or dropdown to switch stages.
 - **Tablet**: 3 columns visible. Horizontal scroll for remaining.
 - **Desktop**: All columns visible (up to 6). Scroll if more.
 
 ### Accessibility
+
 - Cards have `role="button"` with `aria-label` describing the candidate
 - Keyboard: Arrow keys to navigate between cards, Enter to open, Space to pick up for move
 - Screen reader: Announces "Jane Smith, score 92, in Applied stage. Press Space to move."
@@ -1496,6 +1555,7 @@ When dragging to "Rejected" stage → modal asks for rejection reason (optional)
 ## Screen: Tenant Settings
 
 ### Purpose
+
 Configure workspace-level settings. Org admin only.
 
 ### ASCII Wireframe
@@ -1522,16 +1582,19 @@ Configure workspace-level settings. Org admin only.
 ```
 
 ### Sub-sections (via sidebar tabs)
+
 1. **General**: Org name, plan info
 2. **Pipeline**: Default pipeline stages (reorderable list)
 3. **Billing**: Current plan, usage, upgrade CTA
 
 ### API Endpoints
+
 - `GET /api/v1/tenant`
 - `PATCH /api/v1/tenant`
 - `PATCH /api/v1/tenant/settings`
 
 ### Permissions
+
 - `org_admin` only. Other roles redirected to dashboard with toast: "You don't have permission to access settings."
 
 ---
@@ -1539,6 +1602,7 @@ Configure workspace-level settings. Org admin only.
 ## Screen: User Management
 
 ### Purpose
+
 Manage team members — invite, role changes, deactivate.
 
 ### ASCII Wireframe
@@ -1559,6 +1623,7 @@ Manage team members — invite, role changes, deactivate.
 ```
 
 ### API Endpoints
+
 - `GET /api/v1/users`
 - `POST /api/v1/users/invite`
 - `PATCH /api/v1/users/{userId}`
@@ -1566,6 +1631,7 @@ Manage team members — invite, role changes, deactivate.
 - `POST /api/v1/users/{userId}/reactivate`
 
 ### Permissions
+
 - `org_admin` only for invite, role change, deactivate actions
 - All roles can view the team list
 
@@ -1574,6 +1640,7 @@ Manage team members — invite, role changes, deactivate.
 ## Screen: Audit Logs
 
 ### Purpose
+
 Browsable, filterable audit trail. Compliance feature for org admins.
 
 ### ASCII Wireframe
@@ -1597,9 +1664,11 @@ Browsable, filterable audit trail. Compliance feature for org admins.
 ```
 
 ### API Endpoints
+
 - `GET /api/v1/audit-logs` with filters
 
 ### Permissions
+
 - `org_admin`: full access
 - `recruiter`: own actions only
 
@@ -1608,6 +1677,7 @@ Browsable, filterable audit trail. Compliance feature for org admins.
 ## Screen: AI Usage Analytics
 
 ### Purpose
+
 Track AI API costs, token usage, and operation metrics. Org admin feature for cost management.
 
 ### ASCII Wireframe
@@ -1642,9 +1712,11 @@ Track AI API costs, token usage, and operation metrics. Org admin feature for co
 ```
 
 ### API Endpoints
+
 - `GET /api/v1/ai-usage/summary?period=30d&groupBy=day`
 
 ### Permissions
+
 - `org_admin` only
 
 ---
@@ -1652,6 +1724,7 @@ Track AI API costs, token usage, and operation metrics. Org admin feature for co
 ## Screen: Profile
 
 ### Purpose
+
 View and edit the current user's profile.
 
 ### ASCII Wireframe
@@ -1679,6 +1752,7 @@ View and edit the current user's profile.
 ```
 
 ### API Endpoints
+
 - `GET /api/v1/auth/me`
 - `PATCH /api/v1/users/{userId}` (self-update)
 
@@ -1715,6 +1789,7 @@ graph LR
 ```
 
 **Rule** (per Engineering Guidelines §4.4):
+
 - All API data → TanStack Query (never Zustand or useState)
 - Cross-cutting UI state → Zustand (max 3–4 stores)
 - Component-specific UI → useState
@@ -1723,13 +1798,13 @@ graph LR
 
 ## Design Token Summary
 
-| Category | Tokens | Source |
-|---|---|---|
-| Colors | 15 semantic + 7 AI + 3 pipeline | §3 |
-| Typography | 10 sizes | §4 |
-| Spacing | 12 values (4px base) | §5 |
-| Shadows | 4 levels | §7 |
-| Radii | 5 values | §8 |
-| Breakpoints | 6 values | §10 |
-| Z-index | `dropdown: 50`, `modal: 100`, `toast: 150`, `tooltip: 200` | — |
-| Transitions | `duration: 150ms`, `easing: cubic-bezier(0.4, 0, 0.2, 1)` | — |
+| Category    | Tokens                                                     | Source |
+| ----------- | ---------------------------------------------------------- | ------ |
+| Colors      | 15 semantic + 7 AI + 3 pipeline                            | §3     |
+| Typography  | 10 sizes                                                   | §4     |
+| Spacing     | 12 values (4px base)                                       | §5     |
+| Shadows     | 4 levels                                                   | §7     |
+| Radii       | 5 values                                                   | §8     |
+| Breakpoints | 6 values                                                   | §10    |
+| Z-index     | `dropdown: 50`, `modal: 100`, `toast: 150`, `tooltip: 200` | —      |
+| Transitions | `duration: 150ms`, `easing: cubic-bezier(0.4, 0, 0.2, 1)`  | —      |
