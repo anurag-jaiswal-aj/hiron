@@ -60,6 +60,13 @@ class Settings(BaseSettings):
     celery_broker_url: str = Field(default="redis://localhost:6379/1", description="Celery broker URL")
     celery_result_backend: str = Field(default="redis://localhost:6379/2", description="Celery backend URL")
 
+    # 5. Security & Password Hashing Configuration (§16)
+    argon2_time_cost: int = Field(default=3, description="Argon2id time cost iterations")
+    argon2_memory_cost: int = Field(default=65536, description="Argon2id memory cost in KiB (64 MiB)")
+    argon2_parallelism: int = Field(default=4, description="Argon2id parallelism threads")
+    argon2_hash_len: int = Field(default=32, description="Argon2id hash output length in bytes")
+    argon2_salt_len: int = Field(default=16, description="Argon2id salt length in bytes")
+
 
 @lru_cache
 def get_settings() -> Settings:
