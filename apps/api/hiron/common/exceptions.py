@@ -68,6 +68,17 @@ class ResourceConflictException(HironException):
         )
 
 
+class PermissionDeniedException(HironException):
+    """Raised when an authenticated user lacks the required role or permission for an operation per API Contract §4."""
+
+    def __init__(self, message: str = "Insufficient permissions for this action") -> None:
+        super().__init__(
+            message=message,
+            code="INSUFFICIENT_PERMISSIONS",
+            status_code=status.HTTP_403_FORBIDDEN,
+        )
+
+
 class RateLimitExceededException(HironException):
     """Raised when a request exceeds the plan's rate limits."""
 

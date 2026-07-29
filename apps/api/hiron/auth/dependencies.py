@@ -1,6 +1,6 @@
-"""FastAPI authentication dependencies for current authenticated user extraction and tenant context validation."""
+"""FastAPI authentication and authorization (RBAC) dependencies per API Contract §4 & Engineering Guidelines §16.1."""
 
-from typing import Annotated
+from typing import Annotated, Sequence
 import uuid
 
 from fastapi import Depends
@@ -8,6 +8,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hiron.auth.service import AccountDisabledError, AuthenticationError
+from hiron.common.exceptions import PermissionDeniedException
 from hiron.core.database import get_db_session
 from hiron.core.jwt import verify_token
 from hiron.users.models import User
@@ -76,3 +77,42 @@ async def get_current_user(
         raise AccountDisabledError()
 
     return user
+
+
+class RoleChecker:
+    """FastAPI callable dependency checking user roles against allowed roles per API Contract §4."""
+
+    def __init__(self, allowed_roles: Sequence[str]) -> None:
+        """Initialize RoleChecker with allowed roles.
+
+        Args:
+            allowed_roles: Sequence of role strings (e.g. ['org_admin', 'recruiter']).
+        """
+        self.allowed_roles = set(allowed_roles)
+
+    async def __call__(self, current_user: Annotated[User, Depends(get_current_user)]) -> User:
+        """Enforce role check on the currently authenticated user.
+
+        Args:
+            current_user: Authenticated User entity from get_current_user dependency.
+
+        Returns:
+            Authenticated User entity if role check succeeds.
+
+        Raises:
+            PermissionDeniedException: If current_user.role is not in allowed_roles (HTTP 403).
+        """
+        if current_user.role not in self.allowed_roles:
+            raise PermissionDeniedException("Insufficient permissions for this action")
+        return current_user
+
+
+def require_role(*allowed_roles: str) -> RoleChecker:
+    """Dependency factory returning a RoleChecker for the specified allowed roles.
+
+    Example:
+        @router.get("/jobs", dependencies=[Depends(require_role("org_admin", "recruiter"))])
+        async def list_jobs(...):
+            ...
+    """
+    return RoleChecker(allowed_roles)
