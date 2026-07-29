@@ -1,9 +1,10 @@
 """UserRepository for async database data access per Database Design §5.2."""
 
+from datetime import datetime, timezone
 from typing import Sequence
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hiron.users.models import User
@@ -18,6 +19,7 @@ class UserRepository:
     - Lookup by email + tenant_id (tenant login flow)
     - List by tenant_id (team management)
     - Filter by role + tenant_id (role-based queries)
+    - Update last_login_at timestamp
     """
 
     async def create(self, session: AsyncSession, user: User) -> User:
@@ -79,3 +81,18 @@ class UserRepository:
             select(User).where(User.role == role, User.tenant_id == tenant_id)
         )
         return result.scalars().all()
+
+    async def update_last_login(
+        self,
+        session: AsyncSession,
+        user_id: uuid.UUID,
+        last_login_at: datetime | None = None,
+    ) -> bool:
+        """Update last_login_at timestamp for a User entity per Database Design §5.2."""
+        now = last_login_at or datetime.now(timezone.utc)
+        result = await session.execute(
+            update(User)
+            .where(User.id == user_id)
+            .values(last_login_at=now, updated_at=now)
+        )
+        return result.rowcount > 0
