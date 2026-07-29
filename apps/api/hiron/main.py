@@ -1,4 +1,4 @@
-"""FastAPI application factory and main entrypoint for Hiron Core API."""
+"""FastAPI application entry point, middleware registration, and core router initialization."""
 
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
@@ -7,51 +7,42 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import structlog
 
-from hiron import __version__
+from hiron.auth.router import router as auth_router
 from hiron.common.exceptions import register_exception_handlers
 from hiron.core.config import get_settings
-from hiron.core.database import engine
-from hiron.core.logging import setup_logging
-from hiron.core.middleware import RequestTracingMiddleware
-from hiron.health.router import health_router
+from hiron.core.logging import configure_logging
+from hiron.core.middleware import ProcessTimeAndRequestIdMiddleware
+from hiron.health.router import router as health_router
 
+# Initialize structured logging
+settings = get_settings()
+configure_logging(log_level=settings.log_level, environment=settings.environment)
 logger = structlog.get_logger("hiron.api.main")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    """Application lifespan context manager for startup and shutdown events."""
-    settings = get_settings()
-    setup_logging(log_level=settings.log_level, environment=settings.environment)
-
-    logger.info(
-        "Application starting up",
-        environment=settings.environment,
-        version=__version__,
-        api_prefix=settings.api_v1_prefix,
-    )
-
+    """Manage application startup and shutdown lifespan events."""
+    logger.info("Application starting up", environment=settings.environment, port=settings.port)
     yield
-
-    logger.info("Application shutting down: disposing database connection pool")
-    await engine.dispose()
+    logger.info("Application shutting down")
 
 
 def create_app() -> FastAPI:
-    """FastAPI application factory configuring middleware, exception handlers, and routers."""
-    settings = get_settings()
-
+    """Construct and configure the main FastAPI application instance."""
     app = FastAPI(
         title="Hiron API",
-        description="AI-Powered Hiring Intelligence Platform Core REST API",
-        version=__version__,
-        openapi_url=f"{settings.api_v1_prefix}/openapi.json",
-        docs_url=f"{settings.api_v1_prefix}/docs",
-        redoc_url=f"{settings.api_v1_prefix}/redoc",
+        description="Multi-Tenant AI Recruitment Platform Backend API",
+        version="0.1.0",
+        docs_url="/docs" if settings.environment != "production" else None,
+        redoc_url="/redoc" if settings.environment != "production" else None,
         lifespan=lifespan,
     )
 
-    # 1. CORS Middleware (§14)
+    # 1. Custom Tracing & Request ID Middleware
+    app.add_middleware(ProcessTimeAndRequestIdMiddleware)
+
+    # 2. CORS Middleware
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.allowed_origins,
@@ -60,16 +51,24 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # 2. Custom Request Tracing & Timing Middleware
-    app.add_middleware(RequestTracingMiddleware)
-
-    # 3. Global Exception Handlers (§14 & API Contract §8)
+    # 3. Custom Exception Handlers
     register_exception_handlers(app)
 
-    # 4. Include Routers
-    app.include_router(health_router, prefix=settings.api_v1_prefix)
+    # 4. Route Registration
+    app.include_router(health_router, prefix="/api/v1/health", tags=["Health"])
+    app.include_router(auth_router, prefix="/api/v1/auth", tags=["Auth"])
 
     return app
 
 
 app = create_app()
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(
+        "hiron.main:app",
+        host="0.0.0.0",
+        port=settings.port,
+        reload=settings.environment == "development",
+    )

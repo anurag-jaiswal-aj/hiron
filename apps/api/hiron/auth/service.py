@@ -1,4 +1,4 @@
-"""Authentication service providing core login, credential verification, and token issuance business logic."""
+"""Authentication service providing core login, credential verification, token issuance, and rotation business logic."""
 
 from datetime import datetime, timedelta, timezone
 import hashlib
@@ -10,7 +10,7 @@ import structlog
 
 from hiron.common.exceptions import HironException
 from hiron.core.config import get_settings
-from hiron.core.jwt import create_access_token, create_refresh_token
+from hiron.core.jwt import create_access_token, create_refresh_token, verify_token
 from hiron.core.security import verify_password
 from hiron.tokens.models import RefreshToken
 from hiron.tokens.repository import RefreshTokenRepository
@@ -21,7 +21,7 @@ logger = structlog.get_logger("hiron.api.auth.service")
 
 
 class AuthenticationError(HironException):
-    """Raised when authentication credentials (email/password) are invalid or missing."""
+    """Raised when authentication credentials (email/password) or refresh tokens are invalid."""
 
     def __init__(self, message: str = "Invalid email or password") -> None:
         super().__init__(
@@ -43,7 +43,7 @@ class AccountDisabledError(HironException):
 
 
 class AuthService:
-    """Core authentication business logic service."""
+    """Application service boundary encapsulating authentication, credential verification, and token lifecycle workflows."""
 
     def __init__(
         self,
@@ -119,7 +119,7 @@ class AuthService:
         """
         settings = get_settings()
 
-        # 1. Create access token (configured minutes TTL per Engineering Guidelines §16.1)
+        # 1. Create access token (15-min TTL)
         access_token = create_access_token(
             user_id=user.id,
             tenant_id=user.tenant_id,
@@ -127,7 +127,7 @@ class AuthService:
             role=user.role,
         )
 
-        # 2. Create refresh token (configured days TTL per Engineering Guidelines §16.1)
+        # 2. Create refresh token (7-day TTL)
         token_jti = str(uuid.uuid4())
         raw_refresh_token = create_refresh_token(
             user_id=user.id,
@@ -154,3 +154,70 @@ class AuthService:
         await self.user_repo.update_last_login(session=session, user_id=user.id)
 
         return access_token, raw_refresh_token
+
+    async def rotate_refresh_token(
+        self,
+        session: AsyncSession,
+        raw_refresh_token: str,
+        user_agent: Optional[str] = None,
+        ip_address: Optional[str] = None,
+    ) -> Tuple[str, str]:
+        """Application service method handling single-use refresh token rotation per API Contract §6.1.
+
+        Args:
+            session: Active AsyncSession database handle.
+            raw_refresh_token: Raw encoded JWT refresh token string.
+            user_agent: Optional client browser user agent string.
+            ip_address: Optional client IP address string.
+
+        Returns:
+            Tuple of (new_access_token_jwt, new_raw_refresh_token_jwt).
+
+        Raises:
+            AuthenticationError: On invalid signature, expired, revoked, or non-existent token.
+            AccountDisabledError: If user account is deactivated.
+        """
+        try:
+            payload = verify_token(raw_refresh_token, expected_type="refresh")
+        except Exception as exc:
+            logger.warning("Token refresh failed: invalid or expired JWT", error=str(exc))
+            raise AuthenticationError("Invalid or expired refresh token") from exc
+
+        user_id = uuid.UUID(payload["sub"])
+        tenant_id = uuid.UUID(payload["tenantId"])
+        token_hash = hashlib.sha256(raw_refresh_token.encode("utf-8")).hexdigest()
+
+        # 1. Fetch token record from database
+        stored_token = await self.token_repo.get_by_token_hash(session, token_hash)
+        if not stored_token or stored_token.is_revoked or stored_token.expires_at < datetime.now(timezone.utc):
+            logger.warning("Token refresh failed: token revoked, missing, or expired in DB", token_hash=token_hash)
+            raise AuthenticationError("Invalid or expired refresh token")
+
+        # 2. Single-use rotation: Revoke old refresh token (§5.3 & §16.1)
+        await self.token_repo.revoke_by_token_hash(session, token_hash)
+
+        # 3. Fetch user and verify active status
+        user = await self.user_repo.get_by_id_and_tenant(session, user_id, tenant_id)
+        if not user:
+            raise AuthenticationError("User not found")
+        if not user.is_active:
+            raise AccountDisabledError()
+
+        # 4. Issue rotated token pair
+        return await self.create_auth_tokens(
+            session=session,
+            user=user,
+            user_agent=user_agent,
+            ip_address=ip_address,
+        )
+
+    async def logout(self, session: AsyncSession, raw_refresh_token: Optional[str]) -> None:
+        """Application service method executing session revocation for logout per API Contract §6.1.
+
+        Args:
+            session: Active AsyncSession database handle.
+            raw_refresh_token: Optional raw refresh token string to revoke.
+        """
+        if raw_refresh_token:
+            token_hash = hashlib.sha256(raw_refresh_token.encode("utf-8")).hexdigest()
+            await self.token_repo.revoke_by_token_hash(session, token_hash)
