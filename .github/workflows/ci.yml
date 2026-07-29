@@ -2,9 +2,10 @@ name: CI Pipeline
 
 on:
   push:
-    branches: [main, phase-0-scaffolding]
+
   pull_request:
-    branches: [main]
+    branches:
+      - main
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
