@@ -131,6 +131,8 @@ combine-as-imports = true
 [tool.ruff.lint.per-file-ignores]
 "apps/api/tests/**/*.py" = ["S101"]
 "apps/api/alembic/**/*.py" = ["E402"]
+"apps/api/hiron/common/exceptions.py" = ["N818"]
+"apps/api/hiron/common/schemas.py" = ["UP046"]
 "scripts/*.py" = ["T201", "E402"]
 
 # MyPy Strict Mode Configuration (§3.1)
