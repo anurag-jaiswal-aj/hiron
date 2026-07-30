@@ -1,5 +1,6 @@
 """Integration test suite for Tenant API endpoints, verifying authentication and RBAC dependency resolution."""
 
+from collections.abc import Generator
 import uuid
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock
@@ -56,7 +57,9 @@ def mock_recruiter_user() -> User:
 
 
 @pytest.fixture
-def client(mock_db: AsyncMock, mock_tenant_service: AsyncMock, mock_admin_user: User) -> TestClient:
+def client(
+    mock_db: AsyncMock, mock_tenant_service: AsyncMock, mock_admin_user: User
+) -> Generator[TestClient, None, None]:
     """FastAPI TestClient testing tenants_router with get_current_user override.
 
     Architectural Dependency Resolution Justification:

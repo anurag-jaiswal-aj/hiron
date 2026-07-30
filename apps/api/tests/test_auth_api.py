@@ -1,5 +1,6 @@
 """Integration test suite for authentication API endpoints (login, refresh, logout)."""
 
+from collections.abc import Generator
 import uuid
 from unittest.mock import AsyncMock
 
@@ -26,7 +27,7 @@ def mock_auth_service() -> AsyncMock:
 
 
 @pytest.fixture
-def client(mock_db: AsyncMock, mock_auth_service: AsyncMock) -> TestClient:
+def client(mock_db: AsyncMock, mock_auth_service: AsyncMock) -> Generator[TestClient, None, None]:
     """FastAPI TestClient with dependency overrides."""
     app.dependency_overrides[get_db_session] = lambda: mock_db
     app.dependency_overrides[get_auth_service] = lambda: mock_auth_service
