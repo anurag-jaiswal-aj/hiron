@@ -46,15 +46,13 @@ class JobService:
         if current_user_role not in MANAGEMENT_ROLES:
             raise InsufficientJobPermissionsError(f"Only org_admin or recruiter can {action} jobs")
 
-    def _validate_job_fields(
+    def _validate_text_and_type_fields(
         self,
-        title: str | None = None,
-        description: str | None = None,
-        employment_type: str | None = None,
-        experience_years_min: int | None = None,
-        experience_years_max: int | None = None,
+        title: str | None,
+        description: str | None,
+        employment_type: str | None,
     ) -> None:
-        """Validate job fields against business constraints."""
+        """Validate title, description, and employment type fields."""
         if title is not None:
             clean_title = title.strip()
             if not clean_title or len(clean_title) > 200:
@@ -70,6 +68,14 @@ class JobService:
                 f"Invalid employment type '{employment_type}'. Allowed: {', '.join(sorted(ALLOWED_EMPLOYMENT_TYPES))}"
             )
 
+    def _validate_experience_and_skills_fields(
+        self,
+        experience_years_min: int | None,
+        experience_years_max: int | None,
+        required_skills: list[str] | None,
+        preferred_skills: list[str] | None,
+    ) -> None:
+        """Validate experience years range and skills array bounds."""
         if experience_years_min is not None and (
             experience_years_min < 0 or experience_years_min > 50
         ):
@@ -88,6 +94,38 @@ class JobService:
             raise InvalidJobDataError(
                 "Maximum experience years must be greater than or equal to minimum experience years"
             )
+
+        for skill_list, field_name in (
+            (required_skills, "Required"),
+            (preferred_skills, "Preferred"),
+        ):
+            if skill_list is not None:
+                if len(skill_list) > 50:
+                    raise InvalidJobDataError(f"{field_name} skills list cannot exceed 50 items")
+                for s in skill_list:
+                    if not s.strip() or len(s.strip()) > 100:
+                        raise InvalidJobDataError(
+                            "Individual skill name must be between 1 and 100 characters"
+                        )
+
+    def _validate_job_fields(
+        self,
+        title: str | None = None,
+        description: str | None = None,
+        employment_type: str | None = None,
+        experience_years_min: int | None = None,
+        experience_years_max: int | None = None,
+        required_skills: list[str] | None = None,
+        preferred_skills: list[str] | None = None,
+    ) -> None:
+        """Validate job fields against business constraints."""
+        self._validate_text_and_type_fields(title, description, employment_type)
+        self._validate_experience_and_skills_fields(
+            experience_years_min,
+            experience_years_max,
+            required_skills,
+            preferred_skills,
+        )
 
     async def create_job(
         self,
@@ -114,6 +152,8 @@ class JobService:
             employment_type=employment_type,
             experience_years_min=experience_years_min,
             experience_years_max=experience_years_max,
+            required_skills=required_skills,
+            preferred_skills=preferred_skills,
         )
 
         if status not in ALLOWED_JOB_STATUSES:
@@ -340,6 +380,8 @@ class JobService:
             experience_years_max=experience_years_max
             if experience_years_max is not None
             else target_job.experience_years_max,
+            required_skills=required_skills,
+            preferred_skills=preferred_skills,
         )
 
         updates = self._build_update_dictionary(
