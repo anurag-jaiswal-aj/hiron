@@ -381,8 +381,8 @@ class CandidateService:
         job_id: uuid.UUID,
         candidate_id: uuid.UUID,
         tenant_id: uuid.UUID,
-        added_by_user_id: uuid.UUID,
-        current_user_role: str,
+        added_by_user_id: uuid.UUID | None = None,
+        current_user_role: str = "recruiter",
     ) -> JobCandidate:
         """Associate candidate with job and place in initial pipeline stage per API Contract §CAND-6."""
         self._validate_role_permission(current_user_role, "assign")

@@ -1,0 +1,138 @@
+"""FastAPI API endpoints for Resume Upload and status polling per API Contract §RES-1..RES-4."""
+
+import uuid
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, File, Form, UploadFile, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from hiron.auth.dependencies import get_current_user
+from hiron.common.schemas import ResponseEnvelope
+from hiron.core.database import get_db_session
+from hiron.resumes.schemas import (
+    BulkUploadResumeResponse,
+    ResumeStatusResponse,
+    UploadResumeResponse,
+)
+from hiron.resumes.service import ResumeService
+from hiron.storage.provider import LocalStorageProvider, StorageProvider
+from hiron.users.models import User
+
+router = APIRouter(tags=["resumes"])
+
+_storage_provider: StorageProvider = LocalStorageProvider()
+
+
+def get_resume_service() -> ResumeService:
+    """Dependency provider for ResumeService."""
+    return ResumeService(storage_provider=_storage_provider)
+
+
+@router.post(
+    "/upload",
+    response_model=ResponseEnvelope[UploadResumeResponse],
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def upload_resume(
+    file: Annotated[UploadFile, File(...)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    resume_service: Annotated[ResumeService, Depends(get_resume_service)],
+    candidateId: Annotated[str | None, Form()] = None,
+    jobId: Annotated[str | None, Form()] = None,
+) -> ResponseEnvelope[UploadResumeResponse]:
+    """Upload a resume file, create/bind candidate, and trigger parsing per API Contract §RES-1."""
+    parsed_candidate_id = uuid.UUID(candidateId) if candidateId else None
+    parsed_job_id = uuid.UUID(jobId) if jobId else None
+
+    file_bytes = await file.read()
+    filename = file.filename or "resume.pdf"
+    content_type = file.content_type or "application/pdf"
+
+    result = await resume_service.upload_resume(
+        session=session,
+        tenant_id=current_user.tenant_id,
+        user_role=current_user.role,
+        filename=filename,
+        content_type=content_type,
+        file_bytes=file_bytes,
+        candidate_id=parsed_candidate_id,
+        job_id=parsed_job_id,
+    )
+
+    return ResponseEnvelope(data=result)
+
+
+@router.post(
+    "/bulk-upload",
+    response_model=ResponseEnvelope[BulkUploadResumeResponse],
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def bulk_upload_resumes(
+    files: Annotated[list[UploadFile], File(...)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    resume_service: Annotated[ResumeService, Depends(get_resume_service)],
+    jobId: Annotated[str | None, Form()] = None,
+) -> ResponseEnvelope[BulkUploadResumeResponse]:
+    """Upload up to 500 resumes in a single bulk request per API Contract §RES-2."""
+    parsed_job_id = uuid.UUID(jobId) if jobId else None
+
+    file_tuples: list[tuple[str, str, bytes]] = []
+    for f in files:
+        data = await f.read()
+        fname = f.filename or "resume.pdf"
+        ctype = f.content_type or "application/pdf"
+        file_tuples.append((fname, ctype, data))
+
+    result = await resume_service.bulk_upload_resumes(
+        session=session,
+        tenant_id=current_user.tenant_id,
+        user_role=current_user.role,
+        files=file_tuples,
+        job_id=parsed_job_id,
+    )
+
+    return ResponseEnvelope(data=result)
+
+
+@router.get(
+    "/{resume_id}/status",
+    response_model=ResponseEnvelope[ResumeStatusResponse],
+)
+async def get_resume_status(
+    resume_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    resume_service: Annotated[ResumeService, Depends(get_resume_service)],
+) -> ResponseEnvelope[ResumeStatusResponse]:
+    """Poll for resume parsing status completion per API Contract §RES-3."""
+    result = await resume_service.get_resume_status(
+        session=session,
+        tenant_id=current_user.tenant_id,
+        resume_id=resume_id,
+    )
+
+    return ResponseEnvelope(data=result)
+
+
+@router.post(
+    "/{resume_id}/retry",
+    response_model=ResponseEnvelope[UploadResumeResponse],
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def retry_resume_parse(
+    resume_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    resume_service: Annotated[ResumeService, Depends(get_resume_service)],
+) -> ResponseEnvelope[UploadResumeResponse]:
+    """Retry parsing for a failed resume per API Contract §RES-4."""
+    result = await resume_service.retry_parse(
+        session=session,
+        tenant_id=current_user.tenant_id,
+        user_role=current_user.role,
+        resume_id=resume_id,
+    )
+
+    return ResponseEnvelope(data=result)

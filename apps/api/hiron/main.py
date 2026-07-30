@@ -15,6 +15,7 @@ from hiron.core.logging import configure_logging
 from hiron.core.middleware import ProcessTimeAndRequestIdMiddleware
 from hiron.health.router import router as health_router
 from hiron.jobs.router import router as jobs_router
+from hiron.resumes.router import router as resumes_router
 from hiron.users.router import router as users_router
 
 # Initialize structured logging
@@ -64,6 +65,7 @@ def create_app() -> FastAPI:
     app.include_router(jobs_router, prefix="/api/v1/jobs", tags=["Jobs"])
     app.include_router(candidates_router, prefix="/api/v1/candidates", tags=["Candidates"])
     app.include_router(jobs_candidate_router, prefix="/api/v1/jobs", tags=["Jobs/Candidates"])
+    app.include_router(resumes_router, prefix="/api/v1/resumes", tags=["Resumes"])
 
     return app
 
