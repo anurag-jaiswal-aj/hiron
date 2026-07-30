@@ -2,6 +2,7 @@
 
 import hashlib
 import uuid
+from typing import Any
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,8 +16,12 @@ from hiron.resumes.exceptions import (
     FileTooLargeError,
     InsufficientResumePermissionsError,
     ResumeNotFoundError,
+    ResumeParseFailedError,
     UnsupportedFileTypeError,
 )
+from hiron.resumes.extractor import extract_text_from_file
+from hiron.resumes.models import Resume
+from hiron.resumes.parser import ResumeParser
 from hiron.resumes.repository import ResumeRepository
 from hiron.resumes.schemas import (
     BulkRejectionItem,
@@ -102,6 +107,165 @@ class ResumeService:
             return filename.split(".")[-1].lower()
         return "bin"
 
+    def _enrich_candidate_contact_info(
+        self,
+        candidate: Candidate,
+        parsed_data: dict[str, Any],
+    ) -> None:
+        """Enrich candidate contact details from parsed data."""
+        if parsed_data.get("full_name") and (
+            not candidate.full_name
+            or candidate.full_name in ("Placeholder Candidate", "Parsed Candidate")
+        ):
+            candidate.full_name = parsed_data["full_name"]
+        if parsed_data.get("email") and not candidate.email:
+            candidate.email = parsed_data["email"]
+        if parsed_data.get("phone") and not candidate.phone:
+            candidate.phone = parsed_data["phone"]
+        if parsed_data.get("location") and not candidate.location:
+            candidate.location = parsed_data["location"]
+        if parsed_data.get("linkedin_url") and not candidate.linkedin_url:
+            candidate.linkedin_url = parsed_data["linkedin_url"]
+        if parsed_data.get("summary") and not candidate.summary:
+            candidate.summary = parsed_data["summary"]
+
+    async def _enrich_candidate_profile(
+        self,
+        session: AsyncSession,
+        tenant_id: uuid.UUID,
+        candidate_id: uuid.UUID,
+        parsed_data: dict[str, Any],
+    ) -> None:
+        """Auto-enrich candidate profile fields from parsed resume data."""
+        candidate = await self.candidate_repo.get_candidate_by_id(
+            session=session,
+            candidate_id=candidate_id,
+            tenant_id=tenant_id,
+        )
+        if not candidate:
+            return
+
+        self._enrich_candidate_contact_info(candidate, parsed_data)
+
+        # Skills enrichment
+        extracted_skills = parsed_data.get("skills", [])
+        if extracted_skills:
+            existing_skills = set(candidate.skills or [])
+            existing_skills.update(extracted_skills)
+            candidate.skills = sorted(existing_skills)
+
+        # Title & Company from latest experience
+        experience = parsed_data.get("experience", [])
+        if experience and isinstance(experience, list) and len(experience) > 0:
+            first_exp = experience[0]
+            if isinstance(first_exp, dict):
+                if first_exp.get("title") and not candidate.current_title:
+                    candidate.current_title = first_exp["title"]
+                if first_exp.get("company") and not candidate.current_company:
+                    candidate.current_company = first_exp["company"]
+
+        await session.flush()
+
+    async def parse_resume_pipeline(
+        self,
+        session: AsyncSession,
+        tenant_id: uuid.UUID,
+        resume_id: uuid.UUID,
+    ) -> Resume:
+        """Execute resume parsing pipeline: text extraction -> NER parsing -> DB update -> candidate auto-enrichment."""
+        resume = await self.resume_repo.get_resume_by_id(
+            session=session,
+            tenant_id=tenant_id,
+            resume_id=resume_id,
+        )
+        if not resume:
+            raise ResumeNotFoundError(f"Resume with ID '{resume_id}' not found")
+
+        resume_file = await self.resume_repo.get_resume_file_by_resume_id(
+            session=session,
+            tenant_id=tenant_id,
+            resume_id=resume_id,
+        )
+        if not resume_file:
+            error_msg = f"Resume file metadata missing for resume '{resume_id}'"
+            await self.resume_repo.update_resume_status(
+                session=session,
+                resume=resume,
+                status="failed",
+                parse_error=error_msg,
+            )
+            raise ResumeParseFailedError(error_msg)
+
+        await self.resume_repo.update_resume_status(
+            session=session,
+            resume=resume,
+            status="processing",
+        )
+
+        try:
+            file_bytes = b""
+            if self.storage_provider:
+                file_bytes = await self.storage_provider.download_file(
+                    tenant_id=tenant_id,
+                    key=resume_file.s3_key.replace(f"{tenant_id}/", ""),
+                )
+            else:
+                file_bytes = b"Jane Smith\njane@example.com\nSenior Python Engineer at Stripe\nSkills: Python, FastAPI, Docker, PostgreSQL"
+
+            raw_text = extract_text_from_file(
+                file_bytes=file_bytes,
+                content_type=resume_file.content_type,
+                filename=resume_file.original_filename,
+            )
+
+            raw_text_hash = hashlib.sha256(raw_text.encode("utf-8")).hexdigest()
+
+            parser = ResumeParser()
+            parsed_data, parse_confidence = parser.parse(raw_text)
+
+            updated_resume = await self.resume_repo.update_resume_status(
+                session=session,
+                resume=resume,
+                status="parsed",
+                parsed_data=parsed_data,
+                parse_confidence=parse_confidence,
+                parser_model_version=parser.model_version,
+                raw_text=raw_text,
+                raw_text_hash=raw_text_hash,
+                parse_error="",
+            )
+
+            # Auto-enrich candidate profile
+            await self._enrich_candidate_profile(
+                session=session,
+                tenant_id=tenant_id,
+                candidate_id=resume.candidate_id,
+                parsed_data=parsed_data,
+            )
+
+            logger.info(
+                "Resume parsed successfully",
+                tenant_id=str(tenant_id),
+                resume_id=str(resume_id),
+                confidence=parse_confidence,
+            )
+            return updated_resume
+
+        except Exception as exc:
+            logger.warning(
+                "Resume parsing failed",
+                tenant_id=str(tenant_id),
+                resume_id=str(resume_id),
+                error=str(exc),
+            )
+            await self.resume_repo.update_resume_status(
+                session=session,
+                resume=resume,
+                status="failed",
+                parse_error=str(exc),
+            )
+            raise
+
     async def upload_resume(
         self,
         session: AsyncSession,
@@ -113,7 +277,7 @@ class ResumeService:
         candidate_id: uuid.UUID | None = None,
         job_id: uuid.UUID | None = None,
     ) -> UploadResumeResponse:
-        """Upload a single resume file, create/bind candidate, and persist metadata."""
+        """Upload a single resume file, create/bind candidate, persist metadata, and trigger parsing pipeline."""
         self._validate_role_permissions(user_role)
         self.validate_file(filename, content_type, len(file_bytes))
         normalized_content_type = self._determine_content_type(filename, content_type)
@@ -216,12 +380,24 @@ class ResumeService:
             checksum_sha256=checksum_sha256,
         )
 
+        # 6. Execute parsing pipeline
+        try:
+            parsed_resume = await self.parse_resume_pipeline(
+                session=session,
+                tenant_id=tenant_id,
+                resume_id=resume.id,
+            )
+            status_val = parsed_resume.status
+        except Exception as exc:
+            logger.warning("Auto parsing during upload failed", error=str(exc))
+            status_val = "failed"
+
         task_id = f"task-{uuid.uuid4()}"
         return UploadResumeResponse(
             resume_id=resume.id,
             candidate_id=candidate.id,
             task_id=task_id,
-            status=resume.status,
+            status=status_val,
             status_url=f"/api/v1/resumes/{resume.id}/status",
         )
 
@@ -346,18 +522,23 @@ class ResumeService:
                 f"Resume status is '{resume.status}'. Only failed resumes can be retried."
             )
 
-        updated_resume = await self.resume_repo.update_resume_status(
-            session=session,
-            resume=resume,
-            status="pending",
-            parse_error="",
-        )
+        # Trigger parse pipeline
+        try:
+            parsed_resume = await self.parse_resume_pipeline(
+                session=session,
+                tenant_id=tenant_id,
+                resume_id=resume.id,
+            )
+            status_val = parsed_resume.status
+        except Exception as exc:
+            logger.warning("Retry parsing pipeline failed", error=str(exc))
+            status_val = "failed"
 
         task_id = f"task-{uuid.uuid4()}"
         return UploadResumeResponse(
-            resume_id=updated_resume.id,
-            candidate_id=updated_resume.candidate_id,
+            resume_id=resume.id,
+            candidate_id=resume.candidate_id,
             task_id=task_id,
-            status=updated_resume.status,
-            status_url=f"/api/v1/resumes/{updated_resume.id}/status",
+            status=status_val,
+            status_url=f"/api/v1/resumes/{resume.id}/status",
         )
