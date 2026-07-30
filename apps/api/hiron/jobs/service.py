@@ -388,3 +388,219 @@ class JobService:
 
         logger.info("Job archived successfully", job_id=str(job_id), tenant_id=str(tenant_id))
         return updated
+
+    async def list_pipeline_stages(
+        self,
+        session: AsyncSession,
+        job_id: uuid.UUID,
+        tenant_id: uuid.UUID,
+    ) -> Sequence[PipelineStage]:
+        """List custom pipeline stages for a job."""
+        await self.get_job_by_id(session, job_id, tenant_id)
+        return await self.job_repo.list_pipeline_stages(session, job_id, tenant_id)
+
+    async def create_pipeline_stage(
+        self,
+        session: AsyncSession,
+        job_id: uuid.UUID,
+        tenant_id: uuid.UUID,
+        current_user_role: str,
+        name: str,
+        position: int | None = None,
+        is_terminal: bool = False,
+        stage_type: str = "active",
+    ) -> PipelineStage:
+        """Create a custom pipeline stage for a job."""
+        self._validate_role_permission(current_user_role, "create stage for")
+        await self.get_job_by_id(session, job_id, tenant_id)
+
+        clean_name = name.strip()
+        if not clean_name or len(clean_name) > 100:
+            from hiron.jobs.exceptions import InvalidPipelineStageDataError
+
+            raise InvalidPipelineStageDataError("Stage name must be between 1 and 100 characters")
+
+        if stage_type not in {"active", "hired", "rejected"}:
+            from hiron.jobs.exceptions import InvalidPipelineStageDataError
+
+            raise InvalidPipelineStageDataError(f"Invalid stage_type '{stage_type}'")
+
+        existing_stages = await self.job_repo.list_pipeline_stages(session, job_id, tenant_id)
+        if len(existing_stages) >= 20:
+            from hiron.jobs.exceptions import PipelineStageConflictError
+
+            raise PipelineStageConflictError("Maximum limit of 20 pipeline stages reached")
+
+        for stage in existing_stages:
+            if stage.name.lower() == clean_name.lower():
+                from hiron.jobs.exceptions import PipelineStageConflictError
+
+                raise PipelineStageConflictError(
+                    f"Pipeline stage with name '{clean_name}' already exists"
+                )
+
+        target_position = position if position is not None else len(existing_stages) + 1
+        if target_position < 1 or target_position > 20:
+            from hiron.jobs.exceptions import InvalidPipelineStageDataError
+
+            raise InvalidPipelineStageDataError("Stage position must be between 1 and 20")
+
+        new_stage = PipelineStage(
+            tenant_id=tenant_id,
+            job_id=job_id,
+            name=clean_name,
+            position=target_position,
+            is_terminal=is_terminal,
+            stage_type=stage_type,
+        )
+        created = await self.job_repo.create_pipeline_stage(session, new_stage)
+        logger.info(
+            "Pipeline stage created",
+            stage_id=str(created.id),
+            job_id=str(job_id),
+            tenant_id=str(tenant_id),
+        )
+        return created
+
+    async def _build_stage_updates(
+        self,
+        session: AsyncSession,
+        job_id: uuid.UUID,
+        tenant_id: uuid.UUID,
+        target_stage: PipelineStage,
+        name: str | None,
+        position: int | None,
+        is_terminal: bool | None,
+        stage_type: str | None,
+    ) -> dict[str, Any]:
+        """Validate and build field dictionary for stage updates."""
+        updates: dict[str, Any] = {}
+        if name is not None:
+            clean_name = name.strip()
+            if not clean_name or len(clean_name) > 100:
+                from hiron.jobs.exceptions import InvalidPipelineStageDataError
+
+                raise InvalidPipelineStageDataError(
+                    "Stage name must be between 1 and 100 characters"
+                )
+            if clean_name.lower() != target_stage.name.lower():
+                existing = await self.job_repo.get_pipeline_stage_by_name(
+                    session, job_id, clean_name, tenant_id
+                )
+                if existing:
+                    from hiron.jobs.exceptions import PipelineStageConflictError
+
+                    raise PipelineStageConflictError(
+                        f"Pipeline stage with name '{clean_name}' already exists"
+                    )
+            updates["name"] = clean_name
+
+        if position is not None:
+            if position < 1 or position > 20:
+                from hiron.jobs.exceptions import InvalidPipelineStageDataError
+
+                raise InvalidPipelineStageDataError("Stage position must be between 1 and 20")
+            updates["position"] = position
+
+        if is_terminal is not None:
+            updates["is_terminal"] = is_terminal
+
+        if stage_type is not None:
+            if stage_type not in {"active", "hired", "rejected"}:
+                from hiron.jobs.exceptions import InvalidPipelineStageDataError
+
+                raise InvalidPipelineStageDataError(f"Invalid stage_type '{stage_type}'")
+            updates["stage_type"] = stage_type
+
+        return updates
+
+    async def update_pipeline_stage(
+        self,
+        session: AsyncSession,
+        job_id: uuid.UUID,
+        stage_id: uuid.UUID,
+        tenant_id: uuid.UUID,
+        current_user_role: str,
+        name: str | None = None,
+        position: int | None = None,
+        is_terminal: bool | None = None,
+        stage_type: str | None = None,
+    ) -> PipelineStage:
+        """Update existing pipeline stage."""
+        self._validate_role_permission(current_user_role, "update stage for")
+        await self.get_job_by_id(session, job_id, tenant_id)
+
+        target_stage = await self.job_repo.get_pipeline_stage_by_id(session, stage_id, tenant_id)
+        if not target_stage or target_stage.job_id != job_id:
+            from hiron.jobs.exceptions import PipelineStageNotFoundError
+
+            raise PipelineStageNotFoundError()
+
+        updates = await self._build_stage_updates(
+            session=session,
+            job_id=job_id,
+            tenant_id=tenant_id,
+            target_stage=target_stage,
+            name=name,
+            position=position,
+            is_terminal=is_terminal,
+            stage_type=stage_type,
+        )
+
+        updated = await self.job_repo.update_pipeline_stage(session, stage_id, tenant_id, **updates)
+        if not updated:
+            from hiron.jobs.exceptions import PipelineStageNotFoundError
+
+            raise PipelineStageNotFoundError()
+
+        logger.info("Pipeline stage updated", stage_id=str(stage_id), job_id=str(job_id))
+        return updated
+
+    async def delete_pipeline_stage(
+        self,
+        session: AsyncSession,
+        job_id: uuid.UUID,
+        stage_id: uuid.UUID,
+        tenant_id: uuid.UUID,
+        current_user_role: str,
+    ) -> bool:
+        """Delete pipeline stage ensuring minimum 2 stages remain."""
+        self._validate_role_permission(current_user_role, "delete stage for")
+        await self.get_job_by_id(session, job_id, tenant_id)
+
+        target_stage = await self.job_repo.get_pipeline_stage_by_id(session, stage_id, tenant_id)
+        if not target_stage or target_stage.job_id != job_id:
+            from hiron.jobs.exceptions import PipelineStageNotFoundError
+
+            raise PipelineStageNotFoundError()
+
+        stage_count = await self.job_repo.count_pipeline_stages(session, job_id, tenant_id)
+        if stage_count <= 2:
+            from hiron.jobs.exceptions import PipelineStageConflictError
+
+            raise PipelineStageConflictError(
+                "Cannot delete pipeline stage: minimum 2 stages required"
+            )
+
+        deleted = await self.job_repo.delete_pipeline_stage(session, stage_id, tenant_id)
+        logger.info("Pipeline stage deleted", stage_id=str(stage_id), job_id=str(job_id))
+        return deleted
+
+    async def reorder_pipeline_stages(
+        self,
+        session: AsyncSession,
+        job_id: uuid.UUID,
+        tenant_id: uuid.UUID,
+        current_user_role: str,
+        stage_orders: list[dict[str, Any]],
+    ) -> Sequence[PipelineStage]:
+        """Reorder job pipeline stage positions."""
+        self._validate_role_permission(current_user_role, "reorder stages for")
+        await self.get_job_by_id(session, job_id, tenant_id)
+
+        for item in stage_orders:
+            stage_id = item["stage_id"]
+            pos = item["position"]
+            await self.job_repo.update_pipeline_stage(session, stage_id, tenant_id, position=pos)
+
+        return await self.job_repo.list_pipeline_stages(session, job_id, tenant_id)

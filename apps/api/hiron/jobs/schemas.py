@@ -115,3 +115,40 @@ class JobCloseRequest(HironBaseModel):
     """Optional request payload when closing a job per API Contract §JOB-7."""
 
     reason: str | None = Field(default=None, max_length=500)
+
+
+class PipelineStageCreateRequest(HironBaseModel):
+    """Request body for creating a custom pipeline stage."""
+
+    name: str = Field(min_length=1, max_length=100, description="Stage display name")
+    position: int | None = Field(
+        default=None, ge=1, le=20, description="Optional 1-indexed sort position"
+    )
+    is_terminal: bool = Field(
+        default=False, description="Whether this stage represents terminal outcome"
+    )
+    stage_type: str = Field(
+        default="active", description="Stage type category (active, hired, rejected)"
+    )
+
+
+class PipelineStageUpdateRequest(HironBaseModel):
+    """Request body for updating a pipeline stage."""
+
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    position: int | None = Field(default=None, ge=1, le=20)
+    is_terminal: bool | None = Field(default=None)
+    stage_type: str | None = Field(default=None)
+
+
+class PipelineStageOrder(HironBaseModel):
+    """Pairing of stage ID to target position for reordering."""
+
+    stage_id: uuid.UUID
+    position: int = Field(ge=1, le=20)
+
+
+class PipelineStagesReorderRequest(HironBaseModel):
+    """Request body for reordering job pipeline stages."""
+
+    stages: list[PipelineStageOrder] = Field(min_length=1, max_length=20)

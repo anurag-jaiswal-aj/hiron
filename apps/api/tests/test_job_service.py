@@ -271,3 +271,60 @@ async def test_archive_job_success(
 
     assert updated.status == "archived"
     assert updated.is_archived is True
+
+
+@pytest.mark.asyncio
+async def test_create_pipeline_stage_success(
+    mock_session: AsyncMock,
+    mock_job_repo: AsyncMock,
+) -> None:
+    """Verify custom pipeline stage creation."""
+    tenant_id = uuid.uuid4()
+    job_id = uuid.uuid4()
+
+    mock_job = Job(id=job_id, tenant_id=tenant_id, title="Title", description="Desc")
+    mock_job_repo.get_job_by_id.return_value = mock_job
+    mock_job_repo.list_pipeline_stages.return_value = []
+    mock_job_repo.create_pipeline_stage.side_effect = lambda _s, stage: stage
+
+    service = JobService(job_repo=mock_job_repo)
+    stage = await service.create_pipeline_stage(
+        session=mock_session,
+        job_id=job_id,
+        tenant_id=tenant_id,
+        current_user_role="recruiter",
+        name="Technical Challenge",
+        position=3,
+    )
+    assert stage.name == "Technical Challenge"
+    assert stage.position == 3
+
+
+@pytest.mark.asyncio
+async def test_delete_pipeline_stage_below_minimum_raises_conflict(
+    mock_session: AsyncMock,
+    mock_job_repo: AsyncMock,
+) -> None:
+    """Verify deleting pipeline stage raises conflict if <= 2 stages remain."""
+    from hiron.jobs.exceptions import PipelineStageConflictError
+    from hiron.jobs.models import PipelineStage
+
+    tenant_id = uuid.uuid4()
+    job_id = uuid.uuid4()
+    stage_id = uuid.uuid4()
+
+    mock_job = Job(id=job_id, tenant_id=tenant_id, title="Title", description="Desc")
+    mock_stage = PipelineStage(id=stage_id, tenant_id=tenant_id, job_id=job_id, name="Stage 1")
+    mock_job_repo.get_job_by_id.return_value = mock_job
+    mock_job_repo.get_pipeline_stage_by_id.return_value = mock_stage
+    mock_job_repo.count_pipeline_stages.return_value = 2
+
+    service = JobService(job_repo=mock_job_repo)
+    with pytest.raises(PipelineStageConflictError, match="minimum 2 stages"):
+        await service.delete_pipeline_stage(
+            session=mock_session,
+            job_id=job_id,
+            stage_id=stage_id,
+            tenant_id=tenant_id,
+            current_user_role="recruiter",
+        )

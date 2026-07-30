@@ -19,7 +19,10 @@ from hiron.jobs.schemas import (
     JobListResponse,
     JobResponse,
     JobUpdateRequest,
+    PipelineStageCreateRequest,
     PipelineStageResponse,
+    PipelineStagesReorderRequest,
+    PipelineStageUpdateRequest,
 )
 from hiron.jobs.service import JobService
 from hiron.users.models import User
@@ -285,3 +288,156 @@ async def delete_job(
         job_id=job_id,
         tenant_id=current_user.tenant_id,
     )
+
+
+# ------------------------------------------------------------------------------
+# Pipeline Stage Endpoints (§Phase 3.4)
+# ------------------------------------------------------------------------------
+
+
+@router.get("/{job_id}/stages", response_model=ResponseEnvelope[list[PipelineStageResponse]])
+async def list_job_pipeline_stages(
+    job_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    job_service: Annotated[JobService, Depends(get_job_service)],
+) -> ResponseEnvelope[list[PipelineStageResponse]]:
+    """List pipeline stages for a job."""
+    stages = await job_service.list_pipeline_stages(
+        session=session,
+        job_id=job_id,
+        tenant_id=current_user.tenant_id,
+    )
+    res = [
+        PipelineStageResponse(
+            id=s.id,
+            name=s.name,
+            position=s.position,
+            is_terminal=s.is_terminal,
+            stage_type=s.stage_type,
+            candidate_count=0,
+        )
+        for s in stages
+    ]
+    return ResponseEnvelope(data=res)
+
+
+@router.post(
+    "/{job_id}/stages",
+    response_model=ResponseEnvelope[PipelineStageResponse],
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_job_pipeline_stage(
+    job_id: uuid.UUID,
+    payload: PipelineStageCreateRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    job_service: Annotated[JobService, Depends(get_job_service)],
+) -> ResponseEnvelope[PipelineStageResponse]:
+    """Create a new custom pipeline stage for a job."""
+    stage = await job_service.create_pipeline_stage(
+        session=session,
+        job_id=job_id,
+        tenant_id=current_user.tenant_id,
+        current_user_role=current_user.role,
+        name=payload.name,
+        position=payload.position,
+        is_terminal=payload.is_terminal,
+        stage_type=payload.stage_type,
+    )
+    return ResponseEnvelope(
+        data=PipelineStageResponse(
+            id=stage.id,
+            name=stage.name,
+            position=stage.position,
+            is_terminal=stage.is_terminal,
+            stage_type=stage.stage_type,
+            candidate_count=0,
+        )
+    )
+
+
+@router.patch("/{job_id}/stages/{stage_id}", response_model=ResponseEnvelope[PipelineStageResponse])
+async def update_job_pipeline_stage(
+    job_id: uuid.UUID,
+    stage_id: uuid.UUID,
+    payload: PipelineStageUpdateRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    job_service: Annotated[JobService, Depends(get_job_service)],
+) -> ResponseEnvelope[PipelineStageResponse]:
+    """Update pipeline stage attributes."""
+    stage = await job_service.update_pipeline_stage(
+        session=session,
+        job_id=job_id,
+        stage_id=stage_id,
+        tenant_id=current_user.tenant_id,
+        current_user_role=current_user.role,
+        name=payload.name,
+        position=payload.position,
+        is_terminal=payload.is_terminal,
+        stage_type=payload.stage_type,
+    )
+    return ResponseEnvelope(
+        data=PipelineStageResponse(
+            id=stage.id,
+            name=stage.name,
+            position=stage.position,
+            is_terminal=stage.is_terminal,
+            stage_type=stage.stage_type,
+            candidate_count=0,
+        )
+    )
+
+
+@router.delete("/{job_id}/stages/{stage_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_job_pipeline_stage(
+    job_id: uuid.UUID,
+    stage_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    job_service: Annotated[JobService, Depends(get_job_service)],
+) -> None:
+    """Delete custom pipeline stage."""
+    await job_service.delete_pipeline_stage(
+        session=session,
+        job_id=job_id,
+        stage_id=stage_id,
+        tenant_id=current_user.tenant_id,
+        current_user_role=current_user.role,
+    )
+
+
+@router.put(
+    "/{job_id}/stages/reorder", response_model=ResponseEnvelope[list[PipelineStageResponse]]
+)
+async def reorder_job_pipeline_stages(
+    job_id: uuid.UUID,
+    payload: PipelineStagesReorderRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    job_service: Annotated[JobService, Depends(get_job_service)],
+) -> ResponseEnvelope[list[PipelineStageResponse]]:
+    """Reorder pipeline stages for a job."""
+    stage_orders = [
+        {"stage_id": item.stage_id, "position": item.position} for item in payload.stages
+    ]
+    stages = await job_service.reorder_pipeline_stages(
+        session=session,
+        job_id=job_id,
+        tenant_id=current_user.tenant_id,
+        current_user_role=current_user.role,
+        stage_orders=stage_orders,
+    )
+    res = [
+        PipelineStageResponse(
+            id=s.id,
+            name=s.name,
+            position=s.position,
+            is_terminal=s.is_terminal,
+            stage_type=s.stage_type,
+            candidate_count=0,
+        )
+        for s in stages
+    ]
+    return ResponseEnvelope(data=res)

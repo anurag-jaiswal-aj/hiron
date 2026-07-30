@@ -374,3 +374,69 @@ def test_job_api_rbac_forbidden_for_hiring_manager(
         )
         assert response.status_code == 403
         assert response.json()["error"]["code"] == "INSUFFICIENT_PERMISSIONS"
+
+
+def test_list_job_pipeline_stages_endpoint_success(
+    client: TestClient,
+    mock_job_service: AsyncMock,
+    mock_recruiter_user: User,
+) -> None:
+    """Verify GET /api/v1/jobs/{job_id}/stages returns list of stages."""
+    job_id = uuid.uuid4()
+    stage = PipelineStage(
+        id=uuid.uuid4(),
+        tenant_id=mock_recruiter_user.tenant_id,
+        job_id=job_id,
+        name="Tech Screen",
+        position=1,
+        is_terminal=False,
+        stage_type="active",
+    )
+    mock_job_service.list_pipeline_stages.return_value = [stage]
+
+    response = client.get(f"/api/v1/jobs/{job_id}/stages")
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert len(data) == 1
+    assert data[0]["name"] == "Tech Screen"
+
+
+def test_create_job_pipeline_stage_endpoint_success(
+    client: TestClient,
+    mock_job_service: AsyncMock,
+    mock_recruiter_user: User,
+) -> None:
+    """Verify POST /api/v1/jobs/{job_id}/stages returns 201 Created and new stage payload."""
+    job_id = uuid.uuid4()
+    new_stage = PipelineStage(
+        id=uuid.uuid4(),
+        tenant_id=mock_recruiter_user.tenant_id,
+        job_id=job_id,
+        name="System Architecture",
+        position=3,
+        is_terminal=False,
+        stage_type="active",
+    )
+    mock_job_service.create_pipeline_stage.return_value = new_stage
+
+    response = client.post(
+        f"/api/v1/jobs/{job_id}/stages",
+        json={"name": "System Architecture", "position": 3},
+    )
+    assert response.status_code == 201
+    data = response.json()["data"]
+    assert data["name"] == "System Architecture"
+    assert data["position"] == 3
+
+
+def test_delete_job_pipeline_stage_endpoint_success(
+    client: TestClient,
+    mock_job_service: AsyncMock,
+) -> None:
+    """Verify DELETE /api/v1/jobs/{job_id}/stages/{stage_id} returns 204 No Content."""
+    job_id = uuid.uuid4()
+    stage_id = uuid.uuid4()
+    mock_job_service.delete_pipeline_stage.return_value = True
+
+    response = client.delete(f"/api/v1/jobs/{job_id}/stages/{stage_id}")
+    assert response.status_code == 204

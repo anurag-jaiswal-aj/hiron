@@ -196,3 +196,85 @@ class JobRepository:
         )
         res = await session.execute(stmt)
         return res.scalars().all()
+
+    async def get_pipeline_stage_by_id(
+        self,
+        session: AsyncSession,
+        stage_id: uuid.UUID,
+        tenant_id: uuid.UUID,
+    ) -> PipelineStage | None:
+        """Fetch pipeline stage by primary key ID and tenant ID."""
+        stmt = select(PipelineStage).where(
+            PipelineStage.id == stage_id,
+            PipelineStage.tenant_id == tenant_id,
+        )
+        res = await session.execute(stmt)
+        return res.scalar_one_or_none()
+
+    async def get_pipeline_stage_by_name(
+        self,
+        session: AsyncSession,
+        job_id: uuid.UUID,
+        name: str,
+        tenant_id: uuid.UUID,
+    ) -> PipelineStage | None:
+        """Fetch pipeline stage by job_id and stage name."""
+        stmt = select(PipelineStage).where(
+            PipelineStage.job_id == job_id,
+            PipelineStage.name == name.strip(),
+            PipelineStage.tenant_id == tenant_id,
+        )
+        res = await session.execute(stmt)
+        return res.scalar_one_or_none()
+
+    async def update_pipeline_stage(
+        self,
+        session: AsyncSession,
+        stage_id: uuid.UUID,
+        tenant_id: uuid.UUID,
+        **kwargs: Any,
+    ) -> PipelineStage | None:
+        """Update pipeline stage attributes."""
+        stage = await self.get_pipeline_stage_by_id(session, stage_id, tenant_id)
+        if not stage:
+            return None
+
+        for key, value in kwargs.items():
+            if hasattr(stage, key) and value is not None:
+                setattr(stage, key, value)
+
+        await session.flush()
+        return stage
+
+    async def delete_pipeline_stage(
+        self,
+        session: AsyncSession,
+        stage_id: uuid.UUID,
+        tenant_id: uuid.UUID,
+    ) -> bool:
+        """Delete pipeline stage entity."""
+        stage = await self.get_pipeline_stage_by_id(session, stage_id, tenant_id)
+        if not stage:
+            return False
+
+        await session.delete(stage)
+        await session.flush()
+        return True
+
+    async def count_pipeline_stages(
+        self,
+        session: AsyncSession,
+        job_id: uuid.UUID,
+        tenant_id: uuid.UUID,
+    ) -> int:
+        """Count total pipeline stages for a job."""
+        stmt = (
+            select(func.count())
+            .select_from(PipelineStage)
+            .where(
+                PipelineStage.job_id == job_id,
+                PipelineStage.tenant_id == tenant_id,
+            )
+        )
+        res = await session.execute(stmt)
+        return int(res.scalar_one())
