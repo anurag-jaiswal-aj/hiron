@@ -10,6 +10,7 @@ from hiron.common.schemas import HironBaseModel
 from hiron.core.database import check_database_connection
 
 health_router = APIRouter(tags=["Health"])
+router = health_router
 
 
 class HealthResponse(HironBaseModel):

@@ -40,3 +40,6 @@ class RequestTracingMiddleware(BaseHTTPMiddleware):
         )
 
         return response
+
+
+ProcessTimeAndRequestIdMiddleware = RequestTracingMiddleware
