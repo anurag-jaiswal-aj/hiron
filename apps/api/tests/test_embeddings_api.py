@@ -1,14 +1,14 @@
 """API integration tests for candidate, job embedding endpoints and status dashboard per API Contract §EMBED-1..3."""
 
 import uuid
+from collections.abc import Generator
 from unittest.mock import AsyncMock
 
 import pytest
 from fastapi.testclient import TestClient
 
 from hiron.auth.dependencies import get_current_user
-from hiron.auth.schemas import UserContext
-from hiron.database import get_db
+from hiron.core.database import get_db_session as get_db
 from hiron.embeddings.router import get_embedding_service
 from hiron.embeddings.schemas import (
     CandidateEmbeddingResponseData,
@@ -20,6 +20,7 @@ from hiron.embeddings.schemas import (
     JobEmbeddingResponseData,
 )
 from hiron.main import create_app
+from hiron.users.models import User
 
 app = create_app()
 
@@ -31,18 +32,20 @@ def mock_embedding_service() -> AsyncMock:
 
 
 @pytest.fixture
-def client(mock_embedding_service: AsyncMock) -> TestClient:
+def client(mock_embedding_service: AsyncMock) -> Generator[TestClient, None, None]:
     """TestClient fixture overriding user context and EmbeddingService dependencies."""
     tenant_id = uuid.uuid4()
     user_id = uuid.uuid4()
 
-    app.dependency_overrides[get_current_user] = lambda: UserContext(
+    mock_user = User(
         id=user_id,
         tenant_id=tenant_id,
         email="recruiter@example.com",
         role="recruiter",
         is_active=True,
     )
+
+    app.dependency_overrides[get_current_user] = lambda: mock_user
     app.dependency_overrides[get_db] = lambda: AsyncMock()
     app.dependency_overrides[get_embedding_service] = lambda: mock_embedding_service
 

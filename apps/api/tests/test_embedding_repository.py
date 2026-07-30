@@ -1,7 +1,7 @@
 """Unit tests for EmbeddingRepository candidate and job embedding DB operations."""
 
 import uuid
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -18,9 +18,9 @@ async def test_upsert_candidate_embedding_create_new() -> None:
     candidate_id = uuid.uuid4()
     vector = [0.1] * 1536
 
-    mock_result = AsyncMock()
+    mock_result = MagicMock()
     mock_result.scalar_one_or_none.return_value = None
-    session.execute.return_value = mock_result
+    session.execute = AsyncMock(return_value=mock_result)
 
     result = await repo.upsert_candidate_embedding(
         session=session,
@@ -54,9 +54,9 @@ async def test_upsert_job_embedding_update_existing() -> None:
         model_version="text-embedding-3-small",
         source_text_hash="old_hash",
     )
-    mock_result = AsyncMock()
+    mock_result = MagicMock()
     mock_result.scalar_one_or_none.return_value = existing
-    session.execute.return_value = mock_result
+    session.execute = AsyncMock(return_value=mock_result)
 
     result = await repo.upsert_job_embedding(
         session=session,

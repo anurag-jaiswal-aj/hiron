@@ -220,7 +220,7 @@ class EmbeddingService:
 
         # 1. Candidate coverage calculations
         stmt_cand = select(Candidate).where(
-            Candidate.tenant_id == tenant_id, Candidate.archived_at.is_(None)
+            Candidate.tenant_id == tenant_id, Candidate.is_archived.is_(False)
         )
         res_cand = await session.execute(stmt_cand)
         candidates = res_cand.scalars().all()
@@ -263,13 +263,13 @@ class EmbeddingService:
         job_missing = 0
 
         for job in jobs:
-            emb = job_embeddings_map.get(job.id)
-            if not emb:
+            job_emb = job_embeddings_map.get(job.id)
+            if not job_emb:
                 job_missing += 1
             else:
                 current_text = self._construct_job_source_text(job)
                 current_hash = self.generator.compute_source_text_hash(current_text)
-                if emb.source_text_hash == current_hash:
+                if job_emb.source_text_hash == current_hash:
                     job_with_embedding += 1
                 else:
                     job_stale += 1

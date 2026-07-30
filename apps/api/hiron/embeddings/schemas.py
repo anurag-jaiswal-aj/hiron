@@ -10,10 +10,10 @@ class CandidateEmbeddingResponseData(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True)
 
-    candidate_id: uuid.UUID = Field(..., alias="candidateId")
-    task_id: str = Field(..., alias="taskId")
+    candidate_id: uuid.UUID = Field(..., serialization_alias="candidateId")
+    task_id: str = Field(..., serialization_alias="taskId")
     status: str = Field(...)
-    model_version: str = Field(..., alias="modelVersion")
+    model_version: str = Field(..., serialization_alias="modelVersion")
 
 
 class GenerateCandidateEmbeddingResponse(BaseModel):
@@ -27,10 +27,10 @@ class JobEmbeddingResponseData(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True)
 
-    job_id: uuid.UUID = Field(..., alias="jobId")
-    task_id: str = Field(..., alias="taskId")
+    job_id: uuid.UUID = Field(..., serialization_alias="jobId")
+    task_id: str = Field(..., serialization_alias="taskId")
     status: str = Field(...)
-    model_version: str = Field(..., alias="modelVersion")
+    model_version: str = Field(..., serialization_alias="modelVersion")
 
 
 class GenerateJobEmbeddingResponse(BaseModel):
@@ -45,10 +45,10 @@ class CoverageMetricData(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     total: int = Field(...)
-    with_embedding: int = Field(..., alias="withEmbedding")
+    with_embedding: int = Field(..., serialization_alias="withEmbedding")
     stale: int = Field(...)
     missing: int = Field(...)
-    model_version: str = Field(..., alias="modelVersion")
+    model_version: str = Field(..., serialization_alias="modelVersion")
 
 
 class EmbeddingStatusData(BaseModel):

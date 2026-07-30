@@ -1,7 +1,7 @@
 """Service unit tests for candidate/job embedding generation, staleness detection, and RBAC validation."""
 
 import uuid
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -17,7 +17,7 @@ async def test_generate_candidate_embedding_success() -> None:
     emb_repo = AsyncMock()
     cand_repo = AsyncMock()
     job_repo = AsyncMock()
-    generator = AsyncMock()
+    generator = MagicMock()
 
     service = EmbeddingService(
         embedding_repository=emb_repo,
@@ -35,9 +35,9 @@ async def test_generate_candidate_embedding_success() -> None:
     cand_repo.get_candidate_by_id.return_value = mock_candidate
     generator.generate_embedding.return_value = ([0.1] * 1536, "hash123")
 
-    mock_resume_result = AsyncMock()
+    mock_resume_result = MagicMock()
     mock_resume_result.scalars.return_value.all.return_value = []
-    session.execute.return_value = mock_resume_result
+    session.execute = AsyncMock(return_value=mock_resume_result)
 
     response = await service.generate_candidate_embedding(
         session=session,

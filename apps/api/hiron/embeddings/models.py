@@ -9,7 +9,7 @@ from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from hiron.database import Base
+from hiron.common.models import Base
 
 if TYPE_CHECKING:
     from hiron.candidates.models import Candidate
@@ -41,8 +41,8 @@ class CandidateEmbedding(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
-    tenant: Mapped["Tenant"] = relationship("Tenant")  # type: ignore[name-defined]
-    candidate: Mapped["Candidate"] = relationship("Candidate")  # type: ignore[name-defined]
+    tenant: Mapped["Tenant"] = relationship("Tenant")
+    candidate: Mapped["Candidate"] = relationship("Candidate")
 
 
 class JobEmbedding(Base):
@@ -67,5 +67,5 @@ class JobEmbedding(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
-    tenant: Mapped["Tenant"] = relationship("Tenant")  # type: ignore[name-defined]
-    job: Mapped["Job"] = relationship("Job")  # type: ignore[name-defined]
+    tenant: Mapped["Tenant"] = relationship("Tenant")
+    job: Mapped["Job"] = relationship("Job")

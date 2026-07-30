@@ -5,14 +5,15 @@ import uuid
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from hiron.auth.dependencies import CurrentUser, get_current_user
-from hiron.database import get_db
+from hiron.auth.dependencies import get_current_user
+from hiron.core.database import get_db_session as get_db
 from hiron.embeddings.schemas import (
     EmbeddingStatusResponse,
     GenerateCandidateEmbeddingResponse,
     GenerateJobEmbeddingResponse,
 )
 from hiron.embeddings.service import EmbeddingService
+from hiron.users.models import User
 
 router = APIRouter(tags=["Embeddings"])
 
@@ -30,7 +31,7 @@ def get_embedding_service() -> EmbeddingService:
 )
 async def generate_candidate_embedding_endpoint(
     candidate_id: uuid.UUID,
-    current_user: CurrentUser = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
     service: EmbeddingService = Depends(get_embedding_service),
 ) -> GenerateCandidateEmbeddingResponse:
@@ -51,7 +52,7 @@ async def generate_candidate_embedding_endpoint(
 )
 async def generate_job_embedding_endpoint(
     job_id: uuid.UUID,
-    current_user: CurrentUser = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
     service: EmbeddingService = Depends(get_embedding_service),
 ) -> GenerateJobEmbeddingResponse:
@@ -71,7 +72,7 @@ async def generate_job_embedding_endpoint(
     summary="Get Tenant Embedding Status (EMBED-3)",
 )
 async def get_embedding_status_endpoint(
-    current_user: CurrentUser = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
     service: EmbeddingService = Depends(get_embedding_service),
 ) -> EmbeddingStatusResponse:
