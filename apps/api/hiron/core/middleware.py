@@ -2,18 +2,16 @@
 
 import time
 import uuid
-from collections.abc import Callable
-
 import structlog
 from fastapi import Request, Response
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 
 
 class RequestTracingMiddleware(BaseHTTPMiddleware):
     """Binds request_id, HTTP method, and path to structlog context and measures latency."""
 
     async def dispatch(
-        self, request: Request, call_next: Callable[[Request], Response]
+        self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
         request_id = request.headers.get("X-Request-ID") or f"req-{uuid.uuid4().hex[:12]}"
         start_time = time.perf_counter()
