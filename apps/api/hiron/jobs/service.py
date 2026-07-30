@@ -191,6 +191,15 @@ class JobService:
                 if direction not in ("asc", "desc"):
                     raise InvalidJobDataError(f"Invalid sort direction '{direction}'")
 
+    def _sanitize_search_query(self, q: str | None) -> str | None:
+        """Sanitize search query string to prevent injection and limit length."""
+        if not q or not q.strip():
+            return None
+        clean_q = "".join(c for c in q.strip() if c.isprintable()).strip()
+        if not clean_q:
+            return None
+        return clean_q[:200]
+
     async def list_jobs(
         self,
         session: AsyncSession,
@@ -206,6 +215,7 @@ class JobService:
     ) -> tuple[Sequence[Job], int | None, str | None]:
         """List tenant jobs per API Contract §JOB-1 with opaque cursor pagination and sorting validation."""
         self._validate_sort_parameter(sort)
+        sanitized_q = self._sanitize_search_query(q)
 
         computed_offset = offset
         compute_total = cursor is None
@@ -223,7 +233,7 @@ class JobService:
             tenant_id=tenant_id,
             status=status,
             department=department,
-            q=q,
+            q=sanitized_q,
             include_archived=include_archived,
             sort=sort,
             limit=effective_limit,
@@ -239,6 +249,32 @@ class JobService:
             next_cursor = encode_cursor({"offset": computed_offset + effective_limit})
 
         return jobs, total_count if compute_total else None, next_cursor
+
+    async def search_jobs(
+        self,
+        session: AsyncSession,
+        tenant_id: uuid.UUID,
+        q: str,
+        status: str | list[str] | None = None,
+        department: str | None = None,
+        sort: str = "createdAt:desc",
+        limit: int = 20,
+        offset: int = 0,
+        cursor: str | None = None,
+    ) -> tuple[Sequence[Job], int | None, str | None]:
+        """Search tenant jobs using full-text search per API Contract §10."""
+        return await self.list_jobs(
+            session=session,
+            tenant_id=tenant_id,
+            status=status,
+            department=department,
+            q=q,
+            include_archived=False,
+            sort=sort,
+            limit=limit,
+            offset=offset,
+            cursor=cursor,
+        )
 
     def _build_update_dictionary(
         self,
