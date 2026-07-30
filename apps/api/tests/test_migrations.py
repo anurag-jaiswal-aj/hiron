@@ -40,7 +40,6 @@ def test_alembic_migration_upgrade_and_downgrade_smoke() -> None:
         pytest.skip(
             "PostgreSQL test database connection not available; skipping live migration smoke test."
         )
-        return
 
     try:
         # 1. Execute upgrade head

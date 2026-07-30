@@ -1,5 +1,9 @@
 """Unit tests verifying RefreshToken ORM model mapping, foreign keys, indexes, and constraints."""
 
+from typing import cast
+
+from sqlalchemy import Table
+
 from hiron.common.models import BaseModel
 from hiron.tokens.models import RefreshToken
 
@@ -39,7 +43,8 @@ def test_refresh_token_foreign_keys_definition() -> None:
 
 def test_refresh_token_indexes_definition() -> None:
     """Verify required indexes are defined on RefreshToken table per Database Design §5.3."""
-    index_names = [idx.name for idx in RefreshToken.__table__.indexes]
+    table = cast(Table, RefreshToken.__table__)
+    index_names = [idx.name for idx in table.indexes]
     assert "ix_refresh_tokens_token_hash" in index_names
     assert "ix_refresh_tokens_user_id" in index_names
     assert "ix_refresh_tokens_expires_at" in index_names

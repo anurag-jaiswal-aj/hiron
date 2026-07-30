@@ -1,5 +1,9 @@
 """Unit tests verifying User ORM model mapping, foreign keys, indexes, and constraints."""
 
+from typing import cast
+
+from sqlalchemy import Table
+
 from hiron.common.models import BaseModel
 from hiron.users.models import User
 
@@ -39,7 +43,8 @@ def test_user_foreign_key_definition() -> None:
 
 def test_user_indexes_definition() -> None:
     """Verify required indexes are defined on User table per Database Design §5.2."""
-    index_names = [idx.name for idx in User.__table__.indexes]
+    table = cast(Table, User.__table__)
+    index_names = [idx.name for idx in table.indexes]
     assert "ix_users_tenant_id" in index_names
     assert "ix_users_tenant_id_email" in index_names
     assert "ix_users_tenant_id_role" in index_names
