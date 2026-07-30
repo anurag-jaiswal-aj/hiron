@@ -16,6 +16,7 @@ from hiron.core.middleware import ProcessTimeAndRequestIdMiddleware
 from hiron.embeddings.router import router as embeddings_router
 from hiron.health.router import router as health_router
 from hiron.jobs.router import router as jobs_router
+from hiron.pipeline.router import router as pipeline_router
 from hiron.resumes.router import router as resumes_router
 from hiron.scores.router import router as scores_router
 from hiron.search.router import router as search_router
@@ -72,6 +73,7 @@ def create_app() -> FastAPI:
     app.include_router(embeddings_router, prefix="/api/v1", tags=["Embeddings"])
     app.include_router(scores_router, prefix="/api/v1", tags=["AI Scoring"])
     app.include_router(search_router, prefix="/api/v1", tags=["Semantic Search"])
+    app.include_router(pipeline_router, prefix="/api/v1", tags=["Pipeline"])
 
     return app
 
