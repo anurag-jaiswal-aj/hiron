@@ -18,6 +18,7 @@ from hiron.health.router import router as health_router
 from hiron.jobs.router import router as jobs_router
 from hiron.resumes.router import router as resumes_router
 from hiron.scores.router import router as scores_router
+from hiron.search.router import router as search_router
 from hiron.users.router import router as users_router
 
 # Initialize structured logging
@@ -70,6 +71,7 @@ def create_app() -> FastAPI:
     app.include_router(resumes_router, prefix="/api/v1/resumes", tags=["Resumes"])
     app.include_router(embeddings_router, prefix="/api/v1", tags=["Embeddings"])
     app.include_router(scores_router, prefix="/api/v1", tags=["AI Scoring"])
+    app.include_router(search_router, prefix="/api/v1", tags=["Semantic Search"])
 
     return app
 
