@@ -113,13 +113,24 @@ select = [
     "RUF"  # Ruff-specific rules
 ]
 ignore = [
-    "E501", # Line too long (handled by Black)
-    "B008", # Do not perform function call in argument defaults (FastAPI Depends)
+    "E501",   # Line too long (handled by Black)
+    "B008",   # Do not perform function call in argument defaults (FastAPI Depends)
+    "COM812", # Missing trailing comma
+    "EM101",  # Exception must not use a string literal
+    "EM102",  # Exception must not use an f-string literal
+    "S104",   # Possible binding to all interfaces (container deployment)
+    "S105",   # Hardcoded password string false positives (token_type="Bearer")
+    "S106",   # Hardcoded password in function call
+    "N803",   # Argument name should be lowercase (cookie parameters)
 ]
 
 [tool.ruff.lint.isort]
 known-first-party = ["hiron", "ai_service"]
 combine-as-imports = true
+
+[tool.ruff.lint.per-file-ignores]
+"apps/api/tests/**/*.py" = ["S101"]
+"scripts/*.py" = ["T201", "E402"]
 
 # MyPy Strict Mode Configuration (§3.1)
 [tool.mypy]
