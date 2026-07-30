@@ -91,9 +91,10 @@ async def list_jobs(
     sort: Annotated[str, Query(description="Sort field and direction")] = "createdAt:desc",
     limit: Annotated[int, Query(ge=1, le=100, description="Items per page")] = 20,
     offset: Annotated[int, Query(ge=0, description="Offset cursor")] = 0,
+    cursor: Annotated[str | None, Query(description="Opaque pagination cursor")] = None,
 ) -> ResponseEnvelope[JobListResponse]:
-    """List organization jobs with optional filtering, search, sorting, and pagination per §JOB-1."""
-    jobs, total_count = await job_service.list_jobs(
+    """List organization jobs with optional filtering, search, sorting, and cursor pagination per §JOB-1."""
+    jobs, total_count, next_cursor = await job_service.list_jobs(
         session=session,
         tenant_id=current_user.tenant_id,
         status=status,
@@ -103,6 +104,7 @@ async def list_jobs(
         sort=sort,
         limit=limit,
         offset=offset,
+        cursor=cursor,
     )
 
     items = [
@@ -120,14 +122,12 @@ async def list_jobs(
         for j in jobs
     ]
 
-    has_more = (offset + len(items)) < total_count
-
     return ResponseEnvelope(
         data=JobListResponse(
             data=items,
             pagination=PaginationMeta(
-                has_more=has_more,
-                next_cursor=str(offset + limit) if has_more else None,
+                has_more=next_cursor is not None,
+                next_cursor=next_cursor,
                 total_count=total_count,
             ),
         )

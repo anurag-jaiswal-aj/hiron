@@ -103,7 +103,7 @@ def test_list_jobs_endpoint_success(
         created_at=datetime.now(UTC),
         updated_at=datetime.now(UTC),
     )
-    mock_job_service.list_jobs.return_value = ([job1], 1)
+    mock_job_service.list_jobs.return_value = ([job1], 1, None)
 
     response = client.get("/api/v1/jobs")
     assert response.status_code == 200
@@ -111,6 +111,22 @@ def test_list_jobs_endpoint_success(
     assert len(data) == 1
     assert data[0]["id"] == str(job_id)
     assert data[0]["title"] == "Senior Backend Engineer"
+
+
+def test_list_jobs_invalid_sort_field_returns_422(
+    client: TestClient,
+    mock_job_service: AsyncMock,
+) -> None:
+    """Verify GET /api/v1/jobs?sort=invalidField:asc returns 422 Validation Error per §11."""
+    from hiron.jobs.exceptions import InvalidJobDataError
+
+    mock_job_service.list_jobs.side_effect = InvalidJobDataError(
+        "Invalid sort field 'invalidField'"
+    )
+
+    response = client.get("/api/v1/jobs?sort=invalidField:asc")
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
 
 
 def test_get_job_endpoint_success(

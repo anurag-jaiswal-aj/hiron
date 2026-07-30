@@ -21,6 +21,7 @@ logger = structlog.get_logger("hiron.api.jobs.service")
 
 ALLOWED_EMPLOYMENT_TYPES = {"full_time", "part_time", "contract", "internship"}
 ALLOWED_JOB_STATUSES = {"draft", "open", "paused", "closed", "archived"}
+ALLOWED_JOB_SORT_FIELDS = {"createdAt", "title", "status", "openedAt"}
 MANAGEMENT_ROLES = {"org_admin", "recruiter"}
 
 DEFAULT_PIPELINE_STAGES = [
@@ -169,6 +170,27 @@ class JobService:
             raise JobNotFoundError()
         return job
 
+    def _validate_sort_parameter(self, sort: str) -> None:
+        """Validate sort parameter against API Contract §11 allowable fields."""
+        if not sort or not sort.strip():
+            return
+
+        sort_parts = [s.strip() for s in sort.split(",") if s.strip()]
+        if len(sort_parts) > 2:
+            raise InvalidJobDataError("Maximum 2 sort fields allowed per request")
+
+        for part in sort_parts:
+            field_dir = part.split(":")
+            field_name = field_dir[0].strip()
+            if field_name not in ALLOWED_JOB_SORT_FIELDS:
+                raise InvalidJobDataError(
+                    f"Invalid sort field '{field_name}'. Allowed fields: {', '.join(sorted(ALLOWED_JOB_SORT_FIELDS))}"
+                )
+            if len(field_dir) > 1:
+                direction = field_dir[1].strip().lower()
+                if direction not in ("asc", "desc"):
+                    raise InvalidJobDataError(f"Invalid sort direction '{direction}'")
+
     async def list_jobs(
         self,
         session: AsyncSession,
@@ -180,9 +202,23 @@ class JobService:
         sort: str = "createdAt:desc",
         limit: int = 20,
         offset: int = 0,
-    ) -> tuple[Sequence[Job], int]:
-        """List tenant jobs per API Contract §JOB-1."""
-        return await self.job_repo.list_jobs(
+        cursor: str | None = None,
+    ) -> tuple[Sequence[Job], int | None, str | None]:
+        """List tenant jobs per API Contract §JOB-1 with opaque cursor pagination and sorting validation."""
+        self._validate_sort_parameter(sort)
+
+        computed_offset = offset
+        compute_total = cursor is None
+
+        if cursor:
+            from hiron.common.pagination import decode_cursor
+
+            payload = decode_cursor(cursor)
+            computed_offset = int(payload.get("offset", 0))
+
+        effective_limit = min(limit, 100)
+
+        jobs, total_count = await self.job_repo.list_jobs(
             session=session,
             tenant_id=tenant_id,
             status=status,
@@ -190,9 +226,19 @@ class JobService:
             q=q,
             include_archived=include_archived,
             sort=sort,
-            limit=limit,
-            offset=offset,
+            limit=effective_limit,
+            offset=computed_offset,
+            compute_total=compute_total,
         )
+
+        has_more = len(jobs) == effective_limit
+        next_cursor = None
+        if has_more:
+            from hiron.common.pagination import encode_cursor
+
+            next_cursor = encode_cursor({"offset": computed_offset + effective_limit})
+
+        return jobs, total_count if compute_total else None, next_cursor
 
     def _build_update_dictionary(
         self,

@@ -68,7 +68,8 @@ class JobRepository:
         sort: str = "createdAt:desc",
         limit: int = 20,
         offset: int = 0,
-    ) -> tuple[Sequence[Job], int]:
+        compute_total: bool = True,
+    ) -> tuple[Sequence[Job], int | None]:
         """List tenant jobs with optional status/department filters, full-text search, sorting, and pagination."""
         base_filters = [Job.tenant_id == tenant_id]
 
@@ -92,10 +93,11 @@ class JobRepository:
                 Job.search_vector.op("@@")(func.websearch_to_tsquery("english", q.strip()))
             )
 
-        # Count total matching records
-        count_stmt = select(func.count()).select_from(Job).where(*base_filters)
-        count_res = await session.execute(count_stmt)
-        total_count = int(count_res.scalar_one())
+        total_count: int | None = None
+        if compute_total:
+            count_stmt = select(func.count()).select_from(Job).where(*base_filters)
+            count_res = await session.execute(count_stmt)
+            total_count = int(count_res.scalar_one())
 
         order_clause = self._build_job_order_by(sort)
 
