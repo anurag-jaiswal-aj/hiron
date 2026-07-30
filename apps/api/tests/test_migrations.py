@@ -56,9 +56,9 @@ def test_alembic_migration_upgrade_and_downgrade_smoke() -> None:
         # 4. Verify 'tenants' table was cleanly removed
         inspector = inspect(engine)
         tables_after_downgrade = inspector.get_table_names()
-        assert (
-            "tenants" not in tables_after_downgrade
-        ), "tenants table must not exist after downgrade base"
+        assert "tenants" not in tables_after_downgrade, (
+            "tenants table must not exist after downgrade base"
+        )
 
     finally:
         engine.dispose()
