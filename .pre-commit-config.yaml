@@ -8,7 +8,7 @@
 #    pip install pre-commit (or brew install pre-commit)
 # 2. Register the pre-commit git hooks in this repository:
 #    pre-commit install
-# 3. Note: Language-specific hooks (Ruff, Black, Prettier) will become fully
+# 3. Note: Language-specific hooks (Ruff, Prettier) will become fully
 #    effective once project dependencies are installed in later phases.
 
 repos:
@@ -29,19 +29,14 @@ repos:
       - id: detect-private-key
 
   # ----------------------------------------------------------------------------
-  # 2. Python Code Quality (Ruff & Black)
+  # 2. Python Code Quality (Ruff Linting & Formatting)
   # ----------------------------------------------------------------------------
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.4.4
     hooks:
       - id: ruff
         args: [--fix]
-
-  - repo: https://github.com/psf/black-pre-commit-mirror
-    rev: 24.4.2
-    hooks:
-      - id: black
-        language_version: python3.12
+      - id: ruff-format
 
   # ----------------------------------------------------------------------------
   # 3. Frontend & JSON/YAML Formatting (Prettier)

@@ -121,7 +121,7 @@ The highest-risk items are tackled early:
 
 - Initialize Python project with `pyproject.toml` (Poetry)
 - Create FastAPI application skeleton with health endpoints (`GET /api/v1/health`, `GET /api/v1/health/ready`)
-- Configure `mypy --strict`, `ruff`, `black`, `isort`
+- Configure `mypy --strict`, `ruff`
 - Set up Pydantic settings management (`config.py`)
 - Create base SQLAlchemy models (BaseModel with `id`, `created_at`, `updated_at`)
 - Configure structlog for structured logging

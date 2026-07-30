@@ -33,9 +33,9 @@ lint: ## Run Python (Ruff) and Node (ESLint) linters
 	@echo "Running Node ESLint linter..."
 	pnpm lint
 
-format: ## Run Python (Black) and Node (Prettier) code formatters
-	@echo "Formatting Python code with Black..."
-	uv run black .
+format: ## Run Python (Ruff Formatter) and Node (Prettier) code formatters
+	@echo "Formatting Python code with Ruff..."
+	uv run ruff format .
 	@echo "Formatting Frontend code with Prettier..."
 	pnpm format:write
 
