@@ -92,11 +92,11 @@ class User(BaseModel):
         # 2. Check Constraints (§5.2)
         CheckConstraint(
             "role IN ('org_admin', 'recruiter', 'hiring_manager')",
-            name="ck_users_role",
+            name="role",
         ),
         CheckConstraint(
             "email ~* '^[^@]+@[^@]+\\.[^@]+$'",
-            name="ck_users_email_format",
+            name="email_format",
         ),
         # 3. Indexes (§5.2)
         Index("ix_users_tenant_id", "tenant_id"),

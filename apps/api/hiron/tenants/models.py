@@ -48,11 +48,11 @@ class Tenant(BaseModel):
         # 2. Check Constraints (§5.1)
         CheckConstraint(
             "plan IN ('starter', 'professional', 'enterprise')",
-            name="ck_tenants_plan",
+            name="plan",
         ),
         CheckConstraint(
             "slug ~ '^[a-z0-9]([a-z0-9-]*[a-z0-9])?$'",
-            name="ck_tenants_slug_format",
+            name="slug_format",
         ),
         # 3. Indexes (§5.1)
         Index("ix_tenants_slug", "slug"),
