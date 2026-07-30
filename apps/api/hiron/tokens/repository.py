@@ -2,8 +2,10 @@
 
 import uuid
 from datetime import UTC, datetime
+from typing import Any, cast
 
 from sqlalchemy import delete, select, update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hiron.tokens.models import RefreshToken
@@ -46,7 +48,8 @@ class RefreshTokenRepository:
             .where(RefreshToken.token_hash == token_hash, RefreshToken.is_revoked.is_(False))
             .values(is_revoked=True),
         )
-        return result.rowcount > 0
+        cursor_result = cast(CursorResult[Any], result)
+        return bool(cursor_result.rowcount > 0)
 
     async def revoke_all_for_user(
         self,
@@ -59,7 +62,8 @@ class RefreshTokenRepository:
             .where(RefreshToken.user_id == user_id, RefreshToken.is_revoked.is_(False))
             .values(is_revoked=True),
         )
-        return result.rowcount
+        cursor_result = cast(CursorResult[Any], result)
+        return int(cursor_result.rowcount)
 
     async def delete_expired(self, session: AsyncSession) -> int:
         """Delete tokens WHERE expires_at < NOW() for cleanup job per Database Design §5.3."""
@@ -67,4 +71,5 @@ class RefreshTokenRepository:
         result = await session.execute(
             delete(RefreshToken).where(RefreshToken.expires_at < now),
         )
-        return result.rowcount
+        cursor_result = cast(CursorResult[Any], result)
+        return int(cursor_result.rowcount)

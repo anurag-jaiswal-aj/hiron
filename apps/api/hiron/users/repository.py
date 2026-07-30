@@ -3,8 +3,10 @@
 import uuid
 from collections.abc import Sequence
 from datetime import UTC, datetime
+from typing import Any, cast
 
 from sqlalchemy import select, update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hiron.users.models import User
@@ -102,4 +104,5 @@ class UserRepository:
         result = await session.execute(
             update(User).where(User.id == user_id).values(last_login_at=now, updated_at=now),
         )
-        return result.rowcount > 0
+        cursor_result = cast(CursorResult[Any], result)
+        return bool(cursor_result.rowcount > 0)

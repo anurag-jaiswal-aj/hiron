@@ -3,9 +3,10 @@
 import uuid
 from collections.abc import Sequence
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import delete, select, update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hiron.tenants.models import Tenant
@@ -125,4 +126,5 @@ class TenantRepository:
             True if a tenant row was deleted, False otherwise.
         """
         result = await session.execute(delete(Tenant).where(Tenant.id == tenant_id))
-        return result.rowcount > 0
+        cursor_result = cast(CursorResult[Any], result)
+        return bool(cursor_result.rowcount > 0)
