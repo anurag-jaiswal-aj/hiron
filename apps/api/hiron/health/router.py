@@ -36,7 +36,7 @@ class ReadinessResponse(HironBaseModel):
 
 
 @health_router.get(
-    "/health",
+    "",
     response_model=HealthResponse,
     status_code=status.HTTP_200_OK,
     summary="Health check (liveness probe)",
@@ -52,7 +52,7 @@ async def get_health() -> HealthResponse:
 
 
 @health_router.get(
-    "/health/ready",
+    "/ready",
     response_model=ReadinessResponse,
     status_code=status.HTTP_200_OK,
     responses={
