@@ -7,6 +7,7 @@ import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from hiron.ai_usage.router import router as ai_usage_router
 from hiron.audit.router import router as audit_router
 from hiron.auth.router import router as auth_router
 from hiron.candidates.router import jobs_candidate_router, router as candidates_router
@@ -82,6 +83,7 @@ def create_app() -> FastAPI:
     app.include_router(tags_router, prefix="/api/v1", tags=["Candidate Tags"])
     app.include_router(dashboard_router, prefix="/api/v1", tags=["Dashboard & Analytics"])
     app.include_router(audit_router, prefix="/api/v1", tags=["Audit Logs"])
+    app.include_router(ai_usage_router, prefix="/api/v1", tags=["AI Usage Monitoring"])
 
     return app
 
