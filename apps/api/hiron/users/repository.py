@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 from typing import Any, cast
 
-from sqlalchemy import select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,11 +17,12 @@ class UserRepository:
 
     Per Database Design §5.2:
     - Lookup by email (global user lookup)
-    - Lookup by id + tenant_id (authentication context)
+    - Lookup by id + tenant_id (authentication context & tenant isolation)
     - Lookup by email + tenant_id (tenant login flow)
-    - List by tenant_id (team management)
-    - Filter by role + tenant_id (role-based queries)
-    - Update last_login_at timestamp
+    - List by tenant_id with role/is_active filters and pagination
+    - Count active admins by tenant for last-admin safety check
+    - Update user attributes & last_login_at timestamp
+    - Delete user by primary key and tenant_id
     """
 
     async def create(self, session: AsyncSession, user: User) -> User:
@@ -37,7 +38,7 @@ class UserRepository:
 
     async def get_by_email(self, session: AsyncSession, email: str) -> User | None:
         """Fetch a User entity globally by email address."""
-        result = await session.execute(select(User).where(User.email == email))
+        result = await session.execute(select(User).where(User.email == email.lower().strip()))
         return result.scalar_one_or_none()
 
     async def get_by_id_and_tenant(
@@ -60,7 +61,7 @@ class UserRepository:
     ) -> User | None:
         """Fetch a User entity by email and tenant_id for tenant login per Database Design §5.2."""
         result = await session.execute(
-            select(User).where(User.email == email, User.tenant_id == tenant_id),
+            select(User).where(User.email == email.lower().strip(), User.tenant_id == tenant_id),
         )
         return result.scalar_one_or_none()
 
@@ -68,18 +69,36 @@ class UserRepository:
         self,
         session: AsyncSession,
         tenant_id: uuid.UUID,
+        role: str | None = None,
+        is_active: bool | None = None,
         limit: int | None = None,
         offset: int | None = None,
-    ) -> Sequence[User]:
-        """List users for a tenant per Database Design §5.2."""
+    ) -> tuple[Sequence[User], int]:
+        """List users for a tenant with optional filtering and pagination per API Contract §USER-1."""
         stmt = select(User).where(User.tenant_id == tenant_id)
+        count_stmt = select(func.count()).select_from(User).where(User.tenant_id == tenant_id)
+
+        if role is not None:
+            stmt = stmt.where(User.role == role)
+            count_stmt = count_stmt.where(User.role == role)
+        if is_active is not None:
+            stmt = stmt.where(User.is_active.is_(is_active))
+            count_stmt = count_stmt.where(User.is_active.is_(is_active))
+
+        stmt = stmt.order_by(User.created_at.desc())
+
         if offset is not None:
             stmt = stmt.offset(offset)
         if limit is not None:
             stmt = stmt.limit(limit)
 
-        result = await session.execute(stmt)
-        return result.scalars().all()
+        total_res = await session.execute(count_stmt)
+        total = total_res.scalar_one()
+
+        res = await session.execute(stmt)
+        users = res.scalars().all()
+
+        return users, total
 
     async def list_by_role_and_tenant(
         self,
@@ -93,6 +112,38 @@ class UserRepository:
         )
         return result.scalars().all()
 
+    async def count_active_admins_by_tenant(
+        self,
+        session: AsyncSession,
+        tenant_id: uuid.UUID,
+    ) -> int:
+        """Count active org_admin users for a tenant to enforce last-admin protection."""
+        stmt = (
+            select(func.count())
+            .select_from(User)
+            .where(
+                User.tenant_id == tenant_id,
+                User.role == "org_admin",
+                User.is_active.is_(True),
+            )
+        )
+        res = await session.execute(stmt)
+        return res.scalar_one()
+
+    async def update(
+        self,
+        session: AsyncSession,
+        user_id: uuid.UUID,
+        tenant_id: uuid.UUID,
+        **kwargs: Any,
+    ) -> User | None:
+        """Update existing User entity attributes scoped by tenant_id."""
+        kwargs["updated_at"] = datetime.now(UTC)
+        await session.execute(
+            update(User).where(User.id == user_id, User.tenant_id == tenant_id).values(**kwargs),
+        )
+        return await self.get_by_id_and_tenant(session, user_id, tenant_id)
+
     async def update_last_login(
         self,
         session: AsyncSession,
@@ -103,6 +154,19 @@ class UserRepository:
         now = last_login_at or datetime.now(UTC)
         result = await session.execute(
             update(User).where(User.id == user_id).values(last_login_at=now, updated_at=now),
+        )
+        cursor_result = cast(CursorResult[Any], result)
+        return bool(cursor_result.rowcount > 0)
+
+    async def delete(
+        self,
+        session: AsyncSession,
+        user_id: uuid.UUID,
+        tenant_id: uuid.UUID,
+    ) -> bool:
+        """Delete a User entity scoped by tenant_id."""
+        result = await session.execute(
+            delete(User).where(User.id == user_id, User.tenant_id == tenant_id),
         )
         cursor_result = cast(CursorResult[Any], result)
         return bool(cursor_result.rowcount > 0)

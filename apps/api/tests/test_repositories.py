@@ -111,9 +111,15 @@ async def test_user_repository_list_by_tenant_returns_list(mock_session: AsyncMo
     repo = UserRepository()
     user1 = User(tenant_id=uuid.uuid4(), email="u1@acme.com", full_name="U1", role="recruiter")
     user2 = User(tenant_id=uuid.uuid4(), email="u2@acme.com", full_name="U2", role="hiring_manager")
-    mock_session.execute.return_value.scalars.return_value.all.return_value = [user1, user2]
+    mock_count_res = MagicMock()
+    mock_count_res.scalar_one.return_value = 2
+    mock_items_res = MagicMock()
+    mock_items_res.scalars.return_value.all.return_value = [user1, user2]
+    mock_session.execute.side_effect = [mock_count_res, mock_items_res]
 
-    users = await repo.list_by_tenant(mock_session, tenant_id=uuid.uuid4(), limit=10, offset=0)
+    users, _total = await repo.list_by_tenant(
+        mock_session, tenant_id=uuid.uuid4(), limit=10, offset=0
+    )
     assert len(users) == 2
     assert users[0] == user1
     assert users[1] == user2
