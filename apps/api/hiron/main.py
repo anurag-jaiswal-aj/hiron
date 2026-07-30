@@ -13,6 +13,7 @@ from hiron.common.exceptions import register_exception_handlers
 from hiron.core.config import get_settings
 from hiron.core.logging import configure_logging
 from hiron.core.middleware import ProcessTimeAndRequestIdMiddleware
+from hiron.embeddings.router import router as embeddings_router
 from hiron.health.router import router as health_router
 from hiron.jobs.router import router as jobs_router
 from hiron.resumes.router import router as resumes_router
@@ -66,6 +67,7 @@ def create_app() -> FastAPI:
     app.include_router(candidates_router, prefix="/api/v1/candidates", tags=["Candidates"])
     app.include_router(jobs_candidate_router, prefix="/api/v1/jobs", tags=["Jobs/Candidates"])
     app.include_router(resumes_router, prefix="/api/v1/resumes", tags=["Resumes"])
+    app.include_router(embeddings_router, prefix="/api/v1", tags=["Embeddings"])
 
     return app
 
