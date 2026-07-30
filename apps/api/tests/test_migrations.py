@@ -18,7 +18,7 @@ def test_alembic_migration_upgrade_and_downgrade_smoke() -> None:
     1. Upgrade head creates the 'tenants' table.
     2. Downgrade base drops the 'tenants' table cleanly.
     """
-    root_dir = Path(__file__).resolve().parents[2]
+    root_dir = Path(__file__).resolve().parents[1]
     alembic_ini_path = root_dir / "alembic.ini"
 
     assert alembic_ini_path.exists(), "alembic.ini must exist at apps/api/alembic.ini"

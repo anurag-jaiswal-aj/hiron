@@ -80,8 +80,7 @@ def test_login_endpoint_success_and_cookie_attributes(
 
     # Verify cookie security attributes
     assert "refreshToken" in response.cookies
-    cookie = response.cookies.get_dict()
-    assert cookie["refreshToken"] == "refresh_jwt_456"
+    assert response.cookies["refreshToken"] == "refresh_jwt_456"
 
 
 def test_login_endpoint_invalid_credentials(
