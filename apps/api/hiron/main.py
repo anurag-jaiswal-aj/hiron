@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from hiron.auth.router import router as auth_router
+from hiron.candidates.router import jobs_candidate_router, router as candidates_router
 from hiron.common.exceptions import register_exception_handlers
 from hiron.core.config import get_settings
 from hiron.core.logging import configure_logging
@@ -61,6 +62,8 @@ def create_app() -> FastAPI:
     app.include_router(auth_router, prefix="/api/v1/auth", tags=["Auth"])
     app.include_router(users_router, prefix="/api/v1/users", tags=["Users"])
     app.include_router(jobs_router, prefix="/api/v1/jobs", tags=["Jobs"])
+    app.include_router(candidates_router, prefix="/api/v1/candidates", tags=["Candidates"])
+    app.include_router(jobs_candidate_router, prefix="/api/v1/jobs", tags=["Jobs/Candidates"])
 
     return app
 

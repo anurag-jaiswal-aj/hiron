@@ -1,12 +1,15 @@
 """Tenant SQLAlchemy ORM model definition per Database Design §5.1."""
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Boolean, CheckConstraint, Index, String, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from hiron.common.models import BaseModel
+
+if TYPE_CHECKING:
+    from hiron.candidates.models import Candidate
 
 
 class Tenant(BaseModel):
@@ -40,6 +43,11 @@ class Tenant(BaseModel):
         Boolean,
         nullable=False,
         server_default=text("true"),
+    )
+
+    # Relationships
+    candidates: Mapped[list["Candidate"]] = relationship(
+        "Candidate", back_populates="tenant", cascade="all, delete-orphan"
     )
 
     __table_args__ = (
