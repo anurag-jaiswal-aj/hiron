@@ -1,6 +1,5 @@
 """Authentication request and response Pydantic schemas per API Contract §6.1."""
 
-from typing import Optional
 import uuid
 
 from pydantic import ConfigDict, EmailStr, Field
@@ -18,7 +17,7 @@ class UserAuthPayload(HironBaseModel):
     full_name: str
     role: str
     tenant_id: uuid.UUID
-    avatar_url: Optional[str] = None
+    avatar_url: str | None = None
 
 
 class LoginRequest(HironBaseModel):

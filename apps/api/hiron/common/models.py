@@ -1,7 +1,7 @@
 """Declarative Base class, constraint naming conventions, and common abstract ORM model fields."""
 
-from datetime import datetime
 import uuid
+from datetime import datetime
 
 from sqlalchemy import DateTime, MetaData, func
 from sqlalchemy.dialects.postgresql import UUID
@@ -26,7 +26,7 @@ class Base(DeclarativeBase):
 
 class BaseModel(Base):
     """Abstract base ORM model providing standard audit columns (id, created_at, updated_at).
-    
+
     Per Database Design §9 & Engineering Guidelines §8:
     - id: UUIDv4 primary key generated automatically
     - created_at: TIMESTAMPTZ UTC timestamp on record insertion

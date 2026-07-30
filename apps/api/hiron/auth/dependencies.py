@@ -1,7 +1,8 @@
 """FastAPI authentication and authorization (RBAC) dependencies per API Contract §4 & Engineering Guidelines §16.1."""
 
-from typing import Annotated, Sequence
 import uuid
+from collections.abc import Sequence
+from typing import Annotated
 
 from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer

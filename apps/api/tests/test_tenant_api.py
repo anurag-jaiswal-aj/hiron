@@ -1,12 +1,12 @@
 """Integration test suite for Tenant API endpoints, verifying authentication and RBAC dependency resolution."""
 
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock
 import uuid
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-import pytest
 
 from hiron.auth.dependencies import get_current_user
 from hiron.common.exceptions import register_exception_handlers
@@ -87,7 +87,7 @@ def client(mock_db: AsyncMock, mock_tenant_service: AsyncMock, mock_admin_user: 
 def test_create_tenant_endpoint_success(client: TestClient, mock_tenant_service: AsyncMock) -> None:
     """Verify POST /api/v1/tenants creates tenant and returns 201 Created envelope for org_admin user."""
     tenant_id = uuid.uuid4()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     mock_tenant = Tenant(
         id=tenant_id,
         name="Acme Corp",
@@ -114,8 +114,17 @@ def test_create_tenant_endpoint_success(client: TestClient, mock_tenant_service:
 
 def test_list_tenants_endpoint_success(client: TestClient, mock_tenant_service: AsyncMock) -> None:
     """Verify GET /api/v1/tenants returns active tenants list for org_admin user."""
-    now = datetime.now(timezone.utc)
-    t1 = Tenant(id=uuid.uuid4(), name="T1", slug="t1", plan="starter", settings={}, is_active=True, created_at=now, updated_at=now)
+    now = datetime.now(UTC)
+    t1 = Tenant(
+        id=uuid.uuid4(),
+        name="T1",
+        slug="t1",
+        plan="starter",
+        settings={},
+        is_active=True,
+        created_at=now,
+        updated_at=now,
+    )
     mock_tenant_service.list_active_tenants.return_value = [t1]
 
     response = client.get("/api/v1/tenants")
@@ -129,8 +138,17 @@ def test_list_tenants_endpoint_success(client: TestClient, mock_tenant_service: 
 def test_get_tenant_endpoint_success(client: TestClient, mock_tenant_service: AsyncMock) -> None:
     """Verify GET /api/v1/tenants/{id} returns tenant details for authenticated user."""
     tenant_id = uuid.uuid4()
-    now = datetime.now(timezone.utc)
-    mock_tenant = Tenant(id=tenant_id, name="Acme", slug="acme", plan="enterprise", settings={}, is_active=True, created_at=now, updated_at=now)
+    now = datetime.now(UTC)
+    mock_tenant = Tenant(
+        id=tenant_id,
+        name="Acme",
+        slug="acme",
+        plan="enterprise",
+        settings={},
+        is_active=True,
+        created_at=now,
+        updated_at=now,
+    )
     mock_tenant_service.get_tenant_by_id.return_value = mock_tenant
 
     response = client.get(f"/api/v1/tenants/{tenant_id}")
@@ -154,11 +172,22 @@ def test_get_tenant_not_found(client: TestClient, mock_tenant_service: AsyncMock
 def test_update_tenant_endpoint_success(client: TestClient, mock_tenant_service: AsyncMock) -> None:
     """Verify PATCH /api/v1/tenants/{id} updates tenant and returns 200 OK for org_admin user."""
     tenant_id = uuid.uuid4()
-    now = datetime.now(timezone.utc)
-    updated = Tenant(id=tenant_id, name="Acme Inc", slug="acme", plan="professional", settings={}, is_active=True, created_at=now, updated_at=now)
+    now = datetime.now(UTC)
+    updated = Tenant(
+        id=tenant_id,
+        name="Acme Inc",
+        slug="acme",
+        plan="professional",
+        settings={},
+        is_active=True,
+        created_at=now,
+        updated_at=now,
+    )
     mock_tenant_service.update_tenant.return_value = updated
 
-    response = client.patch(f"/api/v1/tenants/{tenant_id}", json={"name": "Acme Inc", "plan": "professional"})
+    response = client.patch(
+        f"/api/v1/tenants/{tenant_id}", json={"name": "Acme Inc", "plan": "professional"}
+    )
 
     assert response.status_code == 200
     data = response.json()["data"]
@@ -176,7 +205,9 @@ def test_delete_tenant_endpoint_success(client: TestClient, mock_tenant_service:
 
 
 def test_tenant_api_rbac_forbidden_for_non_admin(
-    mock_db: AsyncMock, mock_tenant_service: AsyncMock, mock_recruiter_user: User
+    mock_db: AsyncMock,
+    mock_tenant_service: AsyncMock,
+    mock_recruiter_user: User,
 ) -> None:
     """Verify that a non-org_admin user (e.g. recruiter) receives 403 Forbidden when invoking RBAC-protected routes."""
     test_app = FastAPI()

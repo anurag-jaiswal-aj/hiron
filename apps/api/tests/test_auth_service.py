@@ -1,7 +1,7 @@
 """Unit test suite for AuthService business logic execution."""
 
-from unittest.mock import AsyncMock, patch
 import uuid
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from sqlalchemy.exc import SQLAlchemyError
@@ -33,6 +33,7 @@ def mock_token_repo() -> AsyncMock:
 # ==============================================================================
 # AUTHENTICATE USER TESTS
 # ==============================================================================
+
 
 @pytest.mark.asyncio
 async def test_authenticate_user_success(
@@ -66,7 +67,9 @@ async def test_authenticate_user_success(
 
         assert authenticated_user == mock_user
         mock_user_repo.get_by_email_and_tenant.assert_awaited_once_with(
-            session=mock_session, email="jane@acme.com", tenant_id=tenant_id
+            session=mock_session,
+            email="jane@acme.com",
+            tenant_id=tenant_id,
         )
         mock_verify.assert_called_once_with("CorrectPassword123!", mock_user.password_hash)
 
@@ -187,6 +190,7 @@ async def test_authenticate_user_wrong_password_raises_authentication_error(
 # CREATE AUTH TOKENS TESTS & FAILURE PATHS
 # ==============================================================================
 
+
 @pytest.mark.asyncio
 async def test_create_auth_tokens_success(
     mock_session: AsyncMock,
@@ -208,9 +212,14 @@ async def test_create_auth_tokens_success(
 
     service = AuthService(user_repo=mock_user_repo, token_repo=mock_token_repo)
 
-    with patch("hiron.auth.service.create_access_token", return_value="dummy_access_token") as mock_access, \
-         patch("hiron.auth.service.create_refresh_token", return_value="dummy_refresh_token") as mock_refresh:
-        
+    with (
+        patch(
+            "hiron.auth.service.create_access_token", return_value="dummy_access_token"
+        ) as mock_access,
+        patch(
+            "hiron.auth.service.create_refresh_token", return_value="dummy_refresh_token"
+        ) as mock_refresh,
+    ):
         access_tok, refresh_tok = await service.create_auth_tokens(
             session=mock_session,
             user=mock_user,
@@ -222,11 +231,16 @@ async def test_create_auth_tokens_success(
         assert refresh_tok == "dummy_refresh_token"
 
         mock_access.assert_called_once_with(
-            user_id=user_id, tenant_id=tenant_id, email="jane@acme.com", role="recruiter"
+            user_id=user_id,
+            tenant_id=tenant_id,
+            email="jane@acme.com",
+            role="recruiter",
         )
         mock_refresh.assert_called_once()
         mock_token_repo.create.assert_awaited_once()
-        mock_user_repo.update_last_login.assert_awaited_once_with(session=mock_session, user_id=user_id)
+        mock_user_repo.update_last_login.assert_awaited_once_with(
+            session=mock_session, user_id=user_id
+        )
 
 
 @pytest.mark.asyncio
@@ -236,10 +250,14 @@ async def test_create_auth_tokens_jwt_generation_failure(
     mock_token_repo: AsyncMock,
 ) -> None:
     """Verify create_auth_tokens propagates error and prevents persistence if JWT generation fails."""
-    mock_user = User(id=uuid.uuid4(), tenant_id=uuid.uuid4(), email="u@acme.com", full_name="U", role="recruiter")
+    mock_user = User(
+        id=uuid.uuid4(), tenant_id=uuid.uuid4(), email="u@acme.com", full_name="U", role="recruiter"
+    )
     service = AuthService(user_repo=mock_user_repo, token_repo=mock_token_repo)
 
-    with patch("hiron.auth.service.create_access_token", side_effect=ValueError("JWT config error")):
+    with patch(
+        "hiron.auth.service.create_access_token", side_effect=ValueError("JWT config error")
+    ):
         with pytest.raises(ValueError, match="JWT config error"):
             await service.create_auth_tokens(mock_session, mock_user)
 
@@ -254,14 +272,17 @@ async def test_create_auth_tokens_token_repo_create_failure(
     mock_token_repo: AsyncMock,
 ) -> None:
     """Verify create_auth_tokens propagates database exception when token_repo.create fails."""
-    mock_user = User(id=uuid.uuid4(), tenant_id=uuid.uuid4(), email="u@acme.com", full_name="U", role="recruiter")
+    mock_user = User(
+        id=uuid.uuid4(), tenant_id=uuid.uuid4(), email="u@acme.com", full_name="U", role="recruiter"
+    )
     mock_token_repo.create.side_effect = SQLAlchemyError("DB Error")
 
     service = AuthService(user_repo=mock_user_repo, token_repo=mock_token_repo)
 
-    with patch("hiron.auth.service.create_access_token", return_value="access_token"), \
-         patch("hiron.auth.service.create_refresh_token", return_value="refresh_token"):
-        
+    with (
+        patch("hiron.auth.service.create_access_token", return_value="access_token"),
+        patch("hiron.auth.service.create_refresh_token", return_value="refresh_token"),
+    ):
         with pytest.raises(SQLAlchemyError, match="DB Error"):
             await service.create_auth_tokens(mock_session, mock_user)
 
@@ -275,13 +296,16 @@ async def test_create_auth_tokens_update_last_login_failure(
     mock_token_repo: AsyncMock,
 ) -> None:
     """Verify create_auth_tokens propagates database exception when update_last_login fails."""
-    mock_user = User(id=uuid.uuid4(), tenant_id=uuid.uuid4(), email="u@acme.com", full_name="U", role="recruiter")
+    mock_user = User(
+        id=uuid.uuid4(), tenant_id=uuid.uuid4(), email="u@acme.com", full_name="U", role="recruiter"
+    )
     mock_user_repo.update_last_login.side_effect = SQLAlchemyError("Update error")
 
     service = AuthService(user_repo=mock_user_repo, token_repo=mock_token_repo)
 
-    with patch("hiron.auth.service.create_access_token", return_value="access_token"), \
-         patch("hiron.auth.service.create_refresh_token", return_value="refresh_token"):
-        
+    with (
+        patch("hiron.auth.service.create_access_token", return_value="access_token"),
+        patch("hiron.auth.service.create_refresh_token", return_value="refresh_token"),
+    ):
         with pytest.raises(SQLAlchemyError, match="Update error"):
             await service.create_auth_tokens(mock_session, mock_user)

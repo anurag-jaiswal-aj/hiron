@@ -1,6 +1,6 @@
 """Tenant SQLAlchemy ORM model definition per Database Design §5.1."""
 
-from typing import Any, Dict
+from typing import Any
 
 from sqlalchemy import Boolean, CheckConstraint, Index, String, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB
@@ -30,7 +30,7 @@ class Tenant(BaseModel):
         server_default=text("'starter'"),
     )
 
-    settings: Mapped[Dict[str, Any]] = mapped_column(
+    settings: Mapped[dict[str, Any]] = mapped_column(
         JSONB,
         nullable=False,
         server_default=text("'{}'::jsonb"),

@@ -21,7 +21,7 @@ async def test_require_role_allowed_single_role_success() -> None:
         is_active=True,
     )
     checker = require_role("org_admin")
-    
+
     result = await checker(current_user=user)
     assert result == user
 
@@ -38,7 +38,7 @@ async def test_require_role_allowed_multiple_roles_success() -> None:
         is_active=True,
     )
     checker = require_role("org_admin", "recruiter")
-    
+
     result = await checker(current_user=user)
     assert result == user
 
@@ -55,10 +55,10 @@ async def test_require_role_disallowed_role_raises_permission_denied_exception()
         is_active=True,
     )
     checker = require_role("org_admin", "recruiter")
-    
+
     with pytest.raises(PermissionDeniedException) as exc_info:
         await checker(current_user=user)
-        
+
     assert exc_info.value.status_code == 403
     assert exc_info.value.code == "INSUFFICIENT_PERMISSIONS"
 
@@ -75,6 +75,6 @@ async def test_require_role_empty_allowed_roles_raises_permission_denied_excepti
         is_active=True,
     )
     checker = require_role()
-    
+
     with pytest.raises(PermissionDeniedException):
         await checker(current_user=user)

@@ -1,14 +1,15 @@
 """Alembic async environment script for database migrations."""
 
 import asyncio
-from logging.config import fileConfig
 import sys
+from logging.config import fileConfig
 from pathlib import Path
 
-from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
+
+from alembic import context
 
 # Ensure apps/api is in sys.path for module resolution
 api_root = Path(__file__).resolve().parents[1]
@@ -25,9 +26,6 @@ from hiron.core.config import get_settings
 # Alembic 'autogenerate' can detect new tables and schema modifications registered
 # on Base.metadata.
 # ==============================================================================
-from hiron.tenants.models import Tenant          # Phase 1 Step 3: Tenant Entity
-from hiron.users.models import User              # Phase 1 Step 4: User Entity
-from hiron.tokens.models import RefreshToken      # Phase 1 Step 5: RefreshToken Entity
 
 # Alembic Config object
 config = context.config

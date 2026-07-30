@@ -1,7 +1,7 @@
 """RefreshTokenRepository for async database data access per Database Design §5.3."""
 
-from datetime import datetime, timezone
 import uuid
+from datetime import UTC, datetime
 
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,40 +25,46 @@ class RefreshTokenRepository:
         return token
 
     async def get_by_token_hash(
-        self, session: AsyncSession, token_hash: str
+        self,
+        session: AsyncSession,
+        token_hash: str,
     ) -> RefreshToken | None:
         """Fetch a RefreshToken by SHA-256 token_hash per Database Design §5.3."""
         result = await session.execute(
-            select(RefreshToken).where(RefreshToken.token_hash == token_hash)
+            select(RefreshToken).where(RefreshToken.token_hash == token_hash),
         )
         return result.scalar_one_or_none()
 
     async def revoke_by_token_hash(
-        self, session: AsyncSession, token_hash: str
+        self,
+        session: AsyncSession,
+        token_hash: str,
     ) -> bool:
         """Revoke a refresh token by setting is_revoked = True per Database Design §5.3."""
         result = await session.execute(
             update(RefreshToken)
             .where(RefreshToken.token_hash == token_hash, RefreshToken.is_revoked.is_(False))
-            .values(is_revoked=True)
+            .values(is_revoked=True),
         )
         return result.rowcount > 0
 
     async def revoke_all_for_user(
-        self, session: AsyncSession, user_id: uuid.UUID
+        self,
+        session: AsyncSession,
+        user_id: uuid.UUID,
     ) -> int:
         """Revoke all active refresh tokens for a user upon password change per Database Design §5.3."""
         result = await session.execute(
             update(RefreshToken)
             .where(RefreshToken.user_id == user_id, RefreshToken.is_revoked.is_(False))
-            .values(is_revoked=True)
+            .values(is_revoked=True),
         )
         return result.rowcount
 
     async def delete_expired(self, session: AsyncSession) -> int:
         """Delete tokens WHERE expires_at < NOW() for cleanup job per Database Design §5.3."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         result = await session.execute(
-            delete(RefreshToken).where(RefreshToken.expires_at < now)
+            delete(RefreshToken).where(RefreshToken.expires_at < now),
         )
         return result.rowcount

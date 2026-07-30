@@ -1,7 +1,7 @@
 """Unit test suite for TenantRepository database query execution."""
 
-from unittest.mock import AsyncMock, MagicMock
 import uuid
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from sqlalchemy.exc import SQLAlchemyError
@@ -115,7 +115,9 @@ async def test_tenant_repository_update_success(mock_session: AsyncMock) -> None
     updated_tenant = Tenant(id=tenant_id, name="Acme Inc", slug="acme-corp", plan="professional")
     mock_session.execute.return_value.scalar_one_or_none.return_value = updated_tenant
 
-    result = await repo.update(mock_session, tenant_id=tenant_id, name="Acme Inc", plan="professional")
+    result = await repo.update(
+        mock_session, tenant_id=tenant_id, name="Acme Inc", plan="professional"
+    )
     assert result == updated_tenant
     assert mock_session.execute.call_count == 2
 

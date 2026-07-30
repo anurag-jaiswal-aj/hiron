@@ -1,8 +1,8 @@
 """UserRepository for async database data access per Database Design §5.2."""
 
-from datetime import datetime, timezone
-from typing import Sequence
 import uuid
+from collections.abc import Sequence
+from datetime import UTC, datetime
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,7 +12,7 @@ from hiron.users.models import User
 
 class UserRepository:
     """Async SQLAlchemy repository executing database operations on User entities.
-    
+
     Per Database Design §5.2:
     - Lookup by email (global user lookup)
     - Lookup by id + tenant_id (authentication context)
@@ -39,20 +39,26 @@ class UserRepository:
         return result.scalar_one_or_none()
 
     async def get_by_id_and_tenant(
-        self, session: AsyncSession, user_id: uuid.UUID, tenant_id: uuid.UUID
+        self,
+        session: AsyncSession,
+        user_id: uuid.UUID,
+        tenant_id: uuid.UUID,
     ) -> User | None:
         """Fetch a User entity by ID and tenant_id per Database Design §5.2."""
         result = await session.execute(
-            select(User).where(User.id == user_id, User.tenant_id == tenant_id)
+            select(User).where(User.id == user_id, User.tenant_id == tenant_id),
         )
         return result.scalar_one_or_none()
 
     async def get_by_email_and_tenant(
-        self, session: AsyncSession, email: str, tenant_id: uuid.UUID
+        self,
+        session: AsyncSession,
+        email: str,
+        tenant_id: uuid.UUID,
     ) -> User | None:
         """Fetch a User entity by email and tenant_id for tenant login per Database Design §5.2."""
         result = await session.execute(
-            select(User).where(User.email == email, User.tenant_id == tenant_id)
+            select(User).where(User.email == email, User.tenant_id == tenant_id),
         )
         return result.scalar_one_or_none()
 
@@ -69,16 +75,19 @@ class UserRepository:
             stmt = stmt.offset(offset)
         if limit is not None:
             stmt = stmt.limit(limit)
-            
+
         result = await session.execute(stmt)
         return result.scalars().all()
 
     async def list_by_role_and_tenant(
-        self, session: AsyncSession, role: str, tenant_id: uuid.UUID
+        self,
+        session: AsyncSession,
+        role: str,
+        tenant_id: uuid.UUID,
     ) -> Sequence[User]:
         """Filter users by role and tenant_id per Database Design §5.2."""
         result = await session.execute(
-            select(User).where(User.role == role, User.tenant_id == tenant_id)
+            select(User).where(User.role == role, User.tenant_id == tenant_id),
         )
         return result.scalars().all()
 
@@ -89,10 +98,8 @@ class UserRepository:
         last_login_at: datetime | None = None,
     ) -> bool:
         """Update last_login_at timestamp for a User entity per Database Design §5.2."""
-        now = last_login_at or datetime.now(timezone.utc)
+        now = last_login_at or datetime.now(UTC)
         result = await session.execute(
-            update(User)
-            .where(User.id == user_id)
-            .values(last_login_at=now, updated_at=now)
+            update(User).where(User.id == user_id).values(last_login_at=now, updated_at=now),
         )
         return result.rowcount > 0

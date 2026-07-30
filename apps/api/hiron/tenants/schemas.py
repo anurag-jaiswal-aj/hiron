@@ -1,8 +1,8 @@
 """Tenant request and response Pydantic schemas per API Contract."""
 
-from datetime import datetime
-from typing import Any, Dict, Optional
 import uuid
+from datetime import datetime
+from typing import Any
 
 from pydantic import ConfigDict, Field
 
@@ -15,17 +15,27 @@ class TenantCreateRequest(HironBaseModel):
     name: str = Field(..., description="Organization display name", min_length=1, max_length=200)
     slug: str = Field(..., description="URL-safe subdomain slug", min_length=1, max_length=63)
     plan: str = Field("starter", description="Subscription plan: starter, professional, enterprise")
-    settings: Optional[Dict[str, Any]] = Field(default=None, description="Optional tenant JSONB configuration settings")
+    settings: dict[str, Any] | None = Field(
+        default=None, description="Optional tenant JSONB configuration settings"
+    )
 
 
 class TenantUpdateRequest(HironBaseModel):
     """Request payload for updating an existing tenant organization."""
 
-    name: Optional[str] = Field(None, description="Organization display name", min_length=1, max_length=200)
-    slug: Optional[str] = Field(None, description="URL-safe subdomain slug", min_length=1, max_length=63)
-    plan: Optional[str] = Field(None, description="Subscription plan: starter, professional, enterprise")
-    settings: Optional[Dict[str, Any]] = Field(None, description="Optional tenant JSONB configuration settings")
-    is_active: Optional[bool] = Field(None, description="Active status toggle")
+    name: str | None = Field(
+        None, description="Organization display name", min_length=1, max_length=200
+    )
+    slug: str | None = Field(
+        None, description="URL-safe subdomain slug", min_length=1, max_length=63
+    )
+    plan: str | None = Field(
+        None, description="Subscription plan: starter, professional, enterprise"
+    )
+    settings: dict[str, Any] | None = Field(
+        None, description="Optional tenant JSONB configuration settings"
+    )
+    is_active: bool | None = Field(None, description="Active status toggle")
 
 
 class TenantResponse(HironBaseModel):
@@ -37,7 +47,7 @@ class TenantResponse(HironBaseModel):
     name: str
     slug: str
     plan: str
-    settings: Dict[str, Any]
+    settings: dict[str, Any]
     is_active: bool
     created_at: datetime
     updated_at: datetime

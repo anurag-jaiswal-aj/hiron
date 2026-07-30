@@ -1,10 +1,18 @@
 """User SQLAlchemy ORM model definition per Database Design §5.2."""
 
-from datetime import datetime
-from typing import Optional
 import uuid
+from datetime import datetime
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Index, String, UniqueConstraint, text
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    String,
+    UniqueConstraint,
+    text,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -13,7 +21,7 @@ from hiron.common.models import BaseModel
 
 class User(BaseModel):
     """Represents a human user (org_admin, recruiter, hiring_manager) across all tenants.
-    
+
     Per Database Design §5.2:
     - id: UUID primary key (inherited from BaseModel)
     - tenant_id: FK -> tenants.id (ON DELETE CASCADE)
@@ -46,7 +54,7 @@ class User(BaseModel):
         nullable=False,
     )
 
-    password_hash: Mapped[Optional[str]] = mapped_column(
+    password_hash: Mapped[str | None] = mapped_column(
         String(256),
         nullable=True,
     )
@@ -56,7 +64,7 @@ class User(BaseModel):
         nullable=False,
     )
 
-    avatar_url: Mapped[Optional[str]] = mapped_column(
+    avatar_url: Mapped[str | None] = mapped_column(
         String(500),
         nullable=True,
     )
@@ -73,7 +81,7 @@ class User(BaseModel):
         server_default=text("false"),
     )
 
-    last_login_at: Mapped[Optional[datetime]] = mapped_column(
+    last_login_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
     )

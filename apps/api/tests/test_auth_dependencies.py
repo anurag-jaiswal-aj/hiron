@@ -1,10 +1,10 @@
 """Unit test suite for authentication FastAPI dependencies (get_current_user)."""
 
-from unittest.mock import AsyncMock, patch
 import uuid
+from unittest.mock import AsyncMock, patch
 
-from fastapi.security import HTTPAuthorizationCredentials
 import pytest
+from fastapi.security import HTTPAuthorizationCredentials
 
 from hiron.auth.dependencies import get_current_user
 from hiron.auth.service import AccountDisabledError, AuthenticationError
@@ -42,14 +42,21 @@ async def test_get_current_user_success(
     )
     mock_user_repo.get_by_id_and_tenant.return_value = mock_user
 
-    with patch("hiron.auth.dependencies.verify_token", return_value={"sub": str(user_id), "tenantId": str(tenant_id), "type": "access"}):
+    with patch(
+        "hiron.auth.dependencies.verify_token",
+        return_value={"sub": str(user_id), "tenantId": str(tenant_id), "type": "access"},
+    ):
         credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="valid_access_jwt")
-        
-        current_user = await get_current_user(db=mock_db, user_repo=mock_user_repo, credentials=credentials)
-        
+
+        current_user = await get_current_user(
+            db=mock_db, user_repo=mock_user_repo, credentials=credentials
+        )
+
         assert current_user == mock_user
         mock_user_repo.get_by_id_and_tenant.assert_awaited_once_with(
-            session=mock_db, user_id=user_id, tenant_id=tenant_id
+            session=mock_db,
+            user_id=user_id,
+            tenant_id=tenant_id,
         )
 
 
@@ -69,9 +76,11 @@ async def test_get_current_user_invalid_token_raises_authentication_error(
     mock_user_repo: AsyncMock,
 ) -> None:
     """Verify get_current_user raises AuthenticationError when verify_token fails."""
-    with patch("hiron.auth.dependencies.verify_token", side_effect=Exception("Invalid token signature")):
+    with patch(
+        "hiron.auth.dependencies.verify_token", side_effect=Exception("Invalid token signature")
+    ):
         credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="invalid_jwt")
-        
+
         with pytest.raises(AuthenticationError, match="Invalid or expired access token"):
             await get_current_user(db=mock_db, user_repo=mock_user_repo, credentials=credentials)
 
@@ -86,9 +95,12 @@ async def test_get_current_user_not_found_raises_authentication_error(
     tenant_id = uuid.uuid4()
     mock_user_repo.get_by_id_and_tenant.return_value = None
 
-    with patch("hiron.auth.dependencies.verify_token", return_value={"sub": str(user_id), "tenantId": str(tenant_id), "type": "access"}):
+    with patch(
+        "hiron.auth.dependencies.verify_token",
+        return_value={"sub": str(user_id), "tenantId": str(tenant_id), "type": "access"},
+    ):
         credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="valid_jwt")
-        
+
         with pytest.raises(AuthenticationError, match="Authenticated user not found"):
             await get_current_user(db=mock_db, user_repo=mock_user_repo, credentials=credentials)
 
@@ -111,7 +123,10 @@ async def test_get_current_user_inactive_user_raises_account_disabled_error(
     )
     mock_user_repo.get_by_id_and_tenant.return_value = mock_user
 
-    with patch("hiron.auth.dependencies.verify_token", return_value={"sub": str(user_id), "tenantId": str(tenant_id), "type": "access"}):
+    with patch(
+        "hiron.auth.dependencies.verify_token",
+        return_value={"sub": str(user_id), "tenantId": str(tenant_id), "type": "access"},
+    ):
         credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="valid_jwt")
         with pytest.raises(AccountDisabledError, match="Account is deactivated"):
             await get_current_user(db=mock_db, user_repo=mock_user_repo, credentials=credentials)

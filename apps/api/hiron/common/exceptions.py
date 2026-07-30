@@ -1,12 +1,10 @@
 """Custom platform exceptions and global FastAPI exception handlers."""
 
-from typing import Any, List, Optional
-
+import structlog
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
-import structlog
 
 from hiron.common.schemas import ErrorBody, ErrorDetail, ErrorEnvelope
 
@@ -21,7 +19,7 @@ class HironException(Exception):
         message: str,
         code: str = "INTERNAL_ERROR",
         status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR,
-        details: Optional[List[ErrorDetail]] = None,
+        details: list[ErrorDetail] | None = None,
     ) -> None:
         super().__init__(message)
         self.message = message
@@ -36,7 +34,7 @@ class ValidationException(HironException):
     def __init__(
         self,
         message: str = "Request validation failed",
-        details: Optional[List[ErrorDetail]] = None,
+        details: list[ErrorDetail] | None = None,
     ) -> None:
         super().__init__(
             message=message,
@@ -108,7 +106,7 @@ def register_exception_handlers(app: FastAPI) -> None:
                 message=exc.message,
                 details=exc.details if exc.details else None,
                 request_id=request_id,
-            )
+            ),
         )
         return JSONResponse(
             status_code=exc.status_code,
@@ -116,9 +114,11 @@ def register_exception_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(RequestValidationError)
-    async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+    async def validation_exception_handler(
+        request: Request, exc: RequestValidationError
+    ) -> JSONResponse:
         request_id = request.headers.get("X-Request-ID")
-        details: List[ErrorDetail] = []
+        details: list[ErrorDetail] = []
 
         for err in exc.errors():
             loc = " -> ".join(str(item) for item in err.get("loc", []) if item != "body")
@@ -127,7 +127,7 @@ def register_exception_handlers(app: FastAPI) -> None:
                     field=loc if loc else None,
                     message=err.get("msg", "Invalid value"),
                     value=str(err.get("input", "")) if err.get("input") is not None else None,
-                )
+                ),
             )
 
         logger.info("Request validation failed", details_count=len(details))
@@ -137,7 +137,7 @@ def register_exception_handlers(app: FastAPI) -> None:
                 message="Request validation failed",
                 details=details,
                 request_id=request_id,
-            )
+            ),
         )
         return JSONResponse(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -161,7 +161,7 @@ def register_exception_handlers(app: FastAPI) -> None:
                 code=code,
                 message=str(exc.detail),
                 request_id=request_id,
-            )
+            ),
         )
         return JSONResponse(
             status_code=exc.status_code,
@@ -177,7 +177,7 @@ def register_exception_handlers(app: FastAPI) -> None:
                 code="INTERNAL_ERROR",
                 message="An unexpected server error occurred.",
                 request_id=request_id,
-            )
+            ),
         )
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

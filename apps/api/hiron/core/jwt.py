@@ -1,15 +1,15 @@
 """JWT token creation, decoding, verification, and RSA key management per API Contract §4 & Engineering Guidelines §16.1."""
 
-from datetime import datetime, timedelta, timezone
+import uuid
+from datetime import UTC, datetime, timedelta
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
-import uuid
+from typing import Any
 
-from cryptography.hazmat.primitives import serialization
 import jwt
-from jwt.exceptions import InvalidTokenError
 import structlog
+from cryptography.hazmat.primitives import serialization
+from jwt.exceptions import InvalidTokenError
 
 from hiron.core.config import get_settings
 
@@ -18,6 +18,7 @@ logger = structlog.get_logger("hiron.api.jwt")
 # ==============================================================================
 # 1. RSA KEY MANAGEMENT & CACHING
 # ==============================================================================
+
 
 @lru_cache
 def load_private_key() -> str:
@@ -33,20 +34,20 @@ def load_private_key() -> str:
     settings = get_settings()
     if not settings.jwt_private_key_path:
         raise ValueError("JWT private key path is not configured.")
-    
+
     key_path = Path(settings.jwt_private_key_path)
     if not key_path.exists() or not key_path.is_file():
         raise FileNotFoundError(f"JWT private key file not found at path: {key_path}")
-    
+
     content = key_path.read_text(encoding="utf-8").strip()
     if not content:
         raise ValueError(f"JWT private key file is empty at path: {key_path}")
-    
+
     try:
         serialization.load_pem_private_key(content.encode("utf-8"), password=None)
     except Exception as exc:
         raise ValueError(f"Invalid RSA private key PEM format at path '{key_path}': {exc}") from exc
-    
+
     return content
 
 
@@ -64,20 +65,20 @@ def load_public_key() -> str:
     settings = get_settings()
     if not settings.jwt_public_key_path:
         raise ValueError("JWT public key path is not configured.")
-    
+
     key_path = Path(settings.jwt_public_key_path)
     if not key_path.exists() or not key_path.is_file():
         raise FileNotFoundError(f"JWT public key file not found at path: {key_path}")
-    
+
     content = key_path.read_text(encoding="utf-8").strip()
     if not content:
         raise ValueError(f"JWT public key file is empty at path: {key_path}")
-    
+
     try:
         serialization.load_pem_public_key(content.encode("utf-8"))
     except Exception as exc:
         raise ValueError(f"Invalid RSA public key PEM format at path '{key_path}': {exc}") from exc
-    
+
     return content
 
 
@@ -85,23 +86,24 @@ def load_public_key() -> str:
 # 2. JWT TOKEN CREATION UTILITIES
 # ==============================================================================
 
+
 def create_access_token(
-    user_id: Union[str, uuid.UUID],
-    tenant_id: Union[str, uuid.UUID],
+    user_id: str | uuid.UUID,
+    tenant_id: str | uuid.UUID,
     email: str,
     role: str,
-    expires_delta: Optional[timedelta] = None,
+    expires_delta: timedelta | None = None,
 ) -> str:
     """Create a signed RS256 JWT access token per API Contract §4."""
     settings = get_settings()
-    now = datetime.now(timezone.utc)
-    
+    now = datetime.now(UTC)
+
     if expires_delta is not None:
         expire_time = now + expires_delta
     else:
         expire_time = now + timedelta(minutes=settings.access_token_expire_minutes)
 
-    payload: Dict[str, Any] = {
+    payload: dict[str, Any] = {
         "sub": str(user_id),
         "tenantId": str(tenant_id),
         "email": email,
@@ -116,15 +118,15 @@ def create_access_token(
 
 
 def create_refresh_token(
-    user_id: Union[str, uuid.UUID],
-    tenant_id: Union[str, uuid.UUID],
-    jti: Optional[str] = None,
-    expires_delta: Optional[timedelta] = None,
+    user_id: str | uuid.UUID,
+    tenant_id: str | uuid.UUID,
+    jti: str | None = None,
+    expires_delta: timedelta | None = None,
 ) -> str:
     """Create a signed RS256 JWT refresh token per API Contract §4 & Database Design §5.3."""
     settings = get_settings()
-    now = datetime.now(timezone.utc)
-    
+    now = datetime.now(UTC)
+
     if expires_delta is not None:
         expire_time = now + expires_delta
     else:
@@ -132,7 +134,7 @@ def create_refresh_token(
 
     token_jti = jti or str(uuid.uuid4())
 
-    payload: Dict[str, Any] = {
+    payload: dict[str, Any] = {
         "sub": str(user_id),
         "tenantId": str(tenant_id),
         "type": "refresh",
@@ -149,11 +151,12 @@ def create_refresh_token(
 # 3. JWT TOKEN DECODING & VERIFICATION UTILITIES
 # ==============================================================================
 
-def decode_token(token: str) -> Dict[str, Any]:
+
+def decode_token(token: str) -> dict[str, Any]:
     """Decode and verify an RS256 JWT token using the RSA public key."""
     settings = get_settings()
     public_key_pem = load_public_key()
-    
+
     return jwt.decode(
         token,
         public_key_pem,
@@ -162,10 +165,10 @@ def decode_token(token: str) -> Dict[str, Any]:
     )
 
 
-def verify_token(token: str, expected_type: str = "access") -> Dict[str, Any]:
+def verify_token(token: str, expected_type: str = "access") -> dict[str, Any]:
     """Verify an RS256 JWT token signature, expiration, and required claim payload."""
     payload = decode_token(token)
-    
+
     token_type = payload.get("type")
     if token_type != expected_type:
         logger.warning(
@@ -174,7 +177,9 @@ def verify_token(token: str, expected_type: str = "access") -> Dict[str, Any]:
             actual_type=token_type,
             user_id=payload.get("sub"),
         )
-        raise InvalidTokenError(f"Invalid token type: expected '{expected_type}', got '{token_type}'")
+        raise InvalidTokenError(
+            f"Invalid token type: expected '{expected_type}', got '{token_type}'"
+        )
 
     if expected_type == "access":
         for required_claim in ("email", "role"):

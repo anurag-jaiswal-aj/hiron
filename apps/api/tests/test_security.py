@@ -1,7 +1,7 @@
 """Unit test suite for Argon2id password hashing, verification, and rehash security utilities."""
 
-from argon2 import PasswordHasher
 import pytest
+from argon2 import PasswordHasher
 
 from hiron.core.security import hash_password, needs_rehash, verify_password
 
@@ -10,7 +10,7 @@ def test_hash_password_returns_argon2id_format() -> None:
     """Verify hash_password generates a valid Argon2id hash string starting with $argon2id$."""
     raw_password = "CorrectHorseBatteryStaple123!"
     hashed = hash_password(raw_password)
-    
+
     assert isinstance(hashed, str)
     assert hashed.startswith("$argon2id$")
     assert hashed != raw_password
@@ -20,7 +20,7 @@ def test_verify_password_matching() -> None:
     """Verify verify_password returns True for matching plain text and Argon2id hash."""
     raw_password = "SecureRecruiterPassword2026!"
     hashed = hash_password(raw_password)
-    
+
     assert verify_password(raw_password, hashed) is True
 
 
@@ -29,7 +29,7 @@ def test_verify_password_non_matching() -> None:
     raw_password = "CorrectPassword123!"
     wrong_password = "WrongPassword123!"
     hashed = hash_password(raw_password)
-    
+
     assert verify_password(wrong_password, hashed) is False
 
 
@@ -42,7 +42,7 @@ def test_verify_password_invalid_hash_string() -> None:
 def test_verify_password_empty_inputs() -> None:
     """Verify verify_password returns False when given empty inputs without raising exceptions."""
     hashed = hash_password("ValidPassword123!")
-    
+
     assert verify_password("", hashed) is False
     assert verify_password("ValidPassword123!", "") is False
     assert verify_password("", "") is False
@@ -72,6 +72,6 @@ def test_needs_rehash_detects_outdated_parameters() -> None:
     # Construct a legacy hasher with different time_cost and memory_cost
     outdated_hasher = PasswordHasher(time_cost=1, memory_cost=8192, parallelism=1)
     old_hash = outdated_hasher.hash("LegacyPassword123!")
-    
+
     # Current settings require time_cost=3, memory_cost=65536, parallelism=4
     assert needs_rehash(old_hash) is True

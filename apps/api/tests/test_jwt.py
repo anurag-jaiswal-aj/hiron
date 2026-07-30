@@ -1,14 +1,13 @@
 """Unit test suite for RS256 JWT creation, verification, decoding, and RSA key file management."""
 
+import uuid
 from datetime import timedelta
 from pathlib import Path
-import uuid
 
+import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-import jwt
-from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
-import pytest
+from jwt.exceptions import InvalidTokenError
 
 from hiron.core.config import get_settings
 from hiron.core.jwt import (
@@ -25,7 +24,7 @@ from hiron.core.jwt import (
 def rsa_key_files(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, Path]:
     """Generate temporary RSA key files and patch settings to point to them."""
     private_key_obj = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-    
+
     priv_pem = private_key_obj.private_bytes(
         encoding=serialization.Encoding.PEM,
         format=serialization.PrivateFormat.PKCS8,
@@ -68,7 +67,9 @@ def test_load_public_key_success(rsa_key_files: tuple[Path, Path]) -> None:
     assert content.startswith("-----BEGIN PUBLIC KEY-----")
 
 
-def test_load_private_key_missing_file_raises_file_not_found(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_load_private_key_missing_file_raises_file_not_found(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Verify load_private_key raises FileNotFoundError when configured file is missing."""
     settings = get_settings()
     monkeypatch.setattr(settings, "jwt_private_key_path", "/nonexistent/path/private.pem")
@@ -78,7 +79,9 @@ def test_load_private_key_missing_file_raises_file_not_found(monkeypatch: pytest
         load_private_key()
 
 
-def test_load_public_key_missing_file_raises_file_not_found(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_load_public_key_missing_file_raises_file_not_found(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Verify load_public_key raises FileNotFoundError when configured file is missing."""
     settings = get_settings()
     monkeypatch.setattr(settings, "jwt_public_key_path", "/nonexistent/path/public.pem")
@@ -88,7 +91,9 @@ def test_load_public_key_missing_file_raises_file_not_found(monkeypatch: pytest.
         load_public_key()
 
 
-def test_load_key_empty_file_raises_value_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_load_key_empty_file_raises_value_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Verify load_private_key raises ValueError when key file is empty."""
     empty_file = tmp_path / "empty_key.pem"
     empty_file.write_text("")
@@ -101,7 +106,9 @@ def test_load_key_empty_file_raises_value_error(tmp_path: Path, monkeypatch: pyt
         load_private_key()
 
 
-def test_invalid_private_pem_content_raises_value_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_invalid_private_pem_content_raises_value_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Verify invalid private PEM content immediately raises ValueError during loader execution."""
     invalid_file = tmp_path / "invalid_private.pem"
     invalid_file.write_text("NOT_A_VALID_PRIVATE_PEM")
@@ -114,7 +121,9 @@ def test_invalid_private_pem_content_raises_value_error(tmp_path: Path, monkeypa
         load_private_key()
 
 
-def test_invalid_public_pem_content_raises_value_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_invalid_public_pem_content_raises_value_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Verify invalid public PEM content immediately raises ValueError during loader execution."""
     invalid_file = tmp_path / "invalid_public.pem"
     invalid_file.write_text("NOT_A_VALID_PUBLIC_PEM")
@@ -194,7 +203,9 @@ def test_verify_token_expired_raises_invalid_token_error(rsa_key_files: tuple[Pa
         verify_token(token, expected_type="access")
 
 
-def test_verify_token_wrong_type_raises_invalid_token_error(rsa_key_files: tuple[Path, Path]) -> None:
+def test_verify_token_wrong_type_raises_invalid_token_error(
+    rsa_key_files: tuple[Path, Path],
+) -> None:
     """Verify verify_token raises InvalidTokenError on wrong token type."""
     token = create_access_token(
         user_id=uuid.uuid4(),

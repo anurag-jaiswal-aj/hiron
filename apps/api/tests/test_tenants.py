@@ -1,8 +1,5 @@
 """Unit tests verifying Tenant ORM model mapping and constraint definitions."""
 
-import pytest
-from sqlalchemy import CheckConstraint, UniqueConstraint
-
 from hiron.common.models import BaseModel
 from hiron.tenants.models import Tenant
 
@@ -29,7 +26,7 @@ def test_tenant_constraints() -> None:
     """Verify unique and check constraints defined on Tenant table."""
     constraints = Tenant.__table_args__
     constraint_names = [getattr(c, "name", None) for c in constraints if hasattr(c, "name")]
-    
+
     assert "uq_tenants_slug" in constraint_names
     assert "ck_tenants_plan" in constraint_names
     assert "ck_tenants_slug_format" in constraint_names

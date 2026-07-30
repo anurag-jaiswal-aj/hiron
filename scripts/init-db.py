@@ -10,14 +10,17 @@ root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(root / "apps" / "api"))
 
 from sqlalchemy import text
-from hiron.core.database import engine
+
 from hiron.core.config import get_settings
+from hiron.core.database import engine
 
 
 async def initialize_database() -> None:
     """Initialize database extensions, verify connectivity, and prepare platform database infrastructure."""
     settings = get_settings()
-    print(f"Connecting to database: {settings.postgres_db} at {settings.postgres_host}:{settings.postgres_port}")
+    print(
+        f"Connecting to database: {settings.postgres_db} at {settings.postgres_host}:{settings.postgres_port}"
+    )
 
     try:
         async with engine.begin() as conn:

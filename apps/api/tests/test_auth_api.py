@@ -1,10 +1,10 @@
 """Integration test suite for authentication API endpoints (login, refresh, logout)."""
 
-from unittest.mock import AsyncMock
 import uuid
+from unittest.mock import AsyncMock
 
-from fastapi.testclient import TestClient
 import pytest
+from fastapi.testclient import TestClient
 
 from hiron.auth.router import get_auth_service
 from hiron.auth.service import AccountDisabledError, AuthenticationError, AuthService
@@ -41,8 +41,10 @@ def client(mock_db: AsyncMock, mock_auth_service: AsyncMock) -> TestClient:
 # LOGIN ENDPOINT TESTS
 # ==============================================================================
 
+
 def test_login_endpoint_success_and_cookie_attributes(
-    client: TestClient, mock_auth_service: AsyncMock
+    client: TestClient,
+    mock_auth_service: AsyncMock,
 ) -> None:
     """Verify POST /api/v1/auth/login returns 200 OK and sets httpOnly, SameSite=strict refreshToken cookie."""
     tenant_id = uuid.uuid4()
@@ -82,9 +84,13 @@ def test_login_endpoint_success_and_cookie_attributes(
     assert cookie["refreshToken"] == "refresh_jwt_456"
 
 
-def test_login_endpoint_invalid_credentials(client: TestClient, mock_auth_service: AsyncMock) -> None:
+def test_login_endpoint_invalid_credentials(
+    client: TestClient, mock_auth_service: AsyncMock
+) -> None:
     """Verify POST /api/v1/auth/login returns 401 INVALID_CREDENTIALS on wrong password."""
-    mock_auth_service.authenticate_user.side_effect = AuthenticationError("Invalid email or password")
+    mock_auth_service.authenticate_user.side_effect = AuthenticationError(
+        "Invalid email or password"
+    )
 
     response = client.post(
         "/api/v1/auth/login",
@@ -100,7 +106,9 @@ def test_login_endpoint_invalid_credentials(client: TestClient, mock_auth_servic
     assert payload["error"]["code"] == "INVALID_CREDENTIALS"
 
 
-def test_login_endpoint_account_disabled_mapping(client: TestClient, mock_auth_service: AsyncMock) -> None:
+def test_login_endpoint_account_disabled_mapping(
+    client: TestClient, mock_auth_service: AsyncMock
+) -> None:
     """Verify POST /api/v1/auth/login maps AccountDisabledError to HTTP 403 ACCOUNT_DISABLED."""
     mock_auth_service.authenticate_user.side_effect = AccountDisabledError()
 
@@ -134,6 +142,7 @@ def test_login_endpoint_validation_error(client: TestClient) -> None:
 # REFRESH ENDPOINT TESTS
 # ==============================================================================
 
+
 def test_refresh_endpoint_success(client: TestClient, mock_auth_service: AsyncMock) -> None:
     """Verify POST /api/v1/auth/refresh rotates tokens via AuthService and sets new cookie."""
     mock_auth_service.rotate_refresh_token.return_value = ("new_access_jwt", "new_refresh_jwt")
@@ -158,10 +167,13 @@ def test_refresh_endpoint_missing_cookie_returns_422(client: TestClient) -> None
 
 
 def test_refresh_endpoint_revoked_or_expired_token_returns_401(
-    client: TestClient, mock_auth_service: AsyncMock
+    client: TestClient,
+    mock_auth_service: AsyncMock,
 ) -> None:
     """Verify POST /api/v1/auth/refresh returns 401 when AuthService.rotate_refresh_token raises AuthenticationError."""
-    mock_auth_service.rotate_refresh_token.side_effect = AuthenticationError("Invalid or expired refresh token")
+    mock_auth_service.rotate_refresh_token.side_effect = AuthenticationError(
+        "Invalid or expired refresh token"
+    )
     client.cookies.set("refreshToken", "revoked_or_expired_cookie")
 
     response = client.post("/api/v1/auth/refresh")
@@ -175,6 +187,7 @@ def test_refresh_endpoint_revoked_or_expired_token_returns_401(
 # LOGOUT ENDPOINT TESTS
 # ==============================================================================
 
+
 def test_logout_endpoint_success(client: TestClient, mock_auth_service: AsyncMock) -> None:
     """Verify POST /api/v1/auth/logout invokes AuthService.logout and returns 204 No Content."""
     client.cookies.set("refreshToken", "active_session_cookie")
@@ -185,7 +198,9 @@ def test_logout_endpoint_success(client: TestClient, mock_auth_service: AsyncMoc
     mock_auth_service.logout.assert_awaited_once()
 
 
-def test_logout_endpoint_without_cookie_success(client: TestClient, mock_auth_service: AsyncMock) -> None:
+def test_logout_endpoint_without_cookie_success(
+    client: TestClient, mock_auth_service: AsyncMock
+) -> None:
     """Verify POST /api/v1/auth/logout without cookie calls AuthService.logout and returns 204 No Content."""
     response = client.post("/api/v1/auth/logout")
 

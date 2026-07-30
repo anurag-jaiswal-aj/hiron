@@ -1,8 +1,9 @@
 """Async SQLAlchemy database engine, session management, and connectivity probes."""
 
 import time
-from typing import AsyncGenerator, Tuple
+from collections.abc import AsyncGenerator
 
+import structlog
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -10,7 +11,6 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
-import structlog
 
 from hiron.core.config import get_settings
 
@@ -51,9 +51,9 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 # 4. Database Readiness Probe Function (API Contract §HEALTH-2)
-async def check_database_connection() -> Tuple[bool, float]:
+async def check_database_connection() -> tuple[bool, float]:
     """Perform a ping query (SELECT 1) against PostgreSQL and measure latency.
-    
+
     Returns:
         Tuple[bool, float]: (is_healthy, latency_in_ms)
     """

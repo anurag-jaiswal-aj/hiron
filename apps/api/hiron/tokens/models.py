@@ -1,8 +1,7 @@
 """RefreshToken SQLAlchemy ORM model definition per Database Design §5.3."""
 
-from datetime import datetime
-from typing import Optional
 import uuid
+from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import INET, UUID
@@ -13,7 +12,7 @@ from hiron.common.models import BaseModel
 
 class RefreshToken(BaseModel):
     """Tracks active JWT refresh tokens for single-use rotation and session revocation.
-    
+
     Per Database Design §5.3:
     - id: UUID primary key (inherited from BaseModel)
     - user_id: FK -> users.id (ON DELETE CASCADE)
@@ -56,12 +55,12 @@ class RefreshToken(BaseModel):
         server_default=text("false"),
     )
 
-    user_agent: Mapped[Optional[str]] = mapped_column(
+    user_agent: Mapped[str | None] = mapped_column(
         String(500),
         nullable=True,
     )
 
-    ip_address: Mapped[Optional[str]] = mapped_column(
+    ip_address: Mapped[str | None] = mapped_column(
         INET,
         nullable=True,
     )

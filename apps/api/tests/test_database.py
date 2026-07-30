@@ -1,12 +1,9 @@
 """Unit and structure tests for Async SQLAlchemy database engine and base model."""
 
-import uuid
-from datetime import datetime
-
 import pytest
 
 from hiron.common.models import Base, BaseModel
-from hiron.core.database import check_database_connection, engine
+from hiron.core.database import check_database_connection
 
 
 def test_base_model_inheritance() -> None:

@@ -1,10 +1,11 @@
 """Tenant service providing organization management and tenant lifecycle business logic."""
 
-from typing import Any, Optional, Sequence
 import uuid
+from collections.abc import Sequence
+from typing import Any
 
-from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from hiron.common.exceptions import HironException
 from hiron.tenants.models import Tenant
@@ -51,7 +52,7 @@ class InvalidTenantPlanError(HironException):
 class TenantService:
     """Core tenant business logic and repository orchestration service."""
 
-    def __init__(self, tenant_repo: Optional[TenantRepository] = None) -> None:
+    def __init__(self, tenant_repo: TenantRepository | None = None) -> None:
         """Initialize TenantService with injected TenantRepository."""
         self.tenant_repo = tenant_repo or TenantRepository()
 
@@ -61,7 +62,7 @@ class TenantService:
         name: str,
         slug: str,
         plan: str = "starter",
-        settings: Optional[dict[str, Any]] = None,
+        settings: dict[str, Any] | None = None,
     ) -> Tenant:
         """Create a new tenant organization per Database Design §5.1.
 
@@ -117,8 +118,8 @@ class TenantService:
     async def list_active_tenants(
         self,
         session: AsyncSession,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
+        limit: int | None = None,
+        offset: int | None = None,
     ) -> Sequence[Tenant]:
         """List all active tenants for administrative management."""
         return await self.tenant_repo.list_active(session, limit=limit, offset=offset)
@@ -127,11 +128,11 @@ class TenantService:
         self,
         session: AsyncSession,
         tenant_id: uuid.UUID,
-        name: Optional[str] = None,
-        slug: Optional[str] = None,
-        plan: Optional[str] = None,
-        settings: Optional[dict[str, Any]] = None,
-        is_active: Optional[bool] = None,
+        name: str | None = None,
+        slug: str | None = None,
+        plan: str | None = None,
+        settings: dict[str, Any] | None = None,
+        is_active: bool | None = None,
     ) -> Tenant:
         """Update existing tenant attributes per Database Design §5.1.
 

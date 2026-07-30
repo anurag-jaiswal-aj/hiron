@@ -5,17 +5,19 @@ Revises: 000000000002
 Create Date: 2026-07-29 00:00:00.000000
 
 """
-from typing import Sequence, Union
 
-from alembic import op
+from collections.abc import Sequence
+
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
+from alembic import op
+
 # revision identifiers, used by Alembic.
 revision: str = "000000000003"
-down_revision: Union[str, None] = "000000000002"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "000000000002"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -91,7 +93,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id", name="pk_refresh_tokens"),
         sa.UniqueConstraint("token_hash", name="uq_refresh_tokens_token_hash"),
     )
-    
+
     # Create indexes (§5.3)
     op.create_index("ix_refresh_tokens_token_hash", "refresh_tokens", ["token_hash"], unique=False)
     op.create_index("ix_refresh_tokens_user_id", "refresh_tokens", ["user_id"], unique=False)

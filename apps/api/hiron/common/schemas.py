@@ -1,6 +1,7 @@
 """Standard API response envelopes, error structures, and base Pydantic model configurations."""
 
-from typing import Generic, List, Optional, TypeVar
+from typing import Generic, TypeVar
+
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 
@@ -27,23 +28,25 @@ class PaginationMeta(HironBaseModel):
     """Standard cursor pagination metadata per API Contract §9."""
 
     has_more: bool = Field(..., description="Whether additional pages exist")
-    next_cursor: Optional[str] = Field(default=None, description="Opaque cursor for fetching the next page")
-    total_count: Optional[int] = Field(default=None, description="Total record count (if available)")
+    next_cursor: str | None = Field(
+        default=None, description="Opaque cursor for fetching the next page"
+    )
+    total_count: int | None = Field(default=None, description="Total record count (if available)")
 
 
 class PaginatedResponseEnvelope(HironBaseModel, Generic[T]):
     """Standard paginated success response wrapper envelope per API Contract §7 & §9."""
 
-    data: List[T] = Field(..., description="Page items payload list")
+    data: list[T] = Field(..., description="Page items payload list")
     pagination: PaginationMeta = Field(..., description="Pagination metadata")
 
 
 class ErrorDetail(HironBaseModel):
     """Individual field error detail item per API Contract §8."""
 
-    field: Optional[str] = Field(default=None, description="Field name experiencing validation error")
+    field: str | None = Field(default=None, description="Field name experiencing validation error")
     message: str = Field(..., description="Human-readable error description")
-    value: Optional[object] = Field(default=None, description="Provided value that failed validation")
+    value: object | None = Field(default=None, description="Provided value that failed validation")
 
 
 class ErrorBody(HironBaseModel):
@@ -51,8 +54,10 @@ class ErrorBody(HironBaseModel):
 
     code: str = Field(..., description="Machine-readable error code string")
     message: str = Field(..., description="Human-readable error message")
-    details: Optional[List[ErrorDetail]] = Field(default=None, description="Per-field validation details")
-    request_id: Optional[str] = Field(default=None, description="Unique trace request ID")
+    details: list[ErrorDetail] | None = Field(
+        default=None, description="Per-field validation details"
+    )
+    request_id: str | None = Field(default=None, description="Unique trace request ID")
 
 
 class ErrorEnvelope(HironBaseModel):

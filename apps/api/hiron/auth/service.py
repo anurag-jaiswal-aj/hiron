@@ -1,12 +1,11 @@
 """Authentication service providing core login, credential verification, token issuance, and rotation business logic."""
 
-from datetime import datetime, timedelta, timezone
 import hashlib
-from typing import Optional, Tuple
 import uuid
+from datetime import UTC, datetime, timedelta
 
-from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from hiron.common.exceptions import HironException
 from hiron.core.config import get_settings
@@ -47,8 +46,8 @@ class AuthService:
 
     def __init__(
         self,
-        user_repo: Optional[UserRepository] = None,
-        token_repo: Optional[RefreshTokenRepository] = None,
+        user_repo: UserRepository | None = None,
+        token_repo: RefreshTokenRepository | None = None,
     ) -> None:
         """Initialize AuthService with injected repositories."""
         self.user_repo = user_repo or UserRepository()
@@ -77,11 +76,15 @@ class AuthService:
             AccountDisabledError: If user account is deactivated (is_active = False).
         """
         user = await self.user_repo.get_by_email_and_tenant(
-            session=session, email=email, tenant_id=tenant_id
+            session=session,
+            email=email,
+            tenant_id=tenant_id,
         )
 
         if not user:
-            logger.info("Authentication failed: user not found", email=email, tenant_id=str(tenant_id))
+            logger.info(
+                "Authentication failed: user not found", email=email, tenant_id=str(tenant_id)
+            )
             raise AuthenticationError()
 
         if not user.is_active:
@@ -90,7 +93,9 @@ class AuthService:
 
         if not user.password_hash:
             # OAuth-only users do not have a password hash (§5.2)
-            logger.info("Authentication failed: OAuth-only user has no password set", user_id=str(user.id))
+            logger.info(
+                "Authentication failed: OAuth-only user has no password set", user_id=str(user.id)
+            )
             raise AuthenticationError()
 
         if not verify_password(password, user.password_hash):
@@ -103,9 +108,9 @@ class AuthService:
         self,
         session: AsyncSession,
         user: User,
-        user_agent: Optional[str] = None,
-        ip_address: Optional[str] = None,
-    ) -> Tuple[str, str]:
+        user_agent: str | None = None,
+        ip_address: str | None = None,
+    ) -> tuple[str, str]:
         """Issue access token and persisted refresh token for an authenticated user.
 
         Args:
@@ -137,7 +142,7 @@ class AuthService:
 
         # 3. Compute SHA-256 hash of raw refresh token (§16.1 & Database Design §5.3)
         token_hash = hashlib.sha256(raw_refresh_token.encode("utf-8")).hexdigest()
-        expires_at = datetime.now(timezone.utc) + timedelta(days=settings.refresh_token_expire_days)
+        expires_at = datetime.now(UTC) + timedelta(days=settings.refresh_token_expire_days)
 
         # 4. Create and persist RefreshToken entity
         refresh_token_entity = RefreshToken(
@@ -159,9 +164,9 @@ class AuthService:
         self,
         session: AsyncSession,
         raw_refresh_token: str,
-        user_agent: Optional[str] = None,
-        ip_address: Optional[str] = None,
-    ) -> Tuple[str, str]:
+        user_agent: str | None = None,
+        ip_address: str | None = None,
+    ) -> tuple[str, str]:
         """Application service method handling single-use refresh token rotation per API Contract §6.1.
 
         Args:
@@ -189,8 +194,15 @@ class AuthService:
 
         # 1. Fetch token record from database
         stored_token = await self.token_repo.get_by_token_hash(session, token_hash)
-        if not stored_token or stored_token.is_revoked or stored_token.expires_at < datetime.now(timezone.utc):
-            logger.warning("Token refresh failed: token revoked, missing, or expired in DB", token_hash=token_hash)
+        if (
+            not stored_token
+            or stored_token.is_revoked
+            or stored_token.expires_at < datetime.now(UTC)
+        ):
+            logger.warning(
+                "Token refresh failed: token revoked, missing, or expired in DB",
+                token_hash=token_hash,
+            )
             raise AuthenticationError("Invalid or expired refresh token")
 
         # 2. Single-use rotation: Revoke old refresh token (§5.3 & §16.1)
@@ -211,7 +223,7 @@ class AuthService:
             ip_address=ip_address,
         )
 
-    async def logout(self, session: AsyncSession, raw_refresh_token: Optional[str]) -> None:
+    async def logout(self, session: AsyncSession, raw_refresh_token: str | None) -> None:
         """Application service method executing session revocation for logout per API Contract §6.1.
 
         Args:

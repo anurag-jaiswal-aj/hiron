@@ -1,11 +1,11 @@
 """FastAPI application entry point, middleware registration, and core router initialization."""
 
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
+import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import structlog
 
 from hiron.auth.router import router as auth_router
 from hiron.common.exceptions import register_exception_handlers

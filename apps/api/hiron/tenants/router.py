@@ -1,7 +1,7 @@
 """FastAPI tenant router implementing CRUD endpoints per API Contract & Engineering Guidelines."""
 
-from typing import Annotated, List, Optional
 import uuid
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -45,7 +45,7 @@ async def create_tenant(
 
 @router.get(
     "",
-    response_model=ResponseEnvelope[List[TenantResponse]],
+    response_model=ResponseEnvelope[list[TenantResponse]],
     status_code=status.HTTP_200_OK,
     summary="List active tenants",
     dependencies=[Depends(require_role("org_admin"))],
@@ -53,9 +53,9 @@ async def create_tenant(
 async def list_tenants(
     db: Annotated[AsyncSession, Depends(get_db_session)],
     tenant_service: Annotated[TenantService, Depends(get_tenant_service)],
-    limit: Annotated[Optional[int], Query(ge=1, le=100)] = None,
-    offset: Annotated[Optional[int], Query(ge=0)] = None,
-) -> ResponseEnvelope[List[TenantResponse]]:
+    limit: Annotated[int | None, Query(ge=1, le=100)] = None,
+    offset: Annotated[int | None, Query(ge=0)] = None,
+) -> ResponseEnvelope[list[TenantResponse]]:
     """List active tenant organizations. Requires org_admin role."""
     tenants = await tenant_service.list_active_tenants(session=db, limit=limit, offset=offset)
     return ResponseEnvelope(data=[TenantResponse.model_validate(t) for t in tenants])
@@ -117,4 +117,4 @@ async def delete_tenant(
 ) -> None:
     """Hard-delete tenant organization. Requires org_admin role."""
     await tenant_service.delete_tenant(session=db, tenant_id=tenant_id)
-    return None
+    return

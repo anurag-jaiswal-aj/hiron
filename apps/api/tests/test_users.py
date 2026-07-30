@@ -1,8 +1,5 @@
 """Unit tests verifying User ORM model mapping, foreign keys, indexes, and constraints."""
 
-import pytest
-from sqlalchemy import Index
-
 from hiron.common.models import BaseModel
 from hiron.users.models import User
 
@@ -33,7 +30,7 @@ def test_user_foreign_key_definition() -> None:
     """Verify foreign key references tenants.id with ON DELETE CASCADE per Database Design §5.2 & §7."""
     foreign_keys = list(User.__table__.foreign_keys)
     assert len(foreign_keys) == 1
-    
+
     fk = foreign_keys[0]
     assert fk.name == "fk_users_tenant_id_tenants"
     assert fk.target_fullname == "tenants.id"
@@ -52,7 +49,7 @@ def test_user_constraints_definition() -> None:
     """Verify unique and check constraints defined on User table per Database Design §5.2."""
     constraints = User.__table_args__
     constraint_names = [getattr(c, "name", None) for c in constraints if hasattr(c, "name")]
-    
+
     assert "uq_users_tenant_id_email" in constraint_names
     assert "ck_users_role" in constraint_names
     assert "ck_users_email_format" in constraint_names

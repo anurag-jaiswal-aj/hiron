@@ -1,6 +1,6 @@
 """FastAPI authentication router implementing login, refresh, and logout endpoints per API Contract §6.1."""
 
-from typing import Annotated, Optional
+from typing import Annotated
 
 from fastapi import APIRouter, Cookie, Depends, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -84,7 +84,7 @@ async def refresh_token(
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db_session)],
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
-    refreshToken: Annotated[Optional[str], Cookie()] = None,
+    refreshToken: Annotated[str | None, Cookie()] = None,
 ) -> ResponseEnvelope[RefreshTokenData]:
     """Exchange valid httpOnly refresh token for a rotated access token + refresh token pair per API Contract §6.1."""
     if not refreshToken:
@@ -129,9 +129,9 @@ async def logout(
     response: Response,
     db: Annotated[AsyncSession, Depends(get_db_session)],
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
-    refreshToken: Annotated[Optional[str], Cookie()] = None,
+    refreshToken: Annotated[str | None, Cookie()] = None,
 ) -> None:
     """Revoke active refresh token and delete session cookie per API Contract §6.1."""
     await auth_service.logout(session=db, raw_refresh_token=refreshToken)
     response.delete_cookie(key="refreshToken", path="/api/v1/auth")
-    return None
+    return

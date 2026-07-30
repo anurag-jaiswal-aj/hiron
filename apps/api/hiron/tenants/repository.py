@@ -1,8 +1,9 @@
 """TenantRepository for async database data access per Database Design §5.1."""
 
-from datetime import datetime, timezone
-from typing import Any, Sequence
 import uuid
+from collections.abc import Sequence
+from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -105,13 +106,11 @@ class TenantRepository:
         if not kwargs:
             return await self.get_by_id(session, tenant_id)
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         kwargs["updated_at"] = now
 
         await session.execute(
-            update(Tenant)
-            .where(Tenant.id == tenant_id)
-            .values(**kwargs)
+            update(Tenant).where(Tenant.id == tenant_id).values(**kwargs),
         )
         return await self.get_by_id(session, tenant_id)
 

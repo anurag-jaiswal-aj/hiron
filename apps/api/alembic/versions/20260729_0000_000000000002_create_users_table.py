@@ -5,17 +5,19 @@ Revises: 000000000001
 Create Date: 2026-07-29 00:00:00.000000
 
 """
-from typing import Sequence, Union
 
-from alembic import op
+from collections.abc import Sequence
+
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
+from alembic import op
+
 # revision identifiers, used by Alembic.
 revision: str = "000000000002"
-down_revision: Union[str, None] = "000000000001"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "000000000001"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -104,7 +106,7 @@ def upgrade() -> None:
             name="ck_users_email_format",
         ),
     )
-    
+
     # Create indexes (§5.2)
     op.create_index("ix_users_tenant_id", "users", ["tenant_id"], unique=False)
     op.create_index("ix_users_tenant_id_email", "users", ["tenant_id", "email"], unique=False)

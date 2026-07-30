@@ -1,7 +1,7 @@
 """Unit test suite for UserRepository and RefreshTokenRepository database query execution."""
 
-from unittest.mock import AsyncMock, MagicMock
 import uuid
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from sqlalchemy.exc import SQLAlchemyError
@@ -28,6 +28,7 @@ def mock_session() -> AsyncMock:
 # USER REPOSITORY TESTS
 # ==============================================================================
 
+
 @pytest.mark.asyncio
 async def test_user_repository_create_success(mock_session: AsyncMock) -> None:
     """Verify UserRepository.create adds entity to session and flushes."""
@@ -38,7 +39,7 @@ async def test_user_repository_create_success(mock_session: AsyncMock) -> None:
         full_name="Jane Doe",
         role="recruiter",
     )
-    
+
     created = await repo.create(mock_session, user)
     assert created == user
     mock_session.add.assert_called_once_with(user)
@@ -60,7 +61,9 @@ async def test_user_repository_create_flush_failure_raises(mock_session: AsyncMo
 async def test_user_repository_get_by_email_success(mock_session: AsyncMock) -> None:
     """Verify UserRepository.get_by_email returns User entity when found."""
     repo = UserRepository()
-    expected_user = User(tenant_id=uuid.uuid4(), email="user@acme.com", full_name="User", role="org_admin")
+    expected_user = User(
+        tenant_id=uuid.uuid4(), email="user@acme.com", full_name="User", role="org_admin"
+    )
     mock_session.execute.return_value.scalar_one_or_none.return_value = expected_user
 
     user = await repo.get_by_email(mock_session, email="user@acme.com")
@@ -81,10 +84,14 @@ async def test_user_repository_get_by_email_not_found_returns_none(mock_session:
 async def test_user_repository_get_by_id_and_tenant_found(mock_session: AsyncMock) -> None:
     """Verify UserRepository.get_by_id_and_tenant returns User entity when found."""
     repo = UserRepository()
-    expected_user = User(tenant_id=uuid.uuid4(), email="recruiter@acme.com", full_name="Recruiter", role="recruiter")
+    expected_user = User(
+        tenant_id=uuid.uuid4(), email="recruiter@acme.com", full_name="Recruiter", role="recruiter"
+    )
     mock_session.execute.return_value.scalar_one_or_none.return_value = expected_user
 
-    result = await repo.get_by_id_and_tenant(mock_session, user_id=uuid.uuid4(), tenant_id=expected_user.tenant_id)
+    result = await repo.get_by_id_and_tenant(
+        mock_session, user_id=uuid.uuid4(), tenant_id=expected_user.tenant_id
+    )
     assert result == expected_user
 
 
@@ -92,7 +99,9 @@ async def test_user_repository_get_by_id_and_tenant_found(mock_session: AsyncMoc
 async def test_user_repository_get_by_id_and_tenant_not_found(mock_session: AsyncMock) -> None:
     """Verify UserRepository.get_by_id_and_tenant returns None when user is not found."""
     repo = UserRepository()
-    result = await repo.get_by_id_and_tenant(mock_session, user_id=uuid.uuid4(), tenant_id=uuid.uuid4())
+    result = await repo.get_by_id_and_tenant(
+        mock_session, user_id=uuid.uuid4(), tenant_id=uuid.uuid4()
+    )
     assert result is None
 
 
@@ -114,11 +123,14 @@ async def test_user_repository_list_by_tenant_returns_list(mock_session: AsyncMo
 # REFRESH TOKEN REPOSITORY TESTS
 # ==============================================================================
 
+
 @pytest.mark.asyncio
 async def test_refresh_token_repository_create_success(mock_session: AsyncMock) -> None:
     """Verify RefreshTokenRepository.create adds token entity to session and flushes."""
     repo = RefreshTokenRepository()
-    token = RefreshToken(user_id=uuid.uuid4(), tenant_id=uuid.uuid4(), token_hash="hash_123", expires_at=None)
+    token = RefreshToken(
+        user_id=uuid.uuid4(), tenant_id=uuid.uuid4(), token_hash="hash_123", expires_at=None
+    )
 
     created = await repo.create(mock_session, token)
     assert created == token
@@ -130,7 +142,9 @@ async def test_refresh_token_repository_create_success(mock_session: AsyncMock) 
 async def test_refresh_token_repository_get_by_token_hash_found(mock_session: AsyncMock) -> None:
     """Verify RefreshTokenRepository.get_by_token_hash returns RefreshToken entity when found."""
     repo = RefreshTokenRepository()
-    expected_token = RefreshToken(user_id=uuid.uuid4(), tenant_id=uuid.uuid4(), token_hash="hash_abc", expires_at=None)
+    expected_token = RefreshToken(
+        user_id=uuid.uuid4(), tenant_id=uuid.uuid4(), token_hash="hash_abc", expires_at=None
+    )
     mock_session.execute.return_value.scalar_one_or_none.return_value = expected_token
 
     result = await repo.get_by_token_hash(mock_session, token_hash="hash_abc")
@@ -162,7 +176,9 @@ async def test_refresh_token_repository_revoke_by_token_hash_returns_true_when_r
 
 
 @pytest.mark.asyncio
-async def test_refresh_token_repository_delete_expired_returns_zero(mock_session: AsyncMock) -> None:
+async def test_refresh_token_repository_delete_expired_returns_zero(
+    mock_session: AsyncMock,
+) -> None:
     """Verify RefreshTokenRepository.delete_expired returns 0 when no expired tokens exist."""
     repo = RefreshTokenRepository()
     mock_session.execute.return_value.rowcount = 0

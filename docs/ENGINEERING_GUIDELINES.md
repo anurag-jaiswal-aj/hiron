@@ -86,8 +86,7 @@ async def score_candidate(
     job: JobDescription,
     llm_client: LLMClient,
     embedding_service: EmbeddingService,
-) -> CandidateScore:
-    ...
+) -> CandidateScore: ...
 ```
 
 **Bad Example**:
@@ -166,7 +165,9 @@ def compute_skill_match(
 ) -> float:
     if not required_skills:
         return 1.0
-    matched = set(normalize(s) for s in candidate_skills) & set(normalize(s) for s in required_skills)
+    matched = set(normalize(s) for s in candidate_skills) & set(
+        normalize(s) for s in required_skills
+    )
     return len(matched) / len(required_skills)
 ```
 
@@ -466,15 +467,13 @@ async def get_candidates_for_job(
     limit: int = 50,
     offset: int = 0,
     min_score: float | None = None,
-) -> PaginatedResponse[CandidateWithScore]:
-    ...
+) -> PaginatedResponse[CandidateWithScore]: ...
 ```
 
 **Bad Example**:
 
 ```python
-async def get_candidates(job_id, tenant_id, **kwargs):
-    ...
+async def get_candidates(job_id, tenant_id, **kwargs): ...
 ```
 
 **Common Mistakes**:
@@ -540,10 +539,12 @@ async def fetch_resume(resume_id: uuid.UUID, db: AsyncSession) -> Resume:
     result = await db.execute(select(Resume).where(Resume.id == resume_id))
     return result.scalar_one_or_none()
 
+
 # CPU-bound — use sync, run in thread pool
 def extract_text_from_pdf(pdf_bytes: bytes) -> str:
     # This is CPU-bound (PDF parsing), not I/O-bound
     return pdfplumber.open(io.BytesIO(pdf_bytes)).extract_text()
+
 
 # Calling CPU-bound from async context
 async def handle_resume_parse(pdf_bytes: bytes) -> str:
@@ -625,11 +626,14 @@ from pydantic import BaseModel
 class HironError(Exception):
     """Base exception for all Hiron domain errors."""
 
+
 class ResumeParsingError(HironError):
     """Raised when a resume cannot be parsed."""
 
+
 class CandidateNotFoundError(HironError):
     """Raised when a candidate does not exist or is not accessible."""
+
 
 class TenantAccessDeniedError(HironError):
     """Raised when a user attempts to access another tenant's data."""
@@ -664,9 +668,7 @@ raise ValueError("bad input")  # What input? What was bad about it?
 class Candidate(TenantBase):
     __tablename__ = "candidates"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("tenants.id"), index=True
     )
@@ -1850,6 +1852,7 @@ async def generate_score(resume: ParsedResume, job: JobDescription) -> FitScore:
         logger.error("openai_api_error", status=e.status_code, message=str(e))
         raise UpstreamServiceError("AI scoring service error") from e
 
+
 # In FastAPI exception handler
 @app.exception_handler(UpstreamServiceError)
 async def handle_upstream_error(request: Request, exc: UpstreamServiceError):
@@ -2115,27 +2118,25 @@ test_<what>_<condition>_<expected_result>
 **Good Example**:
 
 ```python
-def test_score_candidate_with_matching_skills_returns_high_score():
-    ...
+def test_score_candidate_with_matching_skills_returns_high_score(): ...
 
-def test_score_candidate_with_empty_resume_raises_invalid_resume_error():
-    ...
 
-def test_parse_resume_with_multi_page_pdf_extracts_all_pages():
-    ...
+def test_score_candidate_with_empty_resume_raises_invalid_resume_error(): ...
+
+
+def test_parse_resume_with_multi_page_pdf_extracts_all_pages(): ...
 ```
 
 **Bad Example**:
 
 ```python
-def test_score():
-    ...
+def test_score(): ...
 
-def test_1():
-    ...
 
-def test_it_works():
-    ...
+def test_1(): ...
+
+
+def test_it_works(): ...
 ```
 
 ---
@@ -2358,16 +2359,16 @@ services/ai/prompts/
             "date": "2026-09-15",
             "author": "anurag",
             "change": "Restructured to use role-specific evaluation criteria",
-            "ticket": "HIR-203"
+            "ticket": "HIR-203",
         },
         {
             "version": "1.1.0",
             "date": "2026-08-20",
             "author": "anurag",
             "change": "Added skill gap detection instructions",
-            "ticket": "HIR-156"
-        }
-    ]
+            "ticket": "HIR-156",
+        },
+    ],
 }
 ```
 
@@ -2399,13 +2400,13 @@ class PromptRegistry:
 # Prompt buried inline in application code — no versioning, no traceability
 async def score_candidate(resume, job):
     response = await llm.chat(
-        messages=[{
-            "role": "system",
-            "content": "You are a hiring expert. Score this resume against the job description. Return a JSON with score and explanation."
-        }, {
-            "role": "user",
-            "content": f"Resume: {resume}\n\nJob: {job}"
-        }]
+        messages=[
+            {
+                "role": "system",
+                "content": "You are a hiring expert. Score this resume against the job description. Return a JSON with score and explanation.",
+            },
+            {"role": "user", "content": f"Resume: {resume}\n\nJob: {job}"},
+        ]
     )
 ```
 
@@ -2430,16 +2431,19 @@ async def score_candidate(resume, job):
 # config/ai_models.py
 from enum import StrEnum
 
+
 class ModelVersion(StrEnum):
     """Pinned model versions used in production.
 
     NEVER use unpinned aliases like 'gpt-4o' or 'gpt-4o-mini'.
     Always use dated snapshot versions.
     """
+
     SCORING_LLM = "gpt-4o-2024-08-06"
     JD_ANALYSIS_LLM = "gpt-4o-mini-2024-07-18"
     EMBEDDING_MODEL = "text-embedding-3-small"
     SPACY_NER = "en_core_web_trf-3.7.3"
+
 
 # Usage — model version travels with every score
 @dataclass
@@ -2449,6 +2453,7 @@ class ScoringContext:
     model_version: str
     embedding_model_version: str
     timestamp: datetime
+
 
 logger.info(
     "candidate_scored",
@@ -2500,6 +2505,7 @@ class CandidateEmbedding(TenantBase):
     source_text_hash: Mapped[str] = mapped_column(String(64))  # SHA-256 of input text
     created_at: Mapped[datetime] = mapped_column(default=func.now())
 
+
 # Query — ALWAYS filter by model version
 async def search_similar_candidates(
     query_embedding: list[float],
@@ -2540,6 +2546,7 @@ class CandidateEmbedding(Base):
     id = Column(Integer, primary_key=True)
     embedding = Column(Vector(1536))  # Which model? Who knows.
 
+
 # Comparing without checking model version — potentially meaningless results
 stmt = select(CandidateEmbedding).order_by(
     CandidateEmbedding.embedding.cosine_distance(query_embedding)
@@ -2573,7 +2580,7 @@ Cost data must be aggregated per tenant, per operation type, per day.
 @dataclass
 class AIUsageRecord:
     tenant_id: uuid.UUID
-    operation: str          # "candidate_scoring", "embedding_generation", "jd_analysis"
+    operation: str  # "candidate_scoring", "embedding_generation", "jd_analysis"
     model_version: str
     input_tokens: int
     output_tokens: int
@@ -2581,6 +2588,7 @@ class AIUsageRecord:
     estimated_cost_usd: float
     latency_ms: int
     timestamp: datetime
+
 
 # After every LLM call
 async def track_usage(response: ChatCompletion, context: AIContext) -> None:
@@ -2619,12 +2627,12 @@ MODEL_PRICING: dict[str, dict[str, float]] = {
     "text-embedding-3-small": {"input_per_1k": 0.00002, "output_per_1k": 0.0},
 }
 
+
 def calculate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
     pricing = MODEL_PRICING[model]
-    return (
-        (input_tokens / 1000) * pricing["input_per_1k"]
-        + (output_tokens / 1000) * pricing["output_per_1k"]
-    )
+    return (input_tokens / 1000) * pricing["input_per_1k"] + (output_tokens / 1000) * pricing[
+        "output_per_1k"
+    ]
 ```
 
 **Bad Example**:
@@ -2683,9 +2691,7 @@ class PromptEvaluator:
                 score_delta=abs(output.score - case.expected_score),
                 expected_top_skills=case.expected_skills,
                 actual_top_skills=output.identified_skills,
-                skill_overlap=self.compute_overlap(
-                    case.expected_skills, output.identified_skills
-                ),
+                skill_overlap=self.compute_overlap(case.expected_skills, output.identified_skills),
                 latency_ms=output.latency_ms,
             )
             results.append(result)
@@ -2837,6 +2843,7 @@ def test_scoring_prompt_output_schema():
     assert isinstance(parsed.explanation, str)
     assert len(parsed.explanation) > 20
 
+
 # Snapshot test — detects unintended output changes
 def test_scoring_prompt_snapshot(snapshot):
     """Verify scoring output hasn't changed for fixed inputs."""
@@ -2847,6 +2854,7 @@ def test_scoring_prompt_snapshot(snapshot):
     )
     # snapshot library auto-generates the first time, fails on drift
     assert result == snapshot
+
 
 # Quality test — runs real LLM, gated on prompt-change PRs
 @pytest.mark.slow
@@ -2922,6 +2930,7 @@ class AITrace:
     cache_hit: bool = False
     confidence: float | None = None
 
+
 # Context manager for automatic tracing
 @asynccontextmanager
 async def ai_trace(operation: str, tenant_id: uuid.UUID):
@@ -2949,6 +2958,7 @@ async def ai_trace(operation: str, tenant_id: uuid.UUID):
         trace.latency_ms = int((time.monotonic() - start) * 1000)
         logger.info("ai_operation_completed", **asdict(trace))
         await metrics.emit_ai_trace(trace)
+
 
 # Usage
 async with ai_trace("candidate_scoring", tenant_id) as trace:
@@ -3007,15 +3017,14 @@ def build_score_cache_key(
     key_data = f"{resume_id}:{job_id}:{prompt_version}:{model_version}"
     return f"score:{hashlib.sha256(key_data.encode()).hexdigest()}"
 
+
 async def get_or_compute_score(
     resume: ParsedResume,
     job: JobDescription,
     prompt_version: str,
     model_version: str,
 ) -> CandidateScore:
-    cache_key = build_score_cache_key(
-        resume.id, job.id, prompt_version, model_version
-    )
+    cache_key = build_score_cache_key(resume.id, job.id, prompt_version, model_version)
     cached = await redis.get(cache_key)
     if cached:
         logger.info("score_cache_hit", resume_id=str(resume.id), job_id=str(job.id))
@@ -3064,10 +3073,10 @@ cache_key = f"score:{resume_id}:{job_id}"
     bind=True,
     max_retries=3,
     default_retry_delay=60,
-    soft_time_limit=300,       # 5 min soft limit — raises SoftTimeLimitExceeded
-    time_limit=360,            # 6 min hard kill
-    acks_late=True,            # Only ack after successful completion
-    reject_on_worker_lost=True, # Re-queue if worker dies mid-task
+    soft_time_limit=300,  # 5 min soft limit — raises SoftTimeLimitExceeded
+    time_limit=360,  # 6 min hard kill
+    acks_late=True,  # Only ack after successful completion
+    reject_on_worker_lost=True,  # Re-queue if worker dies mid-task
 )
 def score_candidates_batch(
     self: Task,
@@ -3146,6 +3155,7 @@ class LLMScoringOutput(BaseModel):
     experience_relevance: str = Field(..., pattern=r"^(high|medium|low)$")
     explanation: str = Field(..., min_length=20, max_length=2000)
 
+
 async def parse_llm_scoring_response(raw_response: str) -> LLMScoringOutput:
     """Parse and validate LLM output with fallback handling.
 
@@ -3191,8 +3201,8 @@ async def parse_llm_scoring_response(raw_response: str) -> LLMScoringOutput:
 ```python
 response = await llm.chat(messages)
 data = json.loads(response.content)  # Crashes on malformed JSON
-score = data["score"]               # KeyError if field is missing
-return score                        # No type validation — could be "great" instead of 85
+score = data["score"]  # KeyError if field is missing
+return score  # No type validation — could be "great" instead of 85
 ```
 
 **Common Mistakes**:
@@ -3233,15 +3243,13 @@ def validate_score_consistency(score: LLMScoringOutput) -> list[str]:
     # High score but no skills matched
     if score.fit_score > 80 and len(score.skills_matched) == 0:
         warnings.append(
-            f"Score is {score.fit_score} but no skills were matched. "
-            "Possible hallucination."
+            f"Score is {score.fit_score} but no skills were matched. Possible hallucination."
         )
 
     # Low score but all skills matched
     if score.fit_score < 30 and len(score.skills_missing) == 0:
         warnings.append(
-            f"Score is {score.fit_score} but no skills are missing. "
-            "Score may be unreliable."
+            f"Score is {score.fit_score} but no skills are missing. Score may be unreliable."
         )
 
     # Explanation mentions skills not in matched or missing lists
@@ -3255,6 +3263,7 @@ def validate_score_consistency(score: LLMScoringOutput) -> list[str]:
         )
 
     return warnings
+
 
 # Input sanitization — strip adversarial instructions from resume text
 def sanitize_resume_for_llm(resume_text: str) -> str:
@@ -3335,7 +3344,7 @@ class LLMClient:
                 return parsed
 
             except openai.RateLimitError as e:
-                wait_time = e.retry_after or (2 ** attempt)
+                wait_time = e.retry_after or (2**attempt)
                 logger.warning(
                     "llm_rate_limited",
                     attempt=attempt,
@@ -3345,7 +3354,7 @@ class LLMClient:
                 last_exception = e
 
             except (openai.APIConnectionError, openai.InternalServerError) as e:
-                wait_time = 2 ** attempt  # 1s, 2s, 4s
+                wait_time = 2**attempt  # 1s, 2s, 4s
                 logger.warning(
                     "llm_transient_error",
                     attempt=attempt,
@@ -3550,6 +3559,7 @@ prompt = "...Also rate your confidence from 0 to 1."
 ```python
 # Emitting operational metrics
 from datadog import statsd
+
 
 async def score_candidate_with_metrics(
     resume: ParsedResume,
