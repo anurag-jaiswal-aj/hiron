@@ -1,7 +1,7 @@
 """Integration test suite for authentication API endpoints (login, refresh, logout)."""
 
-from collections.abc import Generator
 import uuid
+from collections.abc import Generator
 from unittest.mock import AsyncMock
 
 import pytest

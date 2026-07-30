@@ -1,7 +1,7 @@
 """Unit test suite for RS256 JWT creation, verification, decoding, and RSA key file management."""
 
-from collections.abc import Generator
 import uuid
+from collections.abc import Generator
 from datetime import timedelta
 from pathlib import Path
 

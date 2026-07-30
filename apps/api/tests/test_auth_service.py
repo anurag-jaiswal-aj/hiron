@@ -176,14 +176,16 @@ async def test_authenticate_user_wrong_password_raises_authentication_error(
 
     service = AuthService(user_repo=mock_user_repo, token_repo=mock_token_repo)
 
-    with patch("hiron.auth.service.verify_password", return_value=False):
-        with pytest.raises(AuthenticationError, match="Invalid email or password"):
-            await service.authenticate_user(
-                session=mock_session,
-                email="user@acme.com",
-                password="WrongPassword123!",
-                tenant_id=tenant_id,
-            )
+    with (
+        patch("hiron.auth.service.verify_password", return_value=False),
+        pytest.raises(AuthenticationError, match="Invalid email or password"),
+    ):
+        await service.authenticate_user(
+            session=mock_session,
+            email="user@acme.com",
+            password="WrongPassword123!",
+            tenant_id=tenant_id,
+        )
 
 
 # ==============================================================================
@@ -306,6 +308,6 @@ async def test_create_auth_tokens_update_last_login_failure(
     with (
         patch("hiron.auth.service.create_access_token", return_value="access_token"),
         patch("hiron.auth.service.create_refresh_token", return_value="refresh_token"),
+        pytest.raises(SQLAlchemyError, match="Update error"),
     ):
-        with pytest.raises(SQLAlchemyError, match="Update error"):
-            await service.create_auth_tokens(mock_session, mock_user)
+        await service.create_auth_tokens(mock_session, mock_user)

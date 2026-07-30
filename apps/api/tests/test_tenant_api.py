@@ -1,7 +1,7 @@
 """Integration test suite for Tenant API endpoints, verifying authentication and RBAC dependency resolution."""
 
-from collections.abc import Generator
 import uuid
+from collections.abc import Generator
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 

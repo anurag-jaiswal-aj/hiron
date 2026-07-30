@@ -21,7 +21,7 @@ logger = structlog.get_logger("hiron.api.main")
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     """Manage application startup and shutdown lifespan events."""
     logger.info("Application starting up", environment=settings.environment, port=settings.port)
     yield
