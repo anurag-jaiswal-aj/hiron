@@ -25,6 +25,8 @@ from hiron.pipeline.router import router as pipeline_router
 from hiron.resumes.router import router as resumes_router
 from hiron.scores.router import router as scores_router
 from hiron.search.router import router as search_router
+from hiron.security.middleware import RequestSizeLimitMiddleware, SecurityHeadersMiddleware
+from hiron.security.router import router as security_router
 from hiron.tags.router import router as tags_router
 from hiron.users.router import router as users_router
 
@@ -68,7 +70,11 @@ def create_app() -> FastAPI:
     # 3. Custom Exception Handlers
     register_exception_handlers(app)
 
-    # 4. Route Registration
+    # 4. Security & Router Registration
+    app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(RequestSizeLimitMiddleware)
+
+    # Register API Routers
     app.include_router(health_router, prefix="/api/v1/health", tags=["Health"])
     app.include_router(auth_router, prefix="/api/v1/auth", tags=["Auth"])
     app.include_router(users_router, prefix="/api/v1/users", tags=["Users"])
@@ -86,6 +92,7 @@ def create_app() -> FastAPI:
     app.include_router(audit_router, prefix="/api/v1", tags=["Audit Logs"])
     app.include_router(ai_usage_router, prefix="/api/v1", tags=["AI Usage Monitoring"])
     app.include_router(performance_router, prefix="/api/v1", tags=["Performance & Benchmarking"])
+    app.include_router(security_router, prefix="/api/v1", tags=["Security & Hardening"])
 
     return app
 
