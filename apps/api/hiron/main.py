@@ -19,6 +19,7 @@ from hiron.dashboard.router import router as dashboard_router
 from hiron.embeddings.router import router as embeddings_router
 from hiron.health.router import router as health_router
 from hiron.jobs.router import router as jobs_router
+from hiron.maintenance.router import router as maintenance_router
 from hiron.notes.router import router as notes_router
 from hiron.performance.router import router as performance_router
 from hiron.pipeline.router import router as pipeline_router
@@ -94,6 +95,7 @@ def create_app() -> FastAPI:
     app.include_router(ai_usage_router, prefix="/api/v1", tags=["AI Usage Monitoring"])
     app.include_router(performance_router, prefix="/api/v1", tags=["Performance & Benchmarking"])
     app.include_router(security_router, prefix="/api/v1", tags=["Security & Hardening"])
+    app.include_router(maintenance_router, prefix="/api/v1", tags=["Maintenance"])
 
     return app
 
