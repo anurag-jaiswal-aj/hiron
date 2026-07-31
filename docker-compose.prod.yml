@@ -1,0 +1,63 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: hiron-postgres-prod
+    restart: always
+    environment:
+      POSTGRES_DB: hiron_prod
+      POSTGRES_USER: hiron_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ProductionSecurePass123!}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hiron_user -d hiron_prod"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: hiron-redis-prod
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data_prod:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.api
+    container_name: hiron-api-prod
+    restart: always
+    environment:
+      ENVIRONMENT: production
+      LOG_LEVEL: INFO
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: hiron_prod
+      POSTGRES_USER: hiron_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ProductionSecurePass123!}
+      DATABASE_URL: postgresql+asyncpg://hiron_user:${POSTGRES_PASSWORD:-ProductionSecurePass123!}@postgres:5432/hiron_prod
+      REDIS_URL: redis://redis:6379/0
+      APP_SECRET_KEY: ${APP_SECRET_KEY:-ProductionAppSecretKeyMinimum32CharsLong!}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_data_prod:
+  redis_data_prod:

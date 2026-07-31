@@ -82,6 +82,11 @@ class Settings(BaseSettings):
     argon2_hash_len: int = Field(default=32, description="Argon2id hash output length in bytes")
     argon2_salt_len: int = Field(default=16, description="Argon2id salt length in bytes")
 
+    @property
+    def is_production(self) -> bool:
+        """Return True if running in production environment."""
+        return self.environment == "production"
+
 
 @lru_cache
 def get_settings() -> Settings:

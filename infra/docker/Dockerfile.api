@@ -1,15 +1,15 @@
 # ==============================================================================
-# HIRON CORE API DOCKERFILE SKELETON (FastAPI)
+# HIRON CORE API PRODUCTION DOCKERFILE (FastAPI)
 # ==============================================================================
-# Multi-stage, non-root, production-grade container infrastructure skeleton.
 
 # Stage 1: Build & Environment Preparation
-FROM python:3.12-slim AS builder
+FROM python:3.13-slim AS builder
 
 WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    UV_SYSTEM_PYTHON=1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
@@ -17,29 +17,40 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Stage 2: Runtime Production Image
-FROM python:3.12-slim AS runner
+# Install uv package manager
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uv/bin/uv
+ENV PATH="/uv/bin:${PATH}"
+
+COPY pyproject.toml uv.lock ./
+COPY apps/api/ ./apps/api/
+
+RUN uv sync --all-extras --frozen
+
+# Stage 2: Production Runtime Image
+FROM python:3.13-slim AS runner
 
 WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PATH="/app/.venv/bin:${PATH}"
 
 # Security: Create non-root user
 RUN groupadd -g 10001 hiron && \
     useradd -u 10001 -g hiron -m -s /bin/bash hiron
 
-# Install runtime system libraries (libpq for PostgreSQL driver)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     libpq5 \
     && rm -rf /var/lib/apt/lists/*
 
+COPY --from=builder --chown=hiron:hiron /app /app
+
 USER hiron
 
 EXPOSE 8000
 
-# Note: HTTP health check (/api/v1/health) will be enabled in Phase 1 after FastAPI app initialization.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:8000/api/v1/health || exit 1
 
-# Infrastructure skeleton placeholder: long-running command for container orchestration
-CMD ["sleep", "infinity"]
+CMD ["uvicorn", "hiron.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]

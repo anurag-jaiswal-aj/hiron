@@ -46,12 +46,13 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
 
 def create_app() -> FastAPI:
     """Construct and configure the main FastAPI application instance."""
+    app_settings = get_settings()
     app = FastAPI(
         title="Hiron API",
         description="Multi-Tenant AI Recruitment Platform Backend API",
         version="0.1.0",
-        docs_url="/docs" if settings.environment != "production" else None,
-        redoc_url="/redoc" if settings.environment != "production" else None,
+        docs_url="/docs" if app_settings.environment != "production" else None,
+        redoc_url="/redoc" if app_settings.environment != "production" else None,
         lifespan=lifespan,
     )
 

@@ -1,14 +1,19 @@
 # ==============================================================================
-# HIRON WEB FRONTEND DOCKERFILE SKELETON (Next.js 15)
+# HIRON WEB FRONTEND PRODUCTION DOCKERFILE (Next.js 15)
 # ==============================================================================
-# Multi-stage, non-root Node.js container infrastructure skeleton.
 
-# Stage 1: Base setup
 FROM node:20-alpine AS base
 WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
 
-# Stage 2: Production Runner
+FROM base AS builder
+WORKDIR /app
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/web/package.json ./apps/web/
+RUN pnpm install --frozen-lockfile
+COPY apps/web ./apps/web
+RUN pnpm --filter web build
+
 FROM node:20-alpine AS runner
 WORKDIR /app
 
@@ -21,11 +26,15 @@ ENV NODE_ENV=production \
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
+COPY --from=builder /app/apps/web/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./.next/static
+
 USER nextjs
 
 EXPOSE 3000
 
-# Note: HTTP health check will be enabled in Phase 1 after Next.js app initialization.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3000 || exit 1
 
-# Infrastructure skeleton placeholder: long-running command for container orchestration
-CMD ["sleep", "infinity"]
+CMD ["node", "server.js"]
