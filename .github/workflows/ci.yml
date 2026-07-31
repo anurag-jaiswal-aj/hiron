@@ -2,7 +2,6 @@ name: CI Pipeline
 
 on:
   push:
-
   pull_request:
     branches:
       - main
@@ -16,10 +15,15 @@ jobs:
     name: Configuration & Formatting Checks
     uses: ./.github/workflows/lint.yml
 
+  test:
+    name: Application Test Suite Checks
+    uses: ./.github/workflows/test.yml
+    needs: [lint]
+
   docker-build:
     name: Docker Container Infrastructure Build Check
     runs-on: ubuntu-latest
-    needs: [lint]
+    needs: [test]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -27,26 +31,26 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Core API Container Skeleton
+      - name: Build Core API Container
         uses: docker/build-push-action@v5
         with:
           context: .
           file: infra/docker/Dockerfile.api
           push: false
-          tags: hiron-api:skeleton
+          tags: hiron-api:latest
 
-      - name: Build AI Service Container Skeleton
+      - name: Build AI Service Container
         uses: docker/build-push-action@v5
         with:
           context: .
           file: infra/docker/Dockerfile.ai
           push: false
-          tags: hiron-ai:skeleton
+          tags: hiron-ai:latest
 
-      - name: Build Web Frontend Container Skeleton
+      - name: Build Web Frontend Container
         uses: docker/build-push-action@v5
         with:
           context: .
           file: infra/docker/Dockerfile.web
           push: false
-          tags: hiron-web:skeleton
+          tags: hiron-web:latest

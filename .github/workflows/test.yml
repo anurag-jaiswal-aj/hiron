@@ -4,20 +4,24 @@ on:
   workflow_call:
 
 jobs:
-  config-validation:
-    name: Configuration & Infrastructure Validation
+  python-tests:
+    name: PyTest Application Test Suite
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Validate Root Configurations Exist
-        run: |
-          test -f pyproject.toml
-          test -f package.json
-          test -f tsconfig.base.json
-          test -f docker-compose.yml
-          echo "Infrastructure configuration files validated."
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
 
-# Note: Application test suites (Pytest, MyPy strict check, TypeScript compiler, ESLint)
-# will be un-commented in Phase 1+ as application modules and source code files are created.
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install project dependencies
+        run: uv sync --all-extras
+
+      - name: Run PyTest Suite
+        run: uv run pytest
