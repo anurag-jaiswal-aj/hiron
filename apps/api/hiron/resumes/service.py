@@ -283,6 +283,13 @@ class ResumeService:
             )
             raise
 
+    def _enqueue_parse_task(self, tenant_id: uuid.UUID, resume_id: uuid.UUID) -> str:
+        """Enqueue background Celery resume parsing task and return real Celery task ID."""
+        from hiron.resumes.tasks import parse_resume
+
+        task = parse_resume.delay(str(tenant_id), str(resume_id))
+        return task.id
+
     async def upload_resume(
         self,
         session: AsyncSession,
@@ -397,24 +404,17 @@ class ResumeService:
             checksum_sha256=checksum_sha256,
         )
 
-        # 6. Execute parsing pipeline
-        try:
-            parsed_resume = await self.parse_resume_pipeline(
-                session=session,
-                tenant_id=tenant_id,
-                resume_id=resume.id,
-            )
-            status_val = parsed_resume.status
-        except Exception as exc:
-            logger.warning("Auto parsing during upload failed", error=str(exc))
-            status_val = "failed"
+        # 6. Commit transaction before enqueueing Celery task so background worker can read metadata
+        await session.commit()
 
-        task_id = f"task-{uuid.uuid4()}"
+        # 7. Enqueue background Celery task
+        task_id = self._enqueue_parse_task(tenant_id=tenant_id, resume_id=resume.id)
+
         return UploadResumeResponse(
             resume_id=resume.id,
             candidate_id=candidate.id,
             task_id=task_id,
-            status=status_val,
+            status="pending",
             status_url=f"/api/v1/resumes/{resume.id}/status",
         )
 
@@ -539,23 +539,22 @@ class ResumeService:
                 f"Resume status is '{resume.status}'. Only failed resumes can be retried."
             )
 
-        # Trigger parse pipeline
-        try:
-            parsed_resume = await self.parse_resume_pipeline(
-                session=session,
-                tenant_id=tenant_id,
-                resume_id=resume.id,
-            )
-            status_val = parsed_resume.status
-        except Exception as exc:
-            logger.warning("Retry parsing pipeline failed", error=str(exc))
-            status_val = "failed"
+        # Set status back to pending and clear error
+        await self.resume_repo.update_resume_status(
+            session=session,
+            resume=resume,
+            status="pending",
+            parse_error="",
+        )
+        await session.commit()
 
-        task_id = f"task-{uuid.uuid4()}"
+        # Enqueue background Celery task
+        task_id = self._enqueue_parse_task(tenant_id=tenant_id, resume_id=resume.id)
+
         return UploadResumeResponse(
             resume_id=resume.id,
             candidate_id=resume.candidate_id,
             task_id=task_id,
-            status=status_val,
+            status="pending",
             status_url=f"/api/v1/resumes/{resume.id}/status",
         )

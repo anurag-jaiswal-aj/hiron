@@ -1,7 +1,7 @@
 """Unit tests for ResumeService business logic, permissions, candidate binding, and status tracking."""
 
 import uuid
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -316,15 +316,18 @@ async def test_retry_parse_success() -> None:
     resume_repo.update_resume_status.return_value = parsed_resume
     candidate_repo.get_candidate_by_id.return_value = None
 
-    response = await service.retry_parse(
-        session=session,
-        tenant_id=tenant_id,
-        user_role="recruiter",
-        resume_id=resume_id,
-    )
+    with patch("hiron.resumes.tasks.parse_resume.delay") as mock_delay:
+        mock_delay.return_value.id = "task-retry-123"
+        response = await service.retry_parse(
+            session=session,
+            tenant_id=tenant_id,
+            user_role="recruiter",
+            resume_id=resume_id,
+        )
 
-    assert response.status == "parsed"
-    assert resume_repo.update_resume_status.called
+        assert response.status == "pending"
+        assert response.task_id == "task-retry-123"
+        assert resume_repo.update_resume_status.called
 
 
 @pytest.mark.asyncio
