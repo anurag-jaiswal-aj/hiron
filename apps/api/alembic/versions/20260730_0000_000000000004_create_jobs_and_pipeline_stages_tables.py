@@ -309,9 +309,9 @@ def downgrade() -> None:
     op.execute("DROP FUNCTION IF EXISTS jobs_generate_search_vector();")
 
     # Drop jobs table & indexes
-    op.drop_index("ix_jobs_created_at", table_name="jobs")
-    op.drop_index("ix_jobs_search_vector", table_name="jobs")
-    op.drop_index("ix_jobs_tenant_archived", table_name="jobs")
-    op.drop_index("ix_jobs_tenant_status", table_name="jobs")
-    op.drop_index("ix_jobs_tenant_id", table_name="jobs")
+    op.drop_index("ix_jobs_created_at", table_name="jobs", if_exists=True)
+    op.drop_index("ix_jobs_search_vector", table_name="jobs", if_exists=True)
+    op.drop_index("ix_jobs_tenant_archived", table_name="jobs", if_exists=True)
+    op.drop_index("ix_jobs_tenant_status", table_name="jobs", if_exists=True)
+    op.drop_index("ix_jobs_tenant_id", table_name="jobs", if_exists=True)
     op.drop_table("jobs")

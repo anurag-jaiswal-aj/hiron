@@ -23,18 +23,14 @@ def upgrade() -> None:
         "candidates",
         ["tenant_id", sa.text("created_at DESC")],
         unique=False,
-    )
-    op.create_index(
-        "ix_jobs_tenant_status",
-        "jobs",
-        ["tenant_id", "status"],
-        unique=False,
+        if_not_exists=True,
     )
     op.create_index(
         "ix_job_candidates_tenant_job",
         "job_candidates",
         ["tenant_id", "job_id", "current_stage_id"],
         unique=False,
+        if_not_exists=True,
     )
     op.create_index(
         "ix_scores_current_fit_score",
@@ -42,11 +38,11 @@ def upgrade() -> None:
         ["tenant_id", "is_current", sa.text("fit_score DESC")],
         unique=False,
         postgresql_where=sa.text("is_current = TRUE"),
+        if_not_exists=True,
     )
 
 
 def downgrade() -> None:
-    op.drop_index("ix_scores_current_fit_score", table_name="scores")
-    op.drop_index("ix_job_candidates_tenant_job", table_name="job_candidates")
-    op.drop_index("ix_jobs_tenant_status", table_name="jobs")
-    op.drop_index("ix_candidates_tenant_created", table_name="candidates")
+    op.drop_index("ix_scores_current_fit_score", table_name="scores", if_exists=True)
+    op.drop_index("ix_job_candidates_tenant_job", table_name="job_candidates", if_exists=True)
+    op.drop_index("ix_candidates_tenant_created", table_name="candidates", if_exists=True)
