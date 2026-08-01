@@ -29,6 +29,7 @@ from hiron.search.router import router as search_router
 from hiron.security.middleware import RequestSizeLimitMiddleware, SecurityHeadersMiddleware
 from hiron.security.router import router as security_router
 from hiron.tags.router import router as tags_router
+from hiron.tenants.router import router as tenants_router
 from hiron.users.router import router as users_router
 
 # Initialize structured logging
@@ -79,6 +80,7 @@ def create_app() -> FastAPI:
     # Register API Routers
     app.include_router(health_router, prefix="/api/v1/health", tags=["Health"])
     app.include_router(auth_router, prefix="/api/v1/auth", tags=["Auth"])
+    app.include_router(tenants_router, prefix="/api/v1/tenants", tags=["Tenants"])
     app.include_router(users_router, prefix="/api/v1/users", tags=["Users"])
     app.include_router(jobs_router, prefix="/api/v1/jobs", tags=["Jobs"])
     app.include_router(candidates_router, prefix="/api/v1/candidates", tags=["Candidates"])
