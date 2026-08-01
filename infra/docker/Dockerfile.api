@@ -23,6 +23,8 @@ ENV PATH="/uv/bin:${PATH}"
 
 COPY pyproject.toml uv.lock README.md LICENSE ./
 COPY apps/api/ ./apps/api/
+COPY scripts/ ./scripts/
+COPY apps/api/alembic.ini ./alembic.ini
 
 RUN uv sync --all-extras --frozen
 
