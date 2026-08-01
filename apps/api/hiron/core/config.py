@@ -47,11 +47,15 @@ class Settings(BaseSettings):
                 import json
 
                 try:
-                    return json.loads(v_str)
-                except Exception:
+                    parsed = json.loads(v_str)
+                    if isinstance(parsed, list):
+                        return [str(origin).strip() for origin in parsed if str(origin).strip()]
+                except (json.JSONDecodeError, TypeError, ValueError):
                     pass
             return [origin.strip() for origin in v_str.split(",") if origin.strip()]
-        return v
+        if isinstance(v, list):
+            return [str(origin).strip() for origin in v if str(origin).strip()]
+        return []
 
     # 2. Authentication & JWT Tokens (§16.1)
     jwt_algorithm: str = Field(default="RS256", description="JWT signing algorithm")

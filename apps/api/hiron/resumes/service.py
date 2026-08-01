@@ -288,7 +288,7 @@ class ResumeService:
         from hiron.resumes.tasks import parse_resume
 
         task = parse_resume.delay(str(tenant_id), str(resume_id))
-        return task.id
+        return str(task.id)
 
     async def upload_resume(
         self,

@@ -6,9 +6,8 @@ from typing import Annotated
 
 from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from hiron.auth.service import AccountDisabledError, AuthenticationError
 from hiron.common.exceptions import PermissionDeniedException

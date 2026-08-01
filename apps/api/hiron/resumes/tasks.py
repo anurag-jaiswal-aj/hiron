@@ -69,7 +69,7 @@ async def _async_parse_resume_task(tenant_id: str, resume_id: str) -> dict[str, 
             raise
 
 
-@celery_app.task(name="hiron.resumes.parse_resume")
+@celery_app.task(name="hiron.resumes.parse_resume")  # type: ignore[untyped-decorator]
 def parse_resume(tenant_id: str, resume_id: str) -> dict[str, str]:
     """Registered Celery background task for resume parsing per Architecture §10."""
     return asyncio.run(_async_parse_resume_task(tenant_id=tenant_id, resume_id=resume_id))

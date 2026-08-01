@@ -5,7 +5,6 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.security import HTTPAuthorizationCredentials
-
 from jwt.exceptions import ExpiredSignatureError
 
 from hiron.auth.dependencies import get_current_user

@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from hiron.resumes.models import Resume, ResumeFile
+from hiron.resumes.models import Resume
 from hiron.resumes.service import ResumeService
 from hiron.resumes.tasks import parse_resume
 
@@ -47,7 +47,7 @@ async def test_upload_commits_metadata_before_enqueue_and_returns_celery_task_id
     mock_celery_task = MagicMock()
     mock_celery_task.id = "celery-task-12345"
 
-    def mock_delay(t_id: str, r_id: str) -> MagicMock:
+    def mock_delay(_t_id: str, _r_id: str) -> MagicMock:
         call_order.append("delay")
         return mock_celery_task
 
