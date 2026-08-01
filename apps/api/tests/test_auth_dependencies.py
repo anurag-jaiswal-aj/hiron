@@ -6,6 +6,8 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi.security import HTTPAuthorizationCredentials
 
+from jwt.exceptions import ExpiredSignatureError
+
 from hiron.auth.dependencies import get_current_user
 from hiron.auth.service import AccountDisabledError, AuthenticationError
 from hiron.users.models import User
@@ -66,7 +68,7 @@ async def test_get_current_user_missing_credentials_raises_authentication_error(
     mock_user_repo: AsyncMock,
 ) -> None:
     """Verify get_current_user raises AuthenticationError when Authorization header is missing."""
-    with pytest.raises(AuthenticationError, match="Missing or invalid Authorization header"):
+    with pytest.raises(AuthenticationError, match="Missing Authorization header"):
         await get_current_user(db=mock_db, user_repo=mock_user_repo, credentials=None)
 
 
@@ -81,7 +83,22 @@ async def test_get_current_user_invalid_token_raises_authentication_error(
     ):
         credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="invalid_jwt")
 
-        with pytest.raises(AuthenticationError, match="Invalid or expired access token"):
+        with pytest.raises(AuthenticationError, match="Invalid authentication token"):
+            await get_current_user(db=mock_db, user_repo=mock_user_repo, credentials=credentials)
+
+
+@pytest.mark.asyncio
+async def test_get_current_user_expired_token_raises_authentication_error(
+    mock_db: AsyncMock,
+    mock_user_repo: AsyncMock,
+) -> None:
+    """Verify get_current_user raises AuthenticationError when access token has expired."""
+    with patch(
+        "hiron.auth.dependencies.verify_token", side_effect=ExpiredSignatureError("Signature has expired")
+    ):
+        credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="expired_jwt")
+
+        with pytest.raises(AuthenticationError, match="Access token has expired"):
             await get_current_user(db=mock_db, user_repo=mock_user_repo, credentials=credentials)
 
 

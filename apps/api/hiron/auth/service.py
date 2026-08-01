@@ -158,6 +158,9 @@ class AuthService:
         # 5. Update user last_login_at timestamp via Repository boundary (§5.2)
         await self.user_repo.update_last_login(session=session, user_id=user.id)
 
+        # 6. Commit transaction to persist refresh_token and last_login_at
+        await session.commit()
+
         return access_token, raw_refresh_token
 
     async def rotate_refresh_token(
@@ -215,7 +218,7 @@ class AuthService:
         if not user.is_active:
             raise AccountDisabledError()
 
-        # 4. Issue rotated token pair
+        # 4. Issue rotated token pair (creates new token & commits session)
         return await self.create_auth_tokens(
             session=session,
             user=user,
@@ -233,3 +236,4 @@ class AuthService:
         if raw_refresh_token:
             token_hash = hashlib.sha256(raw_refresh_token.encode("utf-8")).hexdigest()
             await self.token_repo.revoke_by_token_hash(session, token_hash)
+            await session.commit()

@@ -8,6 +8,8 @@ from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
+
 from hiron.auth.service import AccountDisabledError, AuthenticationError
 from hiron.common.exceptions import PermissionDeniedException
 from hiron.core.database import get_db_session
@@ -51,15 +53,19 @@ async def get_current_user(
         AccountDisabledError: If user account is deactivated (is_active = False).
     """
     if not credentials or not credentials.credentials:
-        raise AuthenticationError("Missing or invalid Authorization header")
+        raise AuthenticationError("Missing Authorization header")
 
     token = credentials.credentials
 
     # 1. Validate access token signature, expiry, and claims
     try:
         payload = verify_token(token, expected_type="access")
+    except ExpiredSignatureError as exc:
+        raise AuthenticationError("Access token has expired") from exc
+    except InvalidTokenError as exc:
+        raise AuthenticationError("Invalid authentication token") from exc
     except Exception as exc:
-        raise AuthenticationError("Invalid or expired access token") from exc
+        raise AuthenticationError("Invalid authentication token") from exc
 
     # 2. Extract sub (user_id) and tenantId
     try:
