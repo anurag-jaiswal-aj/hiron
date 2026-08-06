@@ -72,9 +72,10 @@ yarn-error.log*
 .pnpm-debug.log*
 pnpm-lock.yaml.bak
 
-# Next.js
+# Next.js & TypeScript Build Cache
 .next/
 out/
+*.tsbuildinfo
 
 # Vercel
 .vercel
