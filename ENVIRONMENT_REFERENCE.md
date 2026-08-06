@@ -11,8 +11,9 @@ This document provides a comprehensive reference of all environment variables us
 | `ENVIRONMENT`     | Optional             | `development`               | Core API, AI Service, Web                    | Sets deployment environment mode (`development`, `staging`, `production`).          |
 | `LOG_LEVEL`       | Optional             | `INFO`                      | Core API, AI Service, Workers                | Configures `structlog` logging verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`).     |
 | `PORT`            | Optional             | `8000`                      | Core API (`8000`), AI (`8001`), Web (`3000`) | HTTP server listening port.                                                         |
-| `API_V1_PREFIX`   | Optional             | `/api/v1`                   | Core API                                     | Global REST API route prefix for all endpoints.                                     |
-| `APP_SECRET_KEY`  | **Required** in Prod | `your_app_secret_key_here`  | Core API                                     | Application secret key used for session cryptography and state validation.          |
+| `API_V1_PREFIX`       | Optional             | `/api/v1`                   | Core API                                     | Global REST API route prefix for all endpoints.                                     |
+| `NEXT_PUBLIC_API_URL` | **Required** in Web  | `http://localhost:8000`     | Web                                          | Target Core API backend base URL for browser fetch calls.                           |
+| `APP_SECRET_KEY`      | **Required** in Prod | `your_app_secret_key_here`  | Core API                                     | Application secret key used for session cryptography and state validation.          |
 | `ALLOWED_ORIGINS` | Optional             | `["http://localhost:3000"]` | Core API                                     | JSON array of origins permitted by Cross-Origin Resource Sharing (CORS) middleware. |
 
 ---
