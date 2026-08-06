@@ -206,3 +206,42 @@ def test_logout_endpoint_without_cookie_success(
 
     assert response.status_code == 204
     mock_auth_service.logout.assert_awaited_once()
+
+
+# ==============================================================================
+# GET /ME ENDPOINT TESTS
+# ==============================================================================
+
+
+def test_get_me_endpoint_success(client: TestClient) -> None:
+    """Verify GET /api/v1/auth/me returns current user profile for authenticated requests per API Contract §AUTH-4."""
+    from hiron.auth.dependencies import get_current_user
+
+    mock_user = User(
+        id=uuid.uuid4(),
+        tenant_id=uuid.uuid4(),
+        email="jane@acme.com",
+        full_name="Jane Smith",
+        role="recruiter",
+        avatar_url=None,
+    )
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+
+    try:
+        response = client.get("/api/v1/auth/me", headers={"Authorization": "Bearer fake_token"})
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["id"] == str(mock_user.id)
+        assert data["email"] == "jane@acme.com"
+        assert data["fullName"] == "Jane Smith"
+        assert data["role"] == "recruiter"
+        assert data["tenantId"] == str(mock_user.tenant_id)
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+
+
+def test_get_me_endpoint_unauthenticated_returns_401(client: TestClient) -> None:
+    """Verify GET /api/v1/auth/me returns 401 UNAUTHORIZED when Authorization header is missing."""
+    response = client.get("/api/v1/auth/me")
+    assert response.status_code == 401
+

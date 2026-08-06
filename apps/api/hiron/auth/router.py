@@ -5,12 +5,14 @@ from typing import Annotated
 from fastapi import APIRouter, Cookie, Depends, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from hiron.auth.dependencies import get_current_user
 from hiron.auth.schemas import LoginData, LoginRequest, RefreshTokenData, UserAuthPayload
 from hiron.auth.service import AuthService
 from hiron.common.exceptions import ValidationException
 from hiron.common.schemas import ResponseEnvelope
 from hiron.core.config import get_settings
 from hiron.core.database import get_db_session
+from hiron.users.models import User
 
 router = APIRouter()
 
@@ -135,3 +137,17 @@ async def logout(
     await auth_service.logout(session=db, raw_refresh_token=refreshToken)
     response.delete_cookie(key="refreshToken", path="/api/v1/auth")
     return
+
+
+@router.get(
+    "/me",
+    response_model=ResponseEnvelope[UserAuthPayload],
+    status_code=status.HTTP_200_OK,
+    summary="Get current user profile",
+)
+async def get_me(
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> ResponseEnvelope[UserAuthPayload]:
+    """Return currently authenticated user profile per API Contract §AUTH-4."""
+    return ResponseEnvelope(data=UserAuthPayload.model_validate(current_user))
+
