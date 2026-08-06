@@ -1,3 +1,5 @@
+import { AuthProvider } from "../context/AuthContext";
+
 export const metadata = {
   title: "Hiron — AI-Powered Hiring Intelligence Platform",
   description: "Multi-tenant AI recruitment platform",
@@ -10,7 +12,9 @@ export default function RootLayout({
 }): React.ReactElement {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   );
 }
