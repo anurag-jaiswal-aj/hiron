@@ -3,6 +3,10 @@
 import React, { useState } from "react";
 
 import { ApiError, httpClient } from "../../lib/api";
+import { Button } from "../ui/Button";
+import { Input } from "../ui/Input";
+import { Modal } from "../ui/Modal";
+import { Select } from "../ui/Select";
 
 interface UserResponse {
   id: string;
@@ -32,9 +36,7 @@ export function InviteUserModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  if (!isOpen) {
-    return null;
-  }
+  if (!isOpen) return null;
 
   function handleClose(): void {
     setEmail("");
@@ -49,16 +51,12 @@ export function InviteUserModal({
     e.preventDefault();
     setErrorMsg(null);
 
-    const trimmedEmail = email.trim();
-    const trimmedFullName = fullName.trim();
-
-    if (!trimmedEmail || !trimmedEmail.includes("@")) {
-      setErrorMsg("Please enter a valid email address.");
+    if (!email.trim()) {
+      setErrorMsg("Email is required.");
       return;
     }
-
-    if (!trimmedFullName) {
-      setErrorMsg("Please enter the user's full name.");
+    if (!fullName.trim()) {
+      setErrorMsg("Full name is required.");
       return;
     }
 
@@ -66,8 +64,8 @@ export function InviteUserModal({
 
     try {
       await httpClient.post<ResponseEnvelope<UserResponse>>("/api/v1/users/invite", {
-        email: trimmedEmail,
-        fullName: trimmedFullName,
+        email: email.trim(),
+        fullName: fullName.trim(),
         role,
       });
 
@@ -75,9 +73,13 @@ export function InviteUserModal({
       onSuccess();
     } catch (err) {
       if (err instanceof ApiError) {
-        setErrorMsg(err.message);
+        if (err.status === 409) {
+          setErrorMsg("A user with this email address already exists in your organization.");
+        } else {
+          setErrorMsg(err.message);
+        }
       } else {
-        setErrorMsg("Failed to invite team member. Please check details and try again.");
+        setErrorMsg("Failed to send invitation. Please try again.");
       }
     } finally {
       setIsSubmitting(false);
@@ -85,206 +87,73 @@ export function InviteUserModal({
   }
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="invite-modal-title"
-      style={{
-        position: "fixed",
-        inset: 0,
-        backgroundColor: "rgba(15, 23, 42, 0.75)",
-        backdropFilter: "blur(4px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 50,
-        padding: "1rem",
-      }}
+    <Modal
+      isOpen={isOpen}
+      onClose={handleClose}
+      title="Invite Team Member"
+      actions={
+        <>
+          <Button type="button" variant="secondary" onClick={handleClose} disabled={isSubmitting}>
+            Cancel
+          </Button>
+          <Button type="submit" form="invite-user-form" disabled={isSubmitting}>
+            {isSubmitting ? "Inviting..." : "Send Invitation"}
+          </Button>
+        </>
+      }
     >
-      <div
-        style={{
-          width: "100%",
-          maxWidth: "480px",
-          backgroundColor: "#0f172a",
-          borderRadius: "16px",
-          border: "1px solid #1e293b",
-          boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)",
-          padding: "1.75rem",
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
-          <div>
-            <h2 id="invite-modal-title" style={{ margin: 0, fontSize: "1.25rem", fontWeight: 700, color: "#f8fafc" }}>
-              Invite Team Member
-            </h2>
-            <p style={{ margin: "0.25rem 0 0", fontSize: "0.875rem", color: "#94a3b8" }}>
-              Add a new member to your organization.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={handleClose}
-            style={{
-              background: "none",
-              border: "none",
-              color: "#94a3b8",
-              fontSize: "1.25rem",
-              cursor: "pointer",
-              padding: "0.25rem 0.5rem",
-              borderRadius: "6px",
-            }}
-            aria-label="Close modal"
-          >
-            ✕
-          </button>
+      {errorMsg && (
+        <div
+          style={{
+            backgroundColor: "#451A03",
+            border: "1px solid #78350F",
+            color: "#FDE68A",
+            padding: "0.75rem 1rem",
+            borderRadius: "var(--radius-md)",
+            fontSize: "0.875rem",
+            marginBottom: "1.25rem",
+          }}
+        >
+          {errorMsg}
         </div>
+      )}
 
-        {errorMsg && (
-          <div
-            role="alert"
-            style={{
-              padding: "0.75rem 1rem",
-              borderRadius: "8px",
-              backgroundColor: "rgba(239, 68, 68, 0.1)",
-              border: "1px solid rgba(239, 68, 68, 0.2)",
-              color: "#fca5a5",
-              fontSize: "0.875rem",
-              marginBottom: "1.25rem",
-            }}
-          >
-            {errorMsg}
-          </div>
-        )}
+      <form id="invite-user-form" onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+        <Input
+          id="invite-email"
+          type="email"
+          required
+          label="Email Address *"
+          placeholder="colleague@acme.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          disabled={isSubmitting}
+        />
 
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: "1.25rem" }}>
-            <label
-              htmlFor="invite-fullName"
-              style={{ display: "block", fontSize: "0.875rem", fontWeight: 500, color: "#cbd5e1", marginBottom: "0.375rem" }}
-            >
-              Full Name *
-            </label>
-            <input
-              id="invite-fullName"
-              type="text"
-              required
-              placeholder="e.g. Jane Smith"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              disabled={isSubmitting}
-              style={{
-                width: "100%",
-                padding: "0.625rem 0.875rem",
-                borderRadius: "8px",
-                backgroundColor: "#1e293b",
-                border: "1px solid #334155",
-                color: "#f8fafc",
-                fontSize: "0.875rem",
-                outline: "none",
-                boxSizing: "border-box",
-              }}
-            />
-          </div>
+        <Input
+          id="invite-fullname"
+          type="text"
+          required
+          label="Full Name *"
+          placeholder="Jane Doe"
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+          disabled={isSubmitting}
+        />
 
-          <div style={{ marginBottom: "1.25rem" }}>
-            <label
-              htmlFor="invite-email"
-              style={{ display: "block", fontSize: "0.875rem", fontWeight: 500, color: "#cbd5e1", marginBottom: "0.375rem" }}
-            >
-              Email Address *
-            </label>
-            <input
-              id="invite-email"
-              type="email"
-              required
-              placeholder="e.g. jane@acme.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={isSubmitting}
-              style={{
-                width: "100%",
-                padding: "0.625rem 0.875rem",
-                borderRadius: "8px",
-                backgroundColor: "#1e293b",
-                border: "1px solid #334155",
-                color: "#f8fafc",
-                fontSize: "0.875rem",
-                outline: "none",
-                boxSizing: "border-box",
-              }}
-            />
-          </div>
-
-          <div style={{ marginBottom: "1.75rem" }}>
-            <label
-              htmlFor="invite-role"
-              style={{ display: "block", fontSize: "0.875rem", fontWeight: 500, color: "#cbd5e1", marginBottom: "0.375rem" }}
-            >
-              Role *
-            </label>
-            <select
-              id="invite-role"
-              value={role}
-              onChange={(e) => setRole(e.target.value as "org_admin" | "recruiter" | "hiring_manager")}
-              disabled={isSubmitting}
-              style={{
-                width: "100%",
-                padding: "0.625rem 0.875rem",
-                borderRadius: "8px",
-                backgroundColor: "#1e293b",
-                border: "1px solid #334155",
-                color: "#f8fafc",
-                fontSize: "0.875rem",
-                outline: "none",
-                boxSizing: "border-box",
-                cursor: "pointer",
-              }}
-            >
-              <option value="recruiter">Recruiter (Manage candidates & jobs)</option>
-              <option value="hiring_manager">Hiring Manager (Review candidates & pipeline)</option>
-              <option value="org_admin">Org Admin (Full organization control)</option>
-            </select>
-          </div>
-
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem" }}>
-            <button
-              type="button"
-              onClick={handleClose}
-              disabled={isSubmitting}
-              style={{
-                padding: "0.625rem 1.25rem",
-                borderRadius: "8px",
-                backgroundColor: "#1e293b",
-                border: "1px solid #334155",
-                color: "#f8fafc",
-                fontSize: "0.875rem",
-                fontWeight: 500,
-                cursor: isSubmitting ? "not-allowed" : "pointer",
-              }}
-            >
-              Cancel
-            </button>
-
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              style={{
-                padding: "0.625rem 1.25rem",
-                borderRadius: "8px",
-                backgroundColor: "#4f46e5",
-                border: "none",
-                color: "#ffffff",
-                fontSize: "0.875rem",
-                fontWeight: 600,
-                cursor: isSubmitting ? "not-allowed" : "pointer",
-                opacity: isSubmitting ? 0.7 : 1,
-              }}
-            >
-              {isSubmitting ? "Inviting..." : "Send Invitation"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <Select
+          id="invite-role"
+          label="Role *"
+          value={role}
+          onChange={(e) => setRole(e.target.value as "org_admin" | "recruiter" | "hiring_manager")}
+          disabled={isSubmitting}
+          options={[
+            { value: "recruiter", label: "Recruiter (Full Job & Candidate Access)" },
+            { value: "org_admin", label: "Org Admin (Full Access & Team Management)" },
+            { value: "hiring_manager", label: "Hiring Manager (Read-Only Access)" },
+          ]}
+        />
+      </form>
+    </Modal>
   );
 }

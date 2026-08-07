@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 
+import { Button } from "../../components/ui/Button";
+import { Input } from "../../components/ui/Input";
 import { useAuth } from "../../context/AuthContext";
 import { ApiError } from "../../lib/api";
 
@@ -31,12 +33,11 @@ export default function LoginPage(): React.ReactElement | null {
           minHeight: "100vh",
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: "#090d16",
-          color: "#94a3b8",
-          fontFamily: "system-ui, sans-serif",
+          backgroundColor: "var(--bg-app)",
+          color: "var(--text-muted)",
         }}
       >
-        <p style={{ fontSize: "0.875rem" }}>Loading...</p>
+        <p style={{ fontSize: "0.875rem" }}>Loading session...</p>
       </div>
     );
   }
@@ -90,47 +91,36 @@ export default function LoginPage(): React.ReactElement | null {
         minHeight: "100vh",
         alignItems: "center",
         justifyContent: "center",
-        background: "radial-gradient(ellipse at top, #1e1b4b 0%, #090d16 80%)",
-        color: "#f8fafc",
-        fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        backgroundColor: "var(--bg-app)",
+        color: "var(--text-primary)",
         padding: "1.5rem",
       }}
     >
       <div
         style={{
           width: "100%",
-          maxWidth: "420px",
-          backgroundColor: "rgba(15, 23, 42, 0.75)",
-          backdropFilter: "blur(12px)",
-          border: "1px solid rgba(255, 255, 255, 0.1)",
-          borderRadius: "16px",
+          maxWidth: "400px",
+          backgroundColor: "var(--bg-surface)",
+          border: "1px solid var(--border-subtle)",
+          borderRadius: "var(--radius-lg)",
           padding: "2.5rem 2rem",
-          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
         }}
       >
-        {/* Header Branding */}
+        {/* Branding */}
         <div style={{ textAlign: "center", marginBottom: "2rem" }}>
           <h1
             style={{
               margin: 0,
-              fontSize: "2rem",
+              fontSize: "1.75rem",
               fontWeight: 800,
-              letterSpacing: "-0.025em",
-              background: "linear-gradient(135deg, #a5b4fc 0%, #6366f1 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
+              letterSpacing: "-0.03em",
+              color: "var(--text-primary)",
             }}
           >
-            Hiron
+            HIRON
           </h1>
-          <p
-            style={{
-              margin: "0.5rem 0 0",
-              fontSize: "0.875rem",
-              color: "#94a3b8",
-            }}
-          >
-            Hiring Intelligence Platform
+          <p style={{ margin: "0.25rem 0 0", fontSize: "0.875rem", color: "var(--text-secondary)" }}>
+            Minimal Monochrome Recruiting Intelligence
           </p>
         </div>
 
@@ -141,10 +131,10 @@ export default function LoginPage(): React.ReactElement | null {
             style={{
               marginBottom: "1.5rem",
               padding: "0.75rem 1rem",
-              borderRadius: "8px",
-              backgroundColor: "rgba(239, 68, 68, 0.15)",
-              border: "1px solid rgba(239, 68, 68, 0.4)",
-              color: "#fca5a5",
+              borderRadius: "var(--radius-md)",
+              backgroundColor: "#451A03",
+              border: "1px solid #78350F",
+              color: "#FDE68A",
               fontSize: "0.875rem",
               lineHeight: "1.4",
             }}
@@ -154,92 +144,44 @@ export default function LoginPage(): React.ReactElement | null {
         )}
 
         {/* Login Form */}
-        <form aria-label="Sign in" onSubmit={handleSubmit}>
+        <form aria-label="Sign in" onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
           {/* Email Input */}
-          <div style={{ marginBottom: "1.25rem" }}>
-            <label
-              htmlFor="email"
-              style={{
-                display: "block",
-                marginBottom: "0.5rem",
-                fontSize: "0.875rem",
-                fontWeight: 500,
-                color: "#cbd5e1",
-              }}
-            >
-              Email Address <span style={{ color: "#ef4444" }}>*</span>
-            </label>
-            <input
-              id="email"
-              type="email"
-              required
-              placeholder="jane@acme.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={isSubmitting}
-              style={{
-                width: "100%",
-                padding: "0.75rem 1rem",
-                borderRadius: "8px",
-                backgroundColor: "#1e293b",
-                border: "1px solid #334155",
-                color: "#f8fafc",
-                fontSize: "0.875rem",
-                outline: "none",
-                boxSizing: "border-box",
-              }}
-            />
-          </div>
+          <Input
+            id="email"
+            type="email"
+            required
+            label="Email Address *"
+            placeholder="jane@acme.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            disabled={isSubmitting}
+          />
 
           {/* Tenant ID Input */}
-          <div style={{ marginBottom: "1.25rem" }}>
-            <label
-              htmlFor="tenantId"
-              style={{
-                display: "block",
-                marginBottom: "0.5rem",
-                fontSize: "0.875rem",
-                fontWeight: 500,
-                color: "#cbd5e1",
-              }}
-            >
-              Organization / Tenant ID <span style={{ color: "#ef4444" }}>*</span>
-            </label>
-            <input
-              id="tenantId"
-              type="text"
-              required
-              placeholder="00000000-0000-0000-0000-000000000000"
-              value={tenantId}
-              onChange={(e) => setTenantId(e.target.value)}
-              disabled={isSubmitting}
-              style={{
-                width: "100%",
-                padding: "0.75rem 1rem",
-                borderRadius: "8px",
-                backgroundColor: "#1e293b",
-                border: "1px solid #334155",
-                color: "#f8fafc",
-                fontSize: "0.875rem",
-                outline: "none",
-                boxSizing: "border-box",
-              }}
-            />
-          </div>
+          <Input
+            id="tenantId"
+            type="text"
+            required
+            label="Organization / Tenant ID *"
+            placeholder="00000000-0000-0000-0000-000000000000"
+            value={tenantId}
+            onChange={(e) => setTenantId(e.target.value)}
+            disabled={isSubmitting}
+          />
 
           {/* Password Input */}
-          <div style={{ marginBottom: "1.5rem" }}>
+          <div>
             <label
               htmlFor="password"
               style={{
                 display: "block",
-                marginBottom: "0.5rem",
+                marginBottom: "0.375rem",
                 fontSize: "0.875rem",
-                fontWeight: 500,
-                color: "#cbd5e1",
+                fontWeight: 600,
+                color: "var(--text-secondary)",
               }}
             >
-              Password <span style={{ color: "#ef4444" }}>*</span>
+              Password *
             </label>
             <div style={{ position: "relative" }}>
               <input
@@ -252,14 +194,13 @@ export default function LoginPage(): React.ReactElement | null {
                 disabled={isSubmitting}
                 style={{
                   width: "100%",
-                  padding: "0.75rem 2.5rem 0.75rem 1rem",
-                  borderRadius: "8px",
-                  backgroundColor: "#1e293b",
-                  border: "1px solid #334155",
-                  color: "#f8fafc",
+                  padding: "0.625rem 2.5rem 0.625rem 0.75rem",
+                  borderRadius: "var(--radius-md)",
+                  backgroundColor: "var(--bg-surface-secondary)",
+                  border: "1px solid var(--border-subtle)",
+                  color: "var(--text-primary)",
                   fontSize: "0.875rem",
                   outline: "none",
-                  boxSizing: "border-box",
                 }}
               />
               <button
@@ -273,42 +214,25 @@ export default function LoginPage(): React.ReactElement | null {
                   transform: "translateY(-50%)",
                   background: "none",
                   border: "none",
-                  color: "#94a3b8",
+                  color: "var(--text-muted)",
                   cursor: "pointer",
-                  fontSize: "1rem",
+                  fontSize: "0.875rem",
                   padding: 0,
                 }}
               >
-                {showPassword ? "🙈" : "👁"}
+                {showPassword ? "Hide" : "Show"}
               </button>
             </div>
           </div>
 
           {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            style={{
-              width: "100%",
-              padding: "0.875rem 1rem",
-              borderRadius: "8px",
-              border: "none",
-              background: "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)",
-              color: "#ffffff",
-              fontSize: "0.875rem",
-              fontWeight: 600,
-              cursor: isSubmitting ? "not-allowed" : "pointer",
-              opacity: isSubmitting ? 0.7 : 1,
-              transition: "all 0.2s ease",
-            }}
-          >
+          <Button type="submit" disabled={isSubmitting} size="lg" style={{ width: "100%", marginTop: "0.5rem" }}>
             {isSubmitting ? "Signing in..." : "Sign In"}
-          </button>
+          </Button>
         </form>
 
-        {/* Footer info */}
-        <div style={{ marginTop: "2rem", textAlign: "center", fontSize: "0.8125rem", color: "#64748b" }}>
-          Don&apos;t have an account? Contact your administrator.
+        <div style={{ marginTop: "2rem", textAlign: "center", fontSize: "0.8125rem", color: "var(--text-muted)" }}>
+          Hiron Enterprise Architecture • Securing Multi-Tenant Workflows
         </div>
       </div>
     </div>

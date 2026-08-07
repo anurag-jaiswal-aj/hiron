@@ -214,6 +214,7 @@ class JobService:
                 error=str(emb_exc),
             )
 
+        await session.commit()
         return created_job
 
     async def get_job_by_id(
@@ -441,6 +442,7 @@ class JobService:
                     error=str(emb_exc),
                 )
 
+        await session.commit()
         return updated
 
     async def open_job(
@@ -474,6 +476,7 @@ class JobService:
             raise JobNotFoundError()
 
         logger.info("Job opened successfully", job_id=str(job_id), tenant_id=str(tenant_id))
+        await session.commit()
         return updated
 
     async def pause_job(
@@ -497,6 +500,7 @@ class JobService:
             raise JobNotFoundError()
 
         logger.info("Job paused successfully", job_id=str(job_id), tenant_id=str(tenant_id))
+        await session.commit()
         return updated
 
     async def close_job(
@@ -524,6 +528,7 @@ class JobService:
             raise JobNotFoundError()
 
         logger.info("Job closed successfully", job_id=str(job_id), tenant_id=str(tenant_id))
+        await session.commit()
         return updated
 
     async def archive_job(
@@ -548,6 +553,7 @@ class JobService:
             raise JobNotFoundError()
 
         logger.info("Job archived successfully", job_id=str(job_id), tenant_id=str(tenant_id))
+        await session.commit()
         return updated
 
     async def list_pipeline_stages(
@@ -621,6 +627,7 @@ class JobService:
             job_id=str(job_id),
             tenant_id=str(tenant_id),
         )
+        await session.commit()
         return created
 
     async def _build_stage_updates(
@@ -715,6 +722,7 @@ class JobService:
             raise PipelineStageNotFoundError()
 
         logger.info("Pipeline stage updated", stage_id=str(stage_id), job_id=str(job_id))
+        await session.commit()
         return updated
 
     async def delete_pipeline_stage(
@@ -745,6 +753,7 @@ class JobService:
 
         deleted = await self.job_repo.delete_pipeline_stage(session, stage_id, tenant_id)
         logger.info("Pipeline stage deleted", stage_id=str(stage_id), job_id=str(job_id))
+        await session.commit()
         return deleted
 
     async def reorder_pipeline_stages(
@@ -764,4 +773,5 @@ class JobService:
             pos = item["position"]
             await self.job_repo.update_pipeline_stage(session, stage_id, tenant_id, position=pos)
 
+        await session.commit()
         return await self.job_repo.list_pipeline_stages(session, job_id, tenant_id)

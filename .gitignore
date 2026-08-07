@@ -77,6 +77,11 @@ pnpm-lock.yaml.bak
 out/
 *.tsbuildinfo
 
+# Playwright Test Artifacts
+test-results/
+playwright-report/
+blob-report/
+
 # Vercel
 .vercel
 

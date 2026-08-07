@@ -101,6 +101,7 @@ def test_full_job_lifecycle_e2e(
     # 2. Update Job
     job.title = "Principal AI/ML Architect"
     mock_repo.update_job.return_value = job
+    mock_repo.get_job_by_id.side_effect = [job, job]
     update_resp = recruiter_client.patch(
         f"/api/v1/jobs/{job_id}",
         json={"title": "Principal AI/ML Architect"},
@@ -120,6 +121,8 @@ def test_full_job_lifecycle_e2e(
     )
     mock_repo.list_pipeline_stages.return_value = []
     mock_repo.create_pipeline_stage.return_value = new_stage
+    mock_repo.get_job_by_id.side_effect = None
+    mock_repo.get_job_by_id.return_value = job
 
     stage_resp = recruiter_client.post(
         f"/api/v1/jobs/{job_id}/stages",
@@ -142,6 +145,7 @@ def test_full_job_lifecycle_e2e(
         updated_at=datetime.now(UTC),
     )
     mock_repo.update_job.return_value = opened_job
+    mock_repo.get_job_by_id.side_effect = [job, opened_job]
     open_resp = recruiter_client.post(f"/api/v1/jobs/{job_id}/open")
     assert open_resp.status_code == 200
     assert open_resp.json()["data"]["status"] == "open"
@@ -160,6 +164,7 @@ def test_full_job_lifecycle_e2e(
         updated_at=datetime.now(UTC),
     )
     mock_repo.update_job.return_value = paused_job
+    mock_repo.get_job_by_id.side_effect = [opened_job, paused_job]
     pause_resp = recruiter_client.post(f"/api/v1/jobs/{job_id}/pause")
     assert pause_resp.status_code == 200
     assert pause_resp.json()["data"]["status"] == "paused"
@@ -178,6 +183,7 @@ def test_full_job_lifecycle_e2e(
         updated_at=datetime.now(UTC),
     )
     mock_repo.update_job.return_value = closed_job
+    mock_repo.get_job_by_id.side_effect = [paused_job, closed_job]
     close_resp = recruiter_client.post(
         f"/api/v1/jobs/{job_id}/close",
         json={"reason": "Role fulfilled"},
@@ -198,6 +204,7 @@ def test_full_job_lifecycle_e2e(
         updated_at=datetime.now(UTC),
     )
     mock_repo.update_job.return_value = archived_job
+    mock_repo.get_job_by_id.side_effect = [closed_job, archived_job]
     archive_resp = recruiter_client.post(f"/api/v1/jobs/{job_id}/archive")
     assert archive_resp.status_code == 200
     assert archive_resp.json()["data"]["isArchived"] is True

@@ -203,7 +203,8 @@ async def update_job(
         required_skills=payload.required_skills,
         preferred_skills=payload.preferred_skills,
     )
-    return ResponseEnvelope(data=_to_job_response(updated))
+    job = await job_service.get_job_by_id(session, updated.id, current_user.tenant_id)
+    return ResponseEnvelope(data=_to_job_response(job))
 
 
 @router.post("/{job_id}/open", response_model=ResponseEnvelope[JobResponse])
@@ -214,12 +215,13 @@ async def open_job(
     job_service: Annotated[JobService, Depends(get_job_service)],
 ) -> ResponseEnvelope[JobResponse]:
     """Transition job to open status per §JOB-6."""
-    job = await job_service.open_job(
+    updated = await job_service.open_job(
         session=session,
         job_id=job_id,
         tenant_id=current_user.tenant_id,
         current_user_role=current_user.role,
     )
+    job = await job_service.get_job_by_id(session, updated.id, current_user.tenant_id)
     return ResponseEnvelope(data=_to_job_response(job))
 
 
@@ -231,12 +233,13 @@ async def pause_job(
     job_service: Annotated[JobService, Depends(get_job_service)],
 ) -> ResponseEnvelope[JobResponse]:
     """Pause an open job."""
-    job = await job_service.pause_job(
+    updated = await job_service.pause_job(
         session=session,
         job_id=job_id,
         tenant_id=current_user.tenant_id,
         current_user_role=current_user.role,
     )
+    job = await job_service.get_job_by_id(session, updated.id, current_user.tenant_id)
     return ResponseEnvelope(data=_to_job_response(job))
 
 
@@ -249,12 +252,13 @@ async def close_job(
     job_service: Annotated[JobService, Depends(get_job_service)] = None,  # type: ignore[assignment]
 ) -> ResponseEnvelope[JobResponse]:
     """Close job per §JOB-7."""
-    job = await job_service.close_job(
+    updated = await job_service.close_job(
         session=session,
         job_id=job_id,
         tenant_id=current_user.tenant_id,
         current_user_role=current_user.role,
     )
+    job = await job_service.get_job_by_id(session, updated.id, current_user.tenant_id)
     return ResponseEnvelope(data=_to_job_response(job))
 
 
@@ -266,12 +270,13 @@ async def archive_job(
     job_service: Annotated[JobService, Depends(get_job_service)],
 ) -> ResponseEnvelope[JobResponse]:
     """Soft-delete / archive job per §JOB-5."""
-    job = await job_service.archive_job(
+    updated = await job_service.archive_job(
         session=session,
         job_id=job_id,
         tenant_id=current_user.tenant_id,
         current_user_role=current_user.role,
     )
+    job = await job_service.get_job_by_id(session, updated.id, current_user.tenant_id)
     return ResponseEnvelope(data=_to_job_response(job))
 
 

@@ -233,17 +233,20 @@ def test_update_job_endpoint_success(
 ) -> None:
     """Verify PATCH /api/v1/jobs/{job_id} returns 200 OK and updated payload."""
     job_id = uuid.uuid4()
-    updated = Job(
+    updated_job = Job(
         id=job_id,
         tenant_id=mock_recruiter_user.tenant_id,
         title="Updated Title",
-        description="Updated Desc",
+        description="Desc",
+        department="Engineering",
         status="draft",
         is_archived=False,
+        pipeline_stages=[],
         created_at=datetime.now(UTC),
         updated_at=datetime.now(UTC),
     )
-    mock_job_service.update_job.return_value = updated
+    mock_job_service.update_job.return_value = updated_job
+    mock_job_service.get_job_by_id.return_value = updated_job
 
     response = client.patch(
         f"/api/v1/jobs/{job_id}",
@@ -261,18 +264,19 @@ def test_open_job_endpoint_success(
 ) -> None:
     """Verify POST /api/v1/jobs/{job_id}/open returns 200 OK."""
     job_id = uuid.uuid4()
-    opened = Job(
+    opened_job = Job(
         id=job_id,
         tenant_id=mock_recruiter_user.tenant_id,
-        title="Title",
+        title="Job to Open",
         description="Desc",
         status="open",
         is_archived=False,
-        opened_at=datetime.now(UTC),
+        pipeline_stages=[],
         created_at=datetime.now(UTC),
         updated_at=datetime.now(UTC),
     )
-    mock_job_service.open_job.return_value = opened
+    mock_job_service.open_job.return_value = opened_job
+    mock_job_service.get_job_by_id.return_value = opened_job
 
     response = client.post(f"/api/v1/jobs/{job_id}/open")
     assert response.status_code == 200
@@ -286,17 +290,19 @@ def test_pause_job_endpoint_success(
 ) -> None:
     """Verify POST /api/v1/jobs/{job_id}/pause returns 200 OK."""
     job_id = uuid.uuid4()
-    paused = Job(
+    paused_job = Job(
         id=job_id,
         tenant_id=mock_recruiter_user.tenant_id,
-        title="Title",
+        title="Job to Pause",
         description="Desc",
         status="paused",
         is_archived=False,
+        pipeline_stages=[],
         created_at=datetime.now(UTC),
         updated_at=datetime.now(UTC),
     )
-    mock_job_service.pause_job.return_value = paused
+    mock_job_service.pause_job.return_value = paused_job
+    mock_job_service.get_job_by_id.return_value = paused_job
 
     response = client.post(f"/api/v1/jobs/{job_id}/pause")
     assert response.status_code == 200
@@ -310,22 +316,23 @@ def test_close_job_endpoint_success(
 ) -> None:
     """Verify POST /api/v1/jobs/{job_id}/close returns 200 OK."""
     job_id = uuid.uuid4()
-    closed = Job(
+    closed_job = Job(
         id=job_id,
         tenant_id=mock_recruiter_user.tenant_id,
-        title="Title",
+        title="Job to Close",
         description="Desc",
         status="closed",
         is_archived=False,
-        closed_at=datetime.now(UTC),
+        pipeline_stages=[],
         created_at=datetime.now(UTC),
         updated_at=datetime.now(UTC),
     )
-    mock_job_service.close_job.return_value = closed
+    mock_job_service.close_job.return_value = closed_job
+    mock_job_service.get_job_by_id.return_value = closed_job
 
     response = client.post(
         f"/api/v1/jobs/{job_id}/close",
-        json={"reason": "Position filled"},
+        json={"reason": "Filled internally"},
     )
     assert response.status_code == 200
     assert response.json()["data"]["status"] == "closed"
@@ -338,17 +345,19 @@ def test_archive_job_endpoint_success(
 ) -> None:
     """Verify POST /api/v1/jobs/{job_id}/archive returns 200 OK."""
     job_id = uuid.uuid4()
-    archived = Job(
+    archived_job = Job(
         id=job_id,
         tenant_id=mock_recruiter_user.tenant_id,
-        title="Title",
+        title="Job to Archive",
         description="Desc",
-        status="archived",
+        status="draft",
         is_archived=True,
+        pipeline_stages=[],
         created_at=datetime.now(UTC),
         updated_at=datetime.now(UTC),
     )
-    mock_job_service.archive_job.return_value = archived
+    mock_job_service.archive_job.return_value = archived_job
+    mock_job_service.get_job_by_id.return_value = archived_job
 
     response = client.post(f"/api/v1/jobs/{job_id}/archive")
     assert response.status_code == 200

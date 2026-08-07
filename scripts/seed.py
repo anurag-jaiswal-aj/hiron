@@ -42,25 +42,54 @@ async def seed_database() -> None:
             # Idempotency check: verify if any tenant already exists
             existing_tenants = await tenant_service.list_active_tenants(session, limit=1)
             if existing_tenants:
-                print("Database already initialized.")
-                return
+                tenant = existing_tenants[0]
+            else:
+                # Atomic provisioning of initial tenant
+                tenant = await tenant_service.create_tenant(
+                    session=session,
+                    name=tenant_name,
+                    slug=tenant_slug,
+                    plan="enterprise",
+                )
 
-            # Atomic provisioning of initial tenant + org_admin user
-            tenant = await tenant_service.create_tenant(
-                session=session,
-                name=tenant_name,
-                slug=tenant_slug,
-                plan="enterprise",
-            )
+            from hiron.users.repository import UserRepository
+            user_repo = UserRepository()
 
-            admin_user = await user_service.create_user(
-                session=session,
-                tenant_id=tenant.id,
-                email=admin_email,
-                full_name=admin_name,
-                role="org_admin",
-                password=admin_password,
-            )
+            # Ensure org_admin
+            admin_user = await user_repo.get_by_email_and_tenant(session, admin_email, tenant.id)
+            if not admin_user:
+                admin_user = await user_service.create_user(
+                    session=session,
+                    tenant_id=tenant.id,
+                    email=admin_email,
+                    full_name=admin_name,
+                    role="org_admin",
+                    password=admin_password,
+                )
+
+            # Ensure recruiter
+            recruiter_user = await user_repo.get_by_email_and_tenant(session, "recruiter@acme.com", tenant.id)
+            if not recruiter_user:
+                recruiter_user = await user_service.create_user(
+                    session=session,
+                    tenant_id=tenant.id,
+                    email="recruiter@acme.com",
+                    full_name="Recruiter User",
+                    role="recruiter",
+                    password=admin_password,
+                )
+
+            # Ensure hiring_manager
+            manager_user = await user_repo.get_by_email_and_tenant(session, "manager@acme.com", tenant.id)
+            if not manager_user:
+                manager_user = await user_service.create_user(
+                    session=session,
+                    tenant_id=tenant.id,
+                    email="manager@acme.com",
+                    full_name="Hiring Manager User",
+                    role="hiring_manager",
+                    password=admin_password,
+                )
 
             await session.commit()
 
@@ -68,7 +97,8 @@ async def seed_database() -> None:
             print(f"  Tenant ID:   {tenant.id}")
             print(f"  Tenant Name: {tenant.name} ({tenant.slug})")
             print(f"  Admin User:  {admin_user.full_name} <{admin_user.email}>")
-            print(f"  Admin Role:  {admin_user.role}")
+            print(f"  Recruiter:   {recruiter_user.full_name} <{recruiter_user.email}>")
+            print(f"  Manager:     {manager_user.full_name} <{manager_user.email}>")
 
         except Exception as exc:
             await session.rollback()
