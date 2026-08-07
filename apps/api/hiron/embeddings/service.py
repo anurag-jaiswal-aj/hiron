@@ -1,6 +1,7 @@
 """Embedding business service managing vector generation, staleness detection, and coverage stats."""
 
 import uuid
+from dataclasses import dataclass
 
 import structlog
 from sqlalchemy import select
@@ -26,6 +27,18 @@ from hiron.jobs.repository import JobRepository
 from hiron.resumes.models import Resume
 
 logger = structlog.get_logger("hiron.embeddings.service")
+
+
+@dataclass
+class PipelineResult:
+    """Telemetry metadata for an embedding pipeline execution."""
+    cache_hit: bool
+    model_version: str
+    input_tokens: int
+    total_tokens: int
+    latency_ms: int
+    status: str
+    error_type: str | None
 
 
 class EmbeddingService:
@@ -89,7 +102,7 @@ class EmbeddingService:
         tenant_id: uuid.UUID,
         candidate_id: uuid.UUID,
         model_version: str = DEFAULT_EMBEDDING_MODEL,
-    ) -> None:
+    ) -> PipelineResult:
         """Execute candidate embedding generation pipeline."""
         candidate = await self.candidate_repo.get_candidate_by_id(
             session=session,
@@ -104,16 +117,46 @@ class EmbeddingService:
             tenant_id=tenant_id,
             candidate=candidate,
         )
+        current_hash = self.generator.compute_source_text_hash(source_text)
 
-        vector, source_hash = self.generator.generate_embedding(source_text)
+        existing = await self.embedding_repo.get_candidate_embedding(
+            session=session,
+            tenant_id=tenant_id,
+            candidate_id=candidate_id,
+            model_version=model_version,
+        )
+
+        if (
+            existing is not None
+            and existing.source_text_hash == current_hash
+            and existing.model_version == model_version
+            and existing.embedding is not None
+            and len(existing.embedding) == 1536
+        ):
+            logger.info(
+                "Candidate embedding skipped (cache hit)",
+                tenant_id=str(tenant_id),
+                candidate_id=str(candidate_id),
+            )
+            return PipelineResult(
+                cache_hit=True,
+                model_version=model_version,
+                input_tokens=0,
+                total_tokens=0,
+                latency_ms=0,
+                status="success",
+                error_type=None,
+            )
+
+        gen_result = self.generator.generate_embedding(source_text)
 
         await self.embedding_repo.upsert_candidate_embedding(
             session=session,
             tenant_id=tenant_id,
             candidate_id=candidate_id,
-            embedding=vector,
+            embedding=gen_result.embedding,
             model_version=model_version,
-            source_text_hash=source_hash,
+            source_text_hash=gen_result.source_text_hash,
         )
         logger.info(
             "Candidate embedding generated successfully",
@@ -122,13 +165,23 @@ class EmbeddingService:
             model_version=model_version,
         )
 
+        return PipelineResult(
+            cache_hit=False,
+            model_version=model_version,
+            input_tokens=gen_result.input_tokens,
+            total_tokens=gen_result.total_tokens,
+            latency_ms=gen_result.latency_ms,
+            status=gen_result.status,
+            error_type=gen_result.error_type,
+        )
+
     async def generate_job_embedding_pipeline(
         self,
         session: AsyncSession,
         tenant_id: uuid.UUID,
         job_id: uuid.UUID,
         model_version: str = DEFAULT_EMBEDDING_MODEL,
-    ) -> None:
+    ) -> PipelineResult:
         """Execute job embedding generation pipeline."""
         job = await self.job_repo.get_job_by_id(
             session=session,
@@ -139,21 +192,62 @@ class EmbeddingService:
             raise ResourceNotFoundException(f"Job with ID '{job_id}' not found")
 
         source_text = self._construct_job_source_text(job)
-        vector, source_hash = self.generator.generate_embedding(source_text)
+        current_hash = self.generator.compute_source_text_hash(source_text)
+
+        existing = await self.embedding_repo.get_job_embedding(
+            session=session,
+            tenant_id=tenant_id,
+            job_id=job_id,
+            model_version=model_version,
+        )
+
+        if (
+            existing is not None
+            and existing.source_text_hash == current_hash
+            and existing.model_version == model_version
+            and existing.embedding is not None
+            and len(existing.embedding) == 1536
+        ):
+            logger.info(
+                "Job embedding skipped (cache hit)",
+                tenant_id=str(tenant_id),
+                job_id=str(job_id),
+            )
+            return PipelineResult(
+                cache_hit=True,
+                model_version=model_version,
+                input_tokens=0,
+                total_tokens=0,
+                latency_ms=0,
+                status="success",
+                error_type=None,
+            )
+
+        gen_result = self.generator.generate_embedding(source_text)
 
         await self.embedding_repo.upsert_job_embedding(
             session=session,
             tenant_id=tenant_id,
             job_id=job_id,
-            embedding=vector,
+            embedding=gen_result.embedding,
             model_version=model_version,
-            source_text_hash=source_hash,
+            source_text_hash=gen_result.source_text_hash,
         )
         logger.info(
             "Job embedding generated successfully",
             tenant_id=str(tenant_id),
             job_id=str(job_id),
             model_version=model_version,
+        )
+
+        return PipelineResult(
+            cache_hit=False,
+            model_version=model_version,
+            input_tokens=gen_result.input_tokens,
+            total_tokens=gen_result.total_tokens,
+            latency_ms=gen_result.latency_ms,
+            status=gen_result.status,
+            error_type=gen_result.error_type,
         )
 
     async def generate_candidate_embedding(

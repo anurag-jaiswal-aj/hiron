@@ -176,3 +176,242 @@ async def test_generate_job_embedding_success(mock_task_delay: MagicMock) -> Non
         str(job_id),
         "text-embedding-3-small",
     )
+
+@pytest.mark.asyncio
+async def test_generate_candidate_embedding_pipeline_cache_hit() -> None:
+    """Verify matching hash + model + valid vector skips generator."""
+
+    emb_repo = AsyncMock()
+    cand_repo = AsyncMock()
+    generator = MagicMock()
+
+    tenant_id = uuid.uuid4()
+    candidate_id = uuid.uuid4()
+
+    service = EmbeddingService(
+        embedding_repository=emb_repo,
+        candidate_repository=cand_repo,
+        embedding_generator=generator,
+    )
+
+    mock_candidate = Candidate(id=candidate_id, tenant_id=tenant_id, skills=["Python"])
+    cand_repo.get_candidate_by_id.return_value = mock_candidate
+
+    # Mock constructed text and hash
+    patch.object(service, "_construct_candidate_source_text", new_callable=AsyncMock, return_value="Python").start()
+    generator.compute_source_text_hash.return_value = "hash123"
+
+    # Existing valid embedding
+    existing = MagicMock()
+    existing.source_text_hash = "hash123"
+    existing.model_version = "text-embedding-3-small"
+    existing.embedding = [0.1] * 1536
+    emb_repo.get_candidate_embedding.return_value = existing
+
+    session = AsyncMock()
+    result = await service.generate_candidate_embedding_pipeline(
+        session=session,
+        tenant_id=tenant_id,
+        candidate_id=candidate_id,
+        model_version="text-embedding-3-small",
+    )
+
+    assert result.cache_hit is True
+    assert result.input_tokens == 0
+    generator.generate_embedding.assert_not_called()
+    emb_repo.upsert_candidate_embedding.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_generate_job_embedding_pipeline_cache_hit() -> None:
+    """Verify job matching hash + model skips generator."""
+    emb_repo = AsyncMock()
+    job_repo = AsyncMock()
+    generator = MagicMock()
+
+    tenant_id = uuid.uuid4()
+    job_id = uuid.uuid4()
+
+    service = EmbeddingService(
+        embedding_repository=emb_repo,
+        job_repository=job_repo,
+        embedding_generator=generator,
+    )
+
+    mock_job = MagicMock(id=job_id, tenant_id=tenant_id)
+    job_repo.get_job_by_id.return_value = mock_job
+
+    # Mock constructed text and hash
+    patch.object(service, "_construct_job_source_text", return_value="Backend Developer").start()
+    generator.compute_source_text_hash.return_value = "hash456"
+
+    existing = MagicMock()
+    existing.source_text_hash = "hash456"
+    existing.model_version = "text-embedding-3-small"
+    existing.embedding = [0.1] * 1536
+    emb_repo.get_job_embedding.return_value = existing
+
+    session = AsyncMock()
+    result = await service.generate_job_embedding_pipeline(
+        session=session,
+        tenant_id=tenant_id,
+        job_id=job_id,
+    )
+
+    assert result.cache_hit is True
+    generator.generate_embedding.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_generate_candidate_embedding_pipeline_changed_hash_regenerates() -> None:
+    """Verify mismatched hash regenerates."""
+    from hiron.embeddings.generator import EmbeddingGenerationResult
+
+    emb_repo = AsyncMock()
+    cand_repo = AsyncMock()
+    generator = MagicMock()
+
+    tenant_id = uuid.uuid4()
+    candidate_id = uuid.uuid4()
+
+    service = EmbeddingService(
+        embedding_repository=emb_repo,
+        candidate_repository=cand_repo,
+        embedding_generator=generator,
+    )
+
+    mock_candidate = Candidate(id=candidate_id, tenant_id=tenant_id, skills=["Python"])
+    cand_repo.get_candidate_by_id.return_value = mock_candidate
+
+    patch.object(service, "_construct_candidate_source_text", new_callable=AsyncMock, return_value="Python and Rust").start()
+    generator.compute_source_text_hash.return_value = "hash-new"
+
+    existing = MagicMock()
+    existing.source_text_hash = "hash-old"
+    existing.model_version = "text-embedding-3-small"
+    existing.embedding = [0.1] * 1536
+    emb_repo.get_candidate_embedding.return_value = existing
+
+    generator.generate_embedding.return_value = EmbeddingGenerationResult(
+        embedding=[0.2] * 1536,
+        source_text_hash="hash-new",
+        input_tokens=10,
+        total_tokens=10,
+        latency_ms=100,
+        is_fallback=False,
+        status="success",
+        error_type=None,
+    )
+
+    session = AsyncMock()
+    result = await service.generate_candidate_embedding_pipeline(
+        session=session,
+        tenant_id=tenant_id,
+        candidate_id=candidate_id,
+    )
+
+    assert result.cache_hit is False
+    assert result.input_tokens == 10
+    generator.generate_embedding.assert_called_once_with("Python and Rust")
+    emb_repo.upsert_candidate_embedding.assert_called_once()
+
+@pytest.mark.asyncio
+async def test_generate_job_embedding_pipeline_model_mismatch_regenerates() -> None:
+    """Verify mismatched model version regenerates."""
+    from hiron.embeddings.generator import EmbeddingGenerationResult
+    emb_repo = AsyncMock()
+    job_repo = AsyncMock()
+    generator = MagicMock()
+
+    tenant_id = uuid.uuid4()
+    job_id = uuid.uuid4()
+
+    service = EmbeddingService(
+        embedding_repository=emb_repo,
+        job_repository=job_repo,
+        embedding_generator=generator,
+    )
+
+    mock_job = MagicMock()
+    job_repo.get_job_by_id.return_value = mock_job
+
+    patch.object(service, "_construct_job_source_text", return_value="Text").start()
+    generator.compute_source_text_hash.return_value = "hash-same"
+
+    existing = MagicMock()
+    existing.source_text_hash = "hash-same"
+    existing.model_version = "text-embedding-ada-002"
+    existing.embedding = [0.1] * 1536
+    emb_repo.get_job_embedding.return_value = existing
+
+    generator.generate_embedding.return_value = EmbeddingGenerationResult(
+        embedding=[0.2] * 1536,
+        source_text_hash="hash-same",
+        input_tokens=5,
+        total_tokens=5,
+        latency_ms=50,
+        is_fallback=False,
+        status="success",
+        error_type=None,
+    )
+
+    session = AsyncMock()
+    result = await service.generate_job_embedding_pipeline(
+        session=session,
+        tenant_id=tenant_id,
+        job_id=job_id,
+        model_version="text-embedding-3-small",
+    )
+
+    assert result.cache_hit is False
+    generator.generate_embedding.assert_called_once_with("Text")
+
+
+@pytest.mark.asyncio
+async def test_generate_candidate_embedding_pipeline_missing_or_invalid_regenerates() -> None:
+    """Verify missing existing, null vector, or wrong dimension regenerates."""
+    from hiron.embeddings.generator import EmbeddingGenerationResult
+    emb_repo = AsyncMock()
+    cand_repo = AsyncMock()
+    generator = MagicMock()
+    tenant_id = uuid.uuid4()
+    candidate_id = uuid.uuid4()
+
+    service = EmbeddingService(
+        embedding_repository=emb_repo,
+        candidate_repository=cand_repo,
+        embedding_generator=generator,
+    )
+    mock_candidate = Candidate(id=candidate_id, tenant_id=tenant_id, skills=[])
+    cand_repo.get_candidate_by_id.return_value = mock_candidate
+    patch.object(service, "_construct_candidate_source_text", new_callable=AsyncMock, return_value="Hello").start()
+    generator.compute_source_text_hash.return_value = "hash123"
+
+    # Existing but invalid vector len
+    existing = MagicMock()
+    existing.source_text_hash = "hash123"
+    existing.model_version = "text-embedding-3-small"
+    existing.embedding = [0.1] * 10
+    emb_repo.get_candidate_embedding.return_value = existing
+
+    generator.generate_embedding.return_value = EmbeddingGenerationResult(
+        embedding=[0.2] * 1536,
+        source_text_hash="hash123",
+        input_tokens=2,
+        total_tokens=2,
+        latency_ms=10,
+        is_fallback=False,
+        status="success",
+        error_type=None,
+    )
+
+    session = AsyncMock()
+    result = await service.generate_candidate_embedding_pipeline(
+        session=session,
+        tenant_id=tenant_id,
+        candidate_id=candidate_id,
+    )
+
+    assert result.cache_hit is False
+    generator.generate_embedding.assert_called_once_with("Hello")
+

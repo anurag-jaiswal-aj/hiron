@@ -3,13 +3,30 @@
 import hashlib
 import math
 import os
+import time
+from dataclasses import dataclass
 
 import structlog
+
+from hiron.core.config import get_settings
 
 logger = structlog.get_logger("hiron.embeddings.generator")
 
 DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small"
 EMBEDDING_DIMENSION = 1536
+
+
+@dataclass
+class EmbeddingGenerationResult:
+    """Telemetry-rich result of an embedding generation attempt."""
+    embedding: list[float]
+    source_text_hash: str
+    input_tokens: int
+    total_tokens: int
+    latency_ms: int
+    is_fallback: bool
+    status: str
+    error_type: str | None
 
 
 class EmbeddingGenerator:
@@ -41,33 +58,69 @@ class EmbeddingGenerator:
         magnitude = math.sqrt(squared_sum) if squared_sum > 0 else 1.0
         return [round(v / magnitude, 6) for v in raw_values]
 
-    def generate_embedding(self, text: str) -> tuple[list[float], str]:
+    def generate_embedding(self, text: str) -> EmbeddingGenerationResult:
         """Generate 1536-dim float vector and SHA-256 hash for given text input."""
         source_hash = self.compute_source_text_hash(text)
 
         if not text or not text.strip():
             logger.warning("Empty source text provided for embedding generation")
 
+        start_time = time.time()
+
         if self.openai_api_key:
             try:
                 import openai
 
-                client = openai.OpenAI(api_key=self.openai_api_key)
+                client = openai.OpenAI(
+                    api_key=self.openai_api_key,
+                    max_retries=3,
+                )
                 response = client.embeddings.create(
                     input=text,
                     model=self.model_version,
                 )
+
                 vector = response.data[0].embedding
                 if len(vector) != EMBEDDING_DIMENSION:
                     raise ValueError(
                         f"Expected {EMBEDDING_DIMENSION} dimensions, got {len(vector)}"
                     )
-                return vector, source_hash
+
+                latency_ms = int((time.time() - start_time) * 1000)
+
+                return EmbeddingGenerationResult(
+                    embedding=vector,
+                    source_text_hash=source_hash,
+                    input_tokens=response.usage.prompt_tokens,
+                    total_tokens=response.usage.total_tokens,
+                    latency_ms=latency_ms,
+                    is_fallback=False,
+                    status="success",
+                    error_type=None,
+                )
             except Exception as exc:
+                if get_settings().is_production:
+                    # In production, terminal errors must fail the transaction, never mock.
+                    raise
+
                 logger.warning(
                     "OpenAI API call failed, falling back to mock generator", error=str(exc)
                 )
+                latency_ms = int((time.time() - start_time) * 1000)
+                error_type = exc.__class__.__name__
+        else:
+            latency_ms = int((time.time() - start_time) * 1000)
+            error_type = None
 
-        # Fallback deterministic generator
+        # Fallback deterministic generator (non-production only)
         vector = self.generate_mock_vector(text)
-        return vector, source_hash
+        return EmbeddingGenerationResult(
+            embedding=vector,
+            source_text_hash=source_hash,
+            input_tokens=0,
+            total_tokens=0,
+            latency_ms=latency_ms,
+            is_fallback=True,
+            status="error" if error_type else "success",
+            error_type=error_type,
+        )
