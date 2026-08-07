@@ -202,6 +202,10 @@ class ResumeService:
             status="processing",
         )
 
+        # Commit processing status so it becomes durably visible to polling clients
+        # before the expensive extraction and NLP parsing blocks begin.
+        await session.commit()
+
         try:
             file_bytes = b""
             if self.storage_provider:
