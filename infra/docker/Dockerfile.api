@@ -48,6 +48,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY --from=builder --chown=hiron:hiron /app /app
 
+RUN mkdir -p /app/storage && chown hiron:hiron /app/storage
+
 USER hiron
 
 EXPOSE 8000

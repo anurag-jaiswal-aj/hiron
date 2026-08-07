@@ -197,3 +197,16 @@ def test_retry_resume_parse_endpoint_success(
     payload = response.json()
     assert payload["data"]["resumeId"] == str(resume_id)
     assert payload["data"]["status"] == "pending"
+
+def test_upload_single_resume_unauthenticated() -> None:
+    """Verify POST /api/v1/resumes/upload without auth returns 401 Unauthorized per §RES-1."""
+    # Use a fresh client without dependency overrides for auth
+    app = create_app()
+    unauth_client = TestClient(app)
+
+    files = {"file": ("john_doe_resume.pdf", b"%PDF-1.4 sample content", "application/pdf")}
+    response = unauth_client.post(
+        "/api/v1/resumes/upload",
+        files=files,
+    )
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED

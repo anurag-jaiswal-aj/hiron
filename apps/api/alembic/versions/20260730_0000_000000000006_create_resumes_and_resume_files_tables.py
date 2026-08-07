@@ -192,6 +192,12 @@ def upgrade() -> None:
             server_default=sa.text("NOW()"),
             nullable=False,
         ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("NOW()"),
+            nullable=False,
+        ),
         sa.ForeignKeyConstraint(
             ["tenant_id"],
             ["tenants.id"],

@@ -70,6 +70,7 @@ services:
       - "8000:8000"
     volumes:
       - ./keys:/app/keys:ro
+      - hiron_api_storage:/app/storage
     depends_on:
       postgres:
         condition: service_healthy
@@ -151,6 +152,7 @@ services:
 # ------------------------------------------------------------------------------
 volumes:
   postgres_data:
+  hiron_api_storage:
     driver: local
   redis_data:
     driver: local
