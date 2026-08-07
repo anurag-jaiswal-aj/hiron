@@ -74,6 +74,10 @@ async def test_parse_resume_pipeline_success_and_candidate_enrichment() -> None:
 
     assert result.status == "parsed"
     resume_repo.update_resume_status.assert_called()
+    update_kwargs = resume_repo.update_resume_status.call_args.kwargs
+    assert update_kwargs["raw_text"] == raw_resume_bytes.decode("utf-8")
+    assert "raw_text_hash" in update_kwargs
+
     candidate_repo.get_candidate_by_id.assert_called_once()
     assert mock_candidate.full_name == "Jane Smith"
     assert mock_candidate.email == "jane.smith@example.com"
