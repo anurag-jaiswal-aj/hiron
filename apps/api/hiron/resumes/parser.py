@@ -7,7 +7,22 @@ import structlog
 
 logger = structlog.get_logger("hiron.resumes.parser")
 
-PARSER_MODEL_VERSION = "spacy-en_core_web_trf-3.7.3"
+PARSER_MODEL_VERSION = "spacy-en_core_web_trf-3.8.0"
+
+_nlp: Any = None
+
+def get_nlp() -> Any:
+    """Lazy load the SpaCy transformer model to avoid slow process startup."""
+    global _nlp
+    if _nlp is None:
+        try:
+            import spacy
+            # Load the specific transformer model required by architecture
+            _nlp = spacy.load("en_core_web_trf")
+        except Exception as e:
+            logger.warning("Failed to load SpaCy model en_core_web_trf", error=str(e))
+            _nlp = "failed"  # Type hack to avoid repeatedly trying to load if failed
+    return _nlp if _nlp != "failed" else None
 
 TECH_SKILLS_TAXONOMY = {
     "Python",
@@ -269,7 +284,7 @@ class ResumeParser:
             score += 0.25
         return round(score, 2)
 
-    def parse(self, text: str) -> tuple[dict[str, Any], float]:
+    def parse(self, text: str) -> tuple[dict[str, Any], float]:  # noqa: C901
         """Parse raw resume text into structured parsed_data JSON schema and calculate confidence."""
         full_name = self.extract_full_name(text)
         email = self.extract_email(text)
@@ -294,6 +309,47 @@ class ResumeParser:
             "certifications": [],
             "languages": [],
         }
+
+        # Hybrid SpaCy Enhancement
+        nlp = get_nlp()
+        if nlp:
+            try:
+                # Truncate to first 10,000 characters to prevent massive transformer memory spikes
+                doc = nlp(text[:10000])
+
+                persons = [ent.text for ent in doc.ents if ent.label_ == "PERSON"]
+                # Only override if deterministic failed or SpaCy found a more complete name
+                if persons and (parsed_data["full_name"] == "Parsed Candidate" or len(persons[0].split()) > len(str(parsed_data.get("full_name", "")).split())):
+                    parsed_data["full_name"] = persons[0]
+
+                if not parsed_data["location"]:
+                    locations = [ent.text for ent in doc.ents if ent.label_ in ("GPE", "LOC")]
+                    if locations:
+                        parsed_data["location"] = locations[0]
+
+                orgs = [ent.text for ent in doc.ents if ent.label_ == "ORG"]
+                dates = [ent.text for ent in doc.ents if ent.label_ == "DATE"]
+
+                # Enhance experience companies if missing
+                if orgs and isinstance(experience, list):
+                    for exp in experience:
+                        if isinstance(exp, dict) and not exp.get("company"):
+                            exp["company"] = orgs[0]  # Simplistic enhancement
+
+                # Enhance education institutions if missing
+                if orgs and isinstance(education, list):
+                    for edu in education:
+                        if isinstance(edu, dict) and not edu.get("institution"):
+                            edu["institution"] = orgs[0]  # Simplistic enhancement
+
+                # Enhance dates if missing
+                if dates and isinstance(experience, list):
+                    for exp in experience:
+                        if isinstance(exp, dict) and not exp.get("start_date"):
+                            exp["start_date"] = dates[0]
+
+            except Exception as e:
+                logger.warning("SpaCy inference failed, falling back to deterministic extraction", error=str(e))
 
         confidence = self.calculate_confidence(parsed_data)
         return parsed_data, confidence
