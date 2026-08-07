@@ -245,3 +245,52 @@ async def test_delete_user_not_admin_raises(
             current_user_id=uuid.uuid4(),
             current_user_role="recruiter",
         )
+
+
+@pytest.mark.asyncio
+async def test_create_user_commits_transaction(
+    mock_session: AsyncMock,
+    mock_user_repo: AsyncMock,
+    mock_token_repo: AsyncMock,
+) -> None:
+    """Verify create_user explicitly commits transaction on service level."""
+    tenant_id = uuid.uuid4()
+    mock_user_repo.create.side_effect = lambda _session, user: user
+
+    service = UserService(user_repo=mock_user_repo, token_repo=mock_token_repo)
+    await service.create_user(
+        session=mock_session,
+        tenant_id=tenant_id,
+        email="tx_user@acme.com",
+        full_name="Tx User",
+        role="recruiter",
+    )
+
+    mock_session.commit.assert_awaited_once()
+    mock_session.refresh.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_create_user_exception_does_not_commit(
+    mock_session: AsyncMock,
+    mock_user_repo: AsyncMock,
+    mock_token_repo: AsyncMock,
+) -> None:
+    """Verify create_user does not commit when an exception is raised."""
+    tenant_id = uuid.uuid4()
+    mock_user_repo.get_by_email_and_tenant.return_value = User(
+        tenant_id=tenant_id, email="dup@acme.com"
+    )
+
+    service = UserService(user_repo=mock_user_repo, token_repo=mock_token_repo)
+    with pytest.raises(UserEmailAlreadyExistsError):
+        await service.create_user(
+            session=mock_session,
+            tenant_id=tenant_id,
+            email="dup@acme.com",
+            full_name="Duplicate User",
+            role="recruiter",
+        )
+
+    mock_session.commit.assert_not_called()
+

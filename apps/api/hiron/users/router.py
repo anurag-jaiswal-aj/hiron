@@ -201,3 +201,4 @@ async def reactivate_user(
         current_user_role=current_user.role,
     )
     return ResponseEnvelope(data=UserResponse.model_validate(user))
+

@@ -71,34 +71,30 @@ class UserRepository:
         tenant_id: uuid.UUID,
         role: str | None = None,
         is_active: bool | None = None,
-        limit: int | None = None,
-        offset: int | None = None,
+        limit: int = 20,
+        offset: int = 0,
     ) -> tuple[Sequence[User], int]:
-        """List users for a tenant with optional filtering and pagination per API Contract §USER-1."""
-        stmt = select(User).where(User.tenant_id == tenant_id)
-        count_stmt = select(func.count()).select_from(User).where(User.tenant_id == tenant_id)
-
+        """Fetch paginated list of users and total count per Database Design §5.2."""
+        conditions = [User.tenant_id == tenant_id]
         if role is not None:
-            stmt = stmt.where(User.role == role)
-            count_stmt = count_stmt.where(User.role == role)
+            conditions.append(User.role == role)
         if is_active is not None:
-            stmt = stmt.where(User.is_active.is_(is_active))
-            count_stmt = count_stmt.where(User.is_active.is_(is_active))
+            conditions.append(User.is_active.is_(is_active))
 
-        stmt = stmt.order_by(User.created_at.desc())
+        count_stmt = select(func.count()).select_from(User).where(*conditions)
+        count_res = await session.execute(count_stmt)
+        total_count = count_res.scalar_one()
 
-        if offset is not None:
-            stmt = stmt.offset(offset)
-        if limit is not None:
-            stmt = stmt.limit(limit)
-
-        total_res = await session.execute(count_stmt)
-        total = total_res.scalar_one()
-
-        res = await session.execute(stmt)
-        users = res.scalars().all()
-
-        return users, total
+        stmt = (
+            select(User)
+            .where(*conditions)
+            .order_by(User.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        result = await session.execute(stmt)
+        users = result.scalars().all()
+        return users, total_count
 
     async def list_by_role_and_tenant(
         self,

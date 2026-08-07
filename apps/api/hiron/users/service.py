@@ -153,6 +153,8 @@ class UserService:
             is_email_verified=False,
         )
         created = await self.user_repo.create(session, user)
+        await session.commit()
+        await session.refresh(created)
         logger.info(
             "User created successfully",
             user_id=str(created.id),
@@ -261,6 +263,9 @@ class UserService:
         if not updated:
             raise UserNotFoundError()
 
+        await session.commit()
+        await session.refresh(updated)
+
         logger.info("User updated successfully", user_id=str(user_id), tenant_id=str(tenant_id))
         return updated
 
@@ -319,6 +324,7 @@ class UserService:
 
         await self.token_repo.revoke_all_for_user(session, user_id)
         await self.user_repo.delete(session, user_id, tenant_id)
+        await session.commit()
         logger.info(
             "User deleted successfully",
             user_id=str(user_id),

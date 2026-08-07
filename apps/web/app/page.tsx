@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import React from "react";
 
 import { ProtectedRoute } from "../components/ProtectedRoute";
@@ -15,9 +16,75 @@ function DashboardContent(): React.ReactElement {
         backgroundColor: "#090d16",
         color: "#f8fafc",
         fontFamily: "system-ui, -apple-system, sans-serif",
-        padding: "2rem",
       }}
     >
+      {/* Navigation Header */}
+      <header
+        style={{
+          backgroundColor: "#0f172a",
+          borderBottom: "1px solid #1e293b",
+          padding: "1rem 2rem",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: "2rem",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "2rem" }}>
+          <span style={{ fontSize: "1.25rem", fontWeight: 700, color: "#a5b4fc" }}>Hiron</span>
+          <nav style={{ display: "flex", gap: "1rem" }}>
+            <Link
+              href="/"
+              style={{
+                color: "#f8fafc",
+                backgroundColor: "#1e293b",
+                textDecoration: "none",
+                fontSize: "0.875rem",
+                fontWeight: 600,
+                padding: "0.375rem 0.75rem",
+                borderRadius: "6px",
+              }}
+            >
+              Dashboard
+            </Link>
+            <Link
+              href="/users"
+              style={{
+                color: "#94a3b8",
+                textDecoration: "none",
+                fontSize: "0.875rem",
+                fontWeight: 500,
+                padding: "0.375rem 0.75rem",
+                borderRadius: "6px",
+              }}
+            >
+              Team Management
+            </Link>
+          </nav>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+          <span style={{ fontSize: "0.875rem", color: "#94a3b8" }}>
+            {user?.fullName || user?.email} ({user?.role})
+          </span>
+          <button
+            type="button"
+            onClick={() => logout()}
+            style={{
+              padding: "0.4rem 0.875rem",
+              borderRadius: "6px",
+              backgroundColor: "#1e293b",
+              border: "1px solid #334155",
+              color: "#cbd5e1",
+              fontSize: "0.8125rem",
+              cursor: "pointer",
+            }}
+          >
+            Sign Out
+          </button>
+        </div>
+      </header>
+
       <div
         style={{
           maxWidth: "800px",
@@ -28,30 +95,6 @@ function DashboardContent(): React.ReactElement {
           padding: "2rem",
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem" }}>
-          <div>
-            <h1 style={{ margin: 0, fontSize: "1.5rem", fontWeight: 700 }}>Recruiting Dashboard</h1>
-            <p style={{ margin: "0.25rem 0 0", fontSize: "0.875rem", color: "#94a3b8" }}>
-              Welcome back, {user?.fullName || "Recruiter"}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => logout()}
-            style={{
-              padding: "0.5rem 1rem",
-              borderRadius: "8px",
-              backgroundColor: "#1e293b",
-              border: "1px solid #334155",
-              color: "#f8fafc",
-              fontSize: "0.875rem",
-              fontWeight: 500,
-              cursor: "pointer",
-            }}
-          >
-            Sign Out
-          </button>
-        </div>
 
         <div
           style={{

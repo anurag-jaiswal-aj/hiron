@@ -246,3 +246,238 @@ def test_user_api_rbac_forbidden_for_non_admin(
         )
         assert response.status_code == 403
         assert response.json()["error"]["code"] == "INSUFFICIENT_PERMISSIONS"
+
+
+@pytest.mark.asyncio
+async def test_invite_persistence_across_separate_session_boundaries() -> None:
+    """Verify invited user persists to database and is readable from a completely NEW session."""
+    from hiron.users.repository import UserRepository
+    from hiron.users.service import UserService
+
+    tenant_id = uuid.uuid4()
+    db_store: dict[uuid.UUID, User] = {}
+
+    # Session A: Create/Invite user
+    session_a = AsyncMock()
+
+    async def mock_repo_create(_session: AsyncMock, user: User) -> User:
+        user.id = user.id or uuid.uuid4()
+        db_store[user.id] = user
+        return user
+
+    user_repo_a = AsyncMock(spec=UserRepository)
+    user_repo_a.get_by_email_and_tenant.return_value = None
+    user_repo_a.create.side_effect = mock_repo_create
+
+    service_a = UserService(user_repo=user_repo_a)
+    created_user = await service_a.create_user(
+        session=session_a,
+        tenant_id=tenant_id,
+        email="persisted@acme.com",
+        full_name="Persisted User",
+        role="recruiter",
+    )
+
+    # 1. Assert session_a explicitly committed
+    session_a.commit.assert_awaited_once()
+
+    # Session B: Completely SEPARATE session querying created user
+    session_b = AsyncMock()
+    user_repo_b = AsyncMock(spec=UserRepository)
+    user_repo_b.get_by_id_and_tenant.side_effect = (
+        lambda _session, uid, tid: db_store.get(uid) if tid == tenant_id else None
+    )
+
+    service_b = UserService(user_repo=user_repo_b)
+    fetched_user = await service_b.get_user_by_id(
+        session=session_b, user_id=created_user.id, tenant_id=tenant_id
+    )
+
+    # 2. Assert user exists in separate Session B
+    assert fetched_user is not None
+    assert fetched_user.id == created_user.id
+    assert fetched_user.email == "persisted@acme.com"
+
+
+@pytest.mark.asyncio
+async def test_update_persistence_across_separate_session_boundaries() -> None:
+    """Verify user update persists and is readable from a completely NEW session."""
+    from hiron.users.repository import UserRepository
+    from hiron.users.service import UserService
+
+    tenant_id = uuid.uuid4()
+    user_id = uuid.uuid4()
+    admin_id = uuid.uuid4()
+
+    existing_user = User(
+        id=user_id,
+        tenant_id=tenant_id,
+        email="existing@acme.com",
+        full_name="Original Name",
+        role="recruiter",
+        is_active=True,
+    )
+    db_store: dict[uuid.UUID, User] = {user_id: existing_user}
+
+    # Session A: Update user
+    session_a = AsyncMock()
+
+    async def mock_repo_update(_session: AsyncMock, uid: uuid.UUID, _tid: uuid.UUID, **kwargs: object) -> User:
+        target = db_store[uid]
+        for k, v in kwargs.items():
+            setattr(target, k, v)
+        return target
+
+    user_repo_a = AsyncMock(spec=UserRepository)
+    user_repo_a.get_by_id_and_tenant.side_effect = (
+        lambda _session, uid, tid: db_store.get(uid) if tid == tenant_id else None
+    )
+    user_repo_a.update.side_effect = mock_repo_update
+    user_repo_a.count_active_admins_by_tenant.return_value = 2
+
+    service_a = UserService(user_repo=user_repo_a)
+    updated = await service_a.update_user(
+        session=session_a,
+        user_id=user_id,
+        tenant_id=tenant_id,
+        current_user_id=admin_id,
+        current_user_role="org_admin",
+        full_name="Updated Name",
+        role="hiring_manager",
+    )
+
+    session_a.commit.assert_awaited_once()
+    assert updated.full_name == "Updated Name"
+
+    # Session B: Query from separate session
+    session_b = AsyncMock()
+    user_repo_b = AsyncMock(spec=UserRepository)
+    user_repo_b.get_by_id_and_tenant.side_effect = (
+        lambda _session, uid, tid: db_store.get(uid) if tid == tenant_id else None
+    )
+
+    service_b = UserService(user_repo=user_repo_b)
+    fetched = await service_b.get_user_by_id(session=session_b, user_id=user_id, tenant_id=tenant_id)
+    assert fetched.full_name == "Updated Name"
+    assert fetched.role == "hiring_manager"
+
+
+@pytest.mark.asyncio
+async def test_deactivate_and_reactivate_persistence_across_separate_session_boundaries() -> None:
+    """Verify deactivate and reactivate persist across separate session boundaries."""
+    from hiron.users.repository import UserRepository
+    from hiron.users.service import UserService
+
+    tenant_id = uuid.uuid4()
+    user_id = uuid.uuid4()
+    admin_id = uuid.uuid4()
+
+    user_entity = User(
+        id=user_id,
+        tenant_id=tenant_id,
+        email="status@acme.com",
+        role="recruiter",
+        is_active=True,
+    )
+    db_store: dict[uuid.UUID, User] = {user_id: user_entity}
+
+    async def mock_repo_update(_session: AsyncMock, uid: uuid.UUID, _tid: uuid.UUID, **kwargs: object) -> User:
+        target = db_store[uid]
+        for k, v in kwargs.items():
+            setattr(target, k, v)
+        return target
+
+    user_repo = AsyncMock(spec=UserRepository)
+    user_repo.get_by_id_and_tenant.side_effect = (
+        lambda _session, uid, tid: db_store.get(uid) if tid == tenant_id else None
+    )
+    user_repo.update.side_effect = mock_repo_update
+
+    # 1. Deactivate in Session A
+    session_a = AsyncMock()
+    service_a = UserService(user_repo=user_repo)
+    deactivated = await service_a.deactivate_user(
+        session=session_a,
+        user_id=user_id,
+        tenant_id=tenant_id,
+        current_user_id=admin_id,
+        current_user_role="org_admin",
+    )
+    session_a.commit.assert_awaited_once()
+    assert deactivated.is_active is False
+
+    # Verify in Session B
+    session_b = AsyncMock()
+    service_b = UserService(user_repo=user_repo)
+    fetched_b = await service_b.get_user_by_id(session=session_b, user_id=user_id, tenant_id=tenant_id)
+    assert fetched_b.is_active is False
+
+    # 2. Reactivate in Session C
+    session_c = AsyncMock()
+    service_c = UserService(user_repo=user_repo)
+    reactivated = await service_c.reactivate_user(
+        session=session_c,
+        user_id=user_id,
+        tenant_id=tenant_id,
+        current_user_id=admin_id,
+        current_user_role="org_admin",
+    )
+    session_c.commit.assert_awaited_once()
+    assert reactivated.is_active is True
+
+    # Verify in Session D
+    session_d = AsyncMock()
+    service_d = UserService(user_repo=user_repo)
+    fetched_d = await service_d.get_user_by_id(session=session_d, user_id=user_id, tenant_id=tenant_id)
+    assert fetched_d.is_active is True
+
+
+@pytest.mark.asyncio
+async def test_delete_persistence_across_separate_session_boundaries() -> None:
+    """Verify deletion persists across separate session boundaries."""
+    from hiron.users.repository import UserRepository
+    from hiron.users.service import UserNotFoundError, UserService
+
+    tenant_id = uuid.uuid4()
+    user_id = uuid.uuid4()
+    admin_id = uuid.uuid4()
+
+    user_entity = User(
+        id=user_id,
+        tenant_id=tenant_id,
+        email="del@acme.com",
+        role="recruiter",
+        is_active=True,
+    )
+    db_store: dict[uuid.UUID, User] = {user_id: user_entity}
+
+    async def mock_repo_delete(_session: AsyncMock, uid: uuid.UUID, _tid: uuid.UUID) -> bool:
+        if uid in db_store:
+            del db_store[uid]
+            return True
+        return False
+
+    user_repo = AsyncMock(spec=UserRepository)
+    user_repo.get_by_id_and_tenant.side_effect = (
+        lambda _session, uid, tid: db_store.get(uid) if tid == tenant_id else None
+    )
+    user_repo.delete.side_effect = mock_repo_delete
+
+    # Session A: Delete user
+    session_a = AsyncMock()
+    service_a = UserService(user_repo=user_repo)
+    await service_a.delete_user(
+        session=session_a,
+        user_id=user_id,
+        tenant_id=tenant_id,
+        current_user_id=admin_id,
+        current_user_role="org_admin",
+    )
+    session_a.commit.assert_awaited_once()
+
+    # Session B: Verify user is gone
+    session_b = AsyncMock()
+    service_b = UserService(user_repo=user_repo)
+    with pytest.raises(UserNotFoundError):
+        await service_b.get_user_by_id(session=session_b, user_id=user_id, tenant_id=tenant_id)
+
