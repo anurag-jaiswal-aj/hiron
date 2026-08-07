@@ -284,7 +284,7 @@ class ResumeParser:
             score += 0.25
         return round(score, 2)
 
-    def parse(self, text: str) -> tuple[dict[str, Any], float]:  # noqa: C901
+    def parse(self, text: str) -> tuple[dict[str, Any], float, dict[str, Any] | None]:  # noqa: C901
         """Parse raw resume text into structured parsed_data JSON schema and calculate confidence."""
         full_name = self.extract_full_name(text)
         email = self.extract_email(text)
@@ -312,7 +312,11 @@ class ResumeParser:
 
         # Hybrid SpaCy Enhancement
         nlp = get_nlp()
+        telemetry: dict[str, Any] | None = None
+
         if nlp:
+            import time
+            start_time = time.time()
             try:
                 # Truncate to first 10,000 characters to prevent massive transformer memory spikes
                 doc = nlp(text[:10000])
@@ -348,8 +352,28 @@ class ResumeParser:
                         if isinstance(exp, dict) and not exp.get("start_date"):
                             exp["start_date"] = dates[0]
 
+                latency_ms = int((time.time() - start_time) * 1000)
+                telemetry = {
+                    "model_version": self.model_version,
+                    "latency_ms": latency_ms,
+                    "status": "success",
+                    "error_type": None,
+                    "input_tokens": 0,
+                    "output_tokens": 0,
+                    "cost_usd": 0.0,
+                }
             except Exception as e:
+                latency_ms = int((time.time() - start_time) * 1000)
+                telemetry = {
+                    "model_version": self.model_version,
+                    "latency_ms": latency_ms,
+                    "status": "error",
+                    "error_type": e.__class__.__name__,
+                    "input_tokens": 0,
+                    "output_tokens": 0,
+                    "cost_usd": 0.0,
+                }
                 logger.warning("SpaCy inference failed, falling back to deterministic extraction", error=str(e))
 
         confidence = self.calculate_confidence(parsed_data)
-        return parsed_data, confidence
+        return parsed_data, confidence, telemetry

@@ -225,7 +225,7 @@ class ResumeService:
             raw_text_hash = hashlib.sha256(raw_text.encode("utf-8")).hexdigest()
 
             parser = ResumeParser()
-            parsed_data, parse_confidence = parser.parse(raw_text)
+            parsed_data, parse_confidence, telemetry = parser.parse(raw_text)
 
             updated_resume = await self.resume_repo.update_resume_status(
                 session=session,
@@ -258,11 +258,31 @@ class ResumeService:
                     candidate_id=resume.candidate_id,
                 )
             except Exception as emb_exc:
-                logger.warning(
-                    "Auto embedding generation for candidate failed",
-                    candidate_id=str(resume.candidate_id),
-                    error=str(emb_exc),
-                )
+                logger.warning("Failed to trigger embedding generation for candidate", error=str(emb_exc))
+
+            # Log AI usage telemetry
+            if telemetry:
+                try:
+                    # Use a SAVEPOINT so a telemetry DB failure doesn't roll back the resume parse
+                    async with session.begin_nested():
+                        from hiron.ai_usage.repository import AIUsageRepository
+                        ai_repo = AIUsageRepository()
+                        await ai_repo.create_usage_log(
+                            session=session,
+                            tenant_id=tenant_id,
+                            operation="resume_parsing",
+                            model_version=telemetry["model_version"],
+                            input_tokens=telemetry["input_tokens"],
+                            output_tokens=telemetry["output_tokens"],
+                            cost_usd=telemetry["cost_usd"],
+                            latency_ms=telemetry["latency_ms"],
+                            status=telemetry["status"],
+                            error_type=telemetry["error_type"],
+                        )
+                except Exception as log_exc:
+                    logger.warning("Failed to write AI usage telemetry", error=str(log_exc))
+
+            await session.commit()
 
             logger.info(
                 "Resume parsed successfully",

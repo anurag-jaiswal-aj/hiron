@@ -29,7 +29,7 @@ def test_resume_parser_contact_info_extraction(mock_get_nlp: MagicMock) -> None:
     Python, FastAPI, Docker, Kubernetes, PostgreSQL, AWS, React, C++
     """
 
-    parsed_data, confidence = parser.parse(sample_resume_text)
+    parsed_data, confidence, _telemetry = parser.parse(sample_resume_text)
 
     assert parsed_data["full_name"] == "Sarah Connor"
     assert parsed_data["email"] == "sarah.connor@cyberdyne.com"
@@ -73,7 +73,7 @@ def test_resume_parser_incomplete_resume(mock_get_nlp: MagicMock) -> None:
     _ = mock_get_nlp
     parser = ResumeParser()
     text = "Just a random line of text.\nAnother random line."
-    parsed_data, confidence = parser.parse(text)
+    parsed_data, confidence, _ = parser.parse(text)
     _ = confidence
 
     assert parsed_data["full_name"] == "Just a random line of text."
@@ -103,7 +103,7 @@ def test_resume_parser_malformed_noisy_resume(mock_get_nlp: MagicMock) -> None:
     EXPERIENCE
     Manager at Tech Corp
     """
-    parsed_data, _confidence = parser.parse(text)
+    parsed_data, _confidence, _ = parser.parse(text)
 
     assert "John_Doe_123" in parsed_data["full_name"]
     assert parsed_data["phone"] == "(555)-123-4567"
@@ -130,7 +130,7 @@ def test_resume_parser_empty_optional_sections(mock_get_nlp: MagicMock) -> None:
     SKILLS
 
     """
-    parsed_data, _confidence = parser.parse(text)
+    parsed_data, _confidence, _ = parser.parse(text)
 
     assert parsed_data["full_name"] == "Alice Bob"
     assert parsed_data["email"] == "alice@bob.com"
@@ -180,7 +180,7 @@ def test_resume_parser_spacy_enhancement(mock_get_nlp: MagicMock) -> None:
     Software Engineer -
     """
     # Force regex to fail to extract a clean name or location
-    parsed_data, _confidence = parser.parse(text)
+    parsed_data, _confidence, _telemetry = parser.parse(text)
 
     # SpaCy should have populated these
     assert parsed_data["full_name"] == "John Connor Jr."
