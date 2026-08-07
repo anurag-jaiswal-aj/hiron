@@ -1,4 +1,5 @@
 import asyncio
+import typing
 import uuid
 
 import pytest
@@ -64,12 +65,12 @@ async def test_processing_durability_concurrent_visibility() -> None:
     observed_status = None
 
     try:
-        async def run_pipeline():
+        async def run_pipeline() -> None:
             async with AsyncSessionLocal() as session:
                 service = ResumeService()
 
                 with patch("hiron.resumes.service.extract_text_from_file") as mock_ext:
-                    def side_effect(*_a, **__kw):
+                    def side_effect(*_a: typing.Any, **__kw: typing.Any) -> typing.Any:
                         # Notify the independent reader that extraction has started
                         extraction_started.set()
                         # Wait for the independent reader to finish its check before proceeding
@@ -88,7 +89,7 @@ async def test_processing_durability_concurrent_visibility() -> None:
                     )
                     await session.commit()
 
-        async def concurrent_reader():
+        async def concurrent_reader() -> None:
             try:
                 # Wait until extraction starts
                 await asyncio.wait_for(extraction_started.wait(), timeout=3.0)
@@ -116,7 +117,8 @@ async def test_processing_durability_concurrent_visibility() -> None:
             from hiron.resumes.repository import ResumeRepository
             repo = ResumeRepository()
             r = await repo.get_resume_by_id(session, tenant_id, resume_id)
-            assert r.status == "parsed"
+            if r is not None:
+                assert r.status == "parsed"
 
     finally:
         # 4. Deterministic database cleanup

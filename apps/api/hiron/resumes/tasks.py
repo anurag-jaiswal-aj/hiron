@@ -21,12 +21,19 @@ async def _async_parse_resume_task(tenant_id: str, resume_id: str) -> dict[str, 
 
     async with AsyncSessionLocal() as session:
         try:
-            await service.parse_resume_pipeline(
+            updated_resume = await service.parse_resume_pipeline(
                 session=session,
                 tenant_id=t_uuid,
                 resume_id=r_uuid,
             )
             await session.commit()
+
+            try:
+                from hiron.embeddings.tasks import generate_candidate_embedding
+                generate_candidate_embedding.delay(tenant_id, str(updated_resume.candidate_id))
+            except Exception as emb_exc:
+                logger.warning("Failed to enqueue candidate embedding task", error=str(emb_exc))
+
             logger.info(
                 "Resume parsing background task completed successfully",
                 tenant_id=tenant_id,

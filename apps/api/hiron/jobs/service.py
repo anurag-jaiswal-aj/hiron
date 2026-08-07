@@ -197,24 +197,18 @@ class JobService:
             tenant_id=str(tenant_id),
         )
 
+        await session.commit()
+
         # Auto-trigger job embedding generation
         try:
-            from hiron.embeddings.service import EmbeddingService
-
-            emb_service = EmbeddingService()
-            await emb_service.generate_job_embedding_pipeline(
-                session=session,
-                tenant_id=tenant_id,
-                job_id=created_job.id,
-            )
+            from hiron.embeddings.tasks import generate_job_embedding
+            generate_job_embedding.delay(str(tenant_id), str(created_job.id))
         except Exception as emb_exc:
             logger.warning(
-                "Auto embedding generation for job failed",
+                "Auto embedding generation for job failed to enqueue",
                 job_id=str(created_job.id),
                 error=str(emb_exc),
             )
-
-        await session.commit()
         return created_job
 
     async def get_job_by_id(
@@ -424,25 +418,19 @@ class JobService:
 
         logger.info("Job updated successfully", job_id=str(job_id), tenant_id=str(tenant_id))
 
+        await session.commit()
+
         # Auto-trigger job embedding re-generation if description or skills updated
         if description is not None or required_skills is not None:
             try:
-                from hiron.embeddings.service import EmbeddingService
-
-                emb_service = EmbeddingService()
-                await emb_service.generate_job_embedding_pipeline(
-                    session=session,
-                    tenant_id=tenant_id,
-                    job_id=job_id,
-                )
+                from hiron.embeddings.tasks import generate_job_embedding
+                generate_job_embedding.delay(str(tenant_id), str(job_id))
             except Exception as emb_exc:
                 logger.warning(
-                    "Auto embedding re-generation for job failed",
+                    "Auto embedding re-generation for job failed to enqueue",
                     job_id=str(job_id),
                     error=str(emb_exc),
                 )
-
-        await session.commit()
         return updated
 
     async def open_job(

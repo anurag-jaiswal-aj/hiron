@@ -1,5 +1,6 @@
 """Unit tests for Celery resume background tasks and async transaction handling per Requirement G."""
 
+import typing
 import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -116,17 +117,32 @@ async def test_retry_parse_enqueues_celery_task() -> None:
 
 
 def test_celery_task_commits_successful_parse() -> None:
-    """Verify Celery parse_resume task commits on successful parse pipeline execution."""
+    """Verify Celery parse_resume task commits on successful parse pipeline execution and then enqueues embedding."""
     tenant_id = uuid.uuid4()
     resume_id = uuid.uuid4()
+    candidate_id = uuid.uuid4()
 
     mock_session = AsyncMock()
+    mock_resume = MagicMock()
+    mock_resume.candidate_id = candidate_id
+
+    call_order: list[str] = []
+
+    async def mock_commit() -> None:
+        call_order.append("commit")
+
+    mock_session.commit.side_effect = mock_commit
+
+    def mock_delay(*_args: typing.Any, **_kwargs: typing.Any) -> None:
+        call_order.append("delay")
 
     with (
         patch("hiron.resumes.tasks.AsyncSessionLocal", return_value=mock_session),
         patch.object(ResumeService, "parse_resume_pipeline", new_callable=AsyncMock) as mock_pipeline,
+        patch("hiron.embeddings.tasks.generate_candidate_embedding.delay", side_effect=mock_delay) as mock_embed_delay,
     ):
         mock_session.__aenter__.return_value = mock_session
+        mock_pipeline.return_value = mock_resume
 
         result = parse_resume(str(tenant_id), str(resume_id))
 
@@ -135,7 +151,8 @@ def test_celery_task_commits_successful_parse() -> None:
             tenant_id=tenant_id,
             resume_id=resume_id,
         )
-        mock_session.commit.assert_awaited_once()
+        assert call_order == ["commit", "delay"], "Embedding task must be enqueued strictly AFTER commit"
+        mock_embed_delay.assert_called_once_with(str(tenant_id), str(candidate_id))
         assert result == {"status": "success", "resume_id": str(resume_id)}
 
 
@@ -155,6 +172,7 @@ def test_celery_task_rolls_back_and_persists_failed_status_on_failure() -> None:
         patch("hiron.resumes.tasks.AsyncSessionLocal", side_effect=[main_session, fail_session]),
         patch("hiron.resumes.tasks.ResumeRepository", return_value=mock_repo),
         patch.object(ResumeService, "parse_resume_pipeline", side_effect=ValueError("Pipeline crashed")),
+        patch("hiron.embeddings.tasks.generate_candidate_embedding.delay") as mock_embed_delay,
     ):
         main_session.__aenter__.return_value = main_session
         fail_session.__aenter__.return_value = fail_session
@@ -175,3 +193,4 @@ def test_celery_task_rolls_back_and_persists_failed_status_on_failure() -> None:
             parse_error="Pipeline crashed",
         )
         fail_session.commit.assert_awaited_once()
+        mock_embed_delay.assert_not_called()

@@ -166,13 +166,25 @@ class EmbeddingService:
     ) -> GenerateCandidateEmbeddingResponse:
         """API action to trigger candidate embedding generation per API Contract §EMBED-1."""
         self._validate_role_permissions(user_role)
-        await self.generate_candidate_embedding_pipeline(
+
+        candidate = await self.candidate_repo.get_candidate_by_id(
             session=session,
-            tenant_id=tenant_id,
             candidate_id=candidate_id,
-            model_version=model_version,
+            tenant_id=tenant_id,
         )
-        task_id = f"task-{uuid.uuid4()}"
+        if not candidate:
+            raise ResourceNotFoundException(f"Candidate with ID '{candidate_id}' not found")
+
+        from hiron.embeddings.tasks import (
+            generate_candidate_embedding as generate_candidate_embedding_task,
+        )
+        task = generate_candidate_embedding_task.delay(
+            str(tenant_id),
+            str(candidate_id),
+            model_version,
+        )
+        task_id = task.id if task else f"task-{uuid.uuid4()}"
+
         return GenerateCandidateEmbeddingResponse(
             data=CandidateEmbeddingResponseData(
                 candidate_id=candidate_id,
@@ -192,13 +204,23 @@ class EmbeddingService:
     ) -> GenerateJobEmbeddingResponse:
         """API action to trigger job embedding generation per API Contract §EMBED-2."""
         self._validate_role_permissions(user_role)
-        await self.generate_job_embedding_pipeline(
+
+        job = await self.job_repo.get_job_by_id(
             session=session,
-            tenant_id=tenant_id,
             job_id=job_id,
-            model_version=model_version,
+            tenant_id=tenant_id,
         )
-        task_id = f"task-{uuid.uuid4()}"
+        if not job:
+            raise ResourceNotFoundException(f"Job with ID '{job_id}' not found")
+
+        from hiron.embeddings.tasks import generate_job_embedding as generate_job_embedding_task
+        task = generate_job_embedding_task.delay(
+            str(tenant_id),
+            str(job_id),
+            model_version,
+        )
+        task_id = task.id if task else f"task-{uuid.uuid4()}"
+
         return GenerateJobEmbeddingResponse(
             data=JobEmbeddingResponseData(
                 job_id=job_id,

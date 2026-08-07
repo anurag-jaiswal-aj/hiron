@@ -247,19 +247,6 @@ class ResumeService:
                 parsed_data=parsed_data,
             )
 
-            # Auto-trigger candidate embedding generation
-            try:
-                from hiron.embeddings.service import EmbeddingService
-
-                emb_service = EmbeddingService()
-                await emb_service.generate_candidate_embedding_pipeline(
-                    session=session,
-                    tenant_id=tenant_id,
-                    candidate_id=resume.candidate_id,
-                )
-            except Exception as emb_exc:
-                logger.warning("Failed to trigger embedding generation for candidate", error=str(emb_exc))
-
             # Log AI usage telemetry
             if telemetry:
                 try:

@@ -10,7 +10,10 @@ celery_app = Celery(
     "hiron",
     broker=settings.celery_broker_url,
     backend=settings.celery_result_backend,
-    include=["hiron.resumes.tasks"],
+    include=[
+        "hiron.resumes.tasks",
+        "hiron.embeddings.tasks",
+    ],
 )
 
 celery_app.conf.update(

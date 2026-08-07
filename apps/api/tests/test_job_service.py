@@ -1,7 +1,8 @@
 """Unit test suite for JobService business logic, validations, permissions, and status transitions."""
 
+import typing
 import uuid
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -41,8 +42,19 @@ async def test_create_job_success_generates_default_pipeline_stages(
     mock_job_repo.create_job.side_effect = lambda _session, job: job
     mock_job_repo.create_pipeline_stages.side_effect = lambda _session, stages: stages
 
+    call_order: list[str] = []
+
+    async def mock_commit() -> None:
+        call_order.append("commit")
+
+    mock_session.commit.side_effect = mock_commit
+
+    def mock_delay(*_args: typing.Any, **_kwargs: typing.Any) -> None:
+        call_order.append("delay")
+
     service = JobService(job_repo=mock_job_repo)
-    job = await service.create_job(
+    with patch("hiron.embeddings.tasks.generate_job_embedding.delay", side_effect=mock_delay) as mock_embed_delay:
+        job = await service.create_job(
         session=mock_session,
         tenant_id=tenant_id,
         created_by=created_by,
@@ -66,6 +78,9 @@ async def test_create_job_success_generates_default_pipeline_stages(
     assert stages[0].name == "Applied"
     assert stages[4].name == "Hired"
     assert stages[5].name == "Rejected"
+
+    assert call_order == ["commit", "delay"], "Job embedding task must be enqueued strictly AFTER commit"
+    mock_embed_delay.assert_called_once_with(str(tenant_id), str(job.id))
 
 
 @pytest.mark.asyncio
@@ -328,3 +343,74 @@ async def test_delete_pipeline_stage_below_minimum_raises_conflict(
             tenant_id=tenant_id,
             current_user_role="recruiter",
         )
+
+@pytest.mark.asyncio
+@patch("hiron.embeddings.tasks.generate_job_embedding.delay")
+async def test_update_job_relevant_fields_enqueues_embedding_after_commit(
+    mock_embed_delay: MagicMock,
+    mock_session: AsyncMock,
+    mock_job_repo: AsyncMock,
+) -> None:
+    """Verify relevant job updates enqueue embedding task strictly AFTER commit."""
+    tenant_id = uuid.uuid4()
+    job_id = uuid.uuid4()
+
+    mock_job = MagicMock(id=job_id, title="Original")
+    mock_job.experience_years_min = 3
+    mock_job.experience_years_max = 5
+    mock_job_repo.get_job_by_id.return_value = mock_job
+    mock_job_repo.update_job.return_value = mock_job
+
+    call_order: list[str] = []
+
+    async def mock_commit() -> None:
+        call_order.append("commit")
+
+    mock_session.commit.side_effect = mock_commit
+
+    def mock_delay(*_args: typing.Any, **_kwargs: typing.Any) -> None:
+        call_order.append("delay")
+
+    mock_embed_delay.side_effect = mock_delay
+
+    service = JobService(job_repo=mock_job_repo)
+    await service.update_job(
+        session=mock_session,
+        job_id=job_id,
+        tenant_id=tenant_id,
+        current_user_role="recruiter",
+        description="New Description",  # Relevant field
+    )
+
+    assert call_order == ["commit", "delay"], "Job embedding task must be enqueued strictly AFTER commit"
+    mock_embed_delay.assert_called_once_with(str(tenant_id), str(job_id))
+
+
+@pytest.mark.asyncio
+@patch("hiron.embeddings.tasks.generate_job_embedding.delay")
+async def test_update_job_irrelevant_fields_does_not_enqueue_embedding(
+    mock_embed_delay: MagicMock,
+    mock_session: AsyncMock,
+    mock_job_repo: AsyncMock,
+) -> None:
+    """Verify irrelevant job updates do NOT enqueue embedding task."""
+    tenant_id = uuid.uuid4()
+    job_id = uuid.uuid4()
+
+    mock_job = MagicMock(id=job_id, title="Original")
+    mock_job.experience_years_min = 3
+    mock_job.experience_years_max = 5
+    mock_job_repo.get_job_by_id.return_value = mock_job
+    mock_job_repo.update_job.return_value = mock_job
+
+    service = JobService(job_repo=mock_job_repo)
+    await service.update_job(
+        session=mock_session,
+        job_id=job_id,
+        tenant_id=tenant_id,
+        current_user_role="recruiter",
+        title="New Title",  # Irrelevant field
+    )
+
+    mock_session.commit.assert_awaited_once()
+    mock_embed_delay.assert_not_called()
