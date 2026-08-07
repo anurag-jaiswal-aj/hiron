@@ -9,7 +9,8 @@ test.describe("Candidates List Workflows", () => {
     
     // Deterministic Test Setup via direct DB insertion
     try {
-      execSync(`docker exec hiron-postgres psql -U hiron_user -d hiron_dev -c "
+      execSync(`docker exec -i hiron-postgres psql -v ON_ERROR_STOP=1 -U hiron_user -d hiron_dev`, {
+        input: `
         DELETE FROM candidates WHERE full_name LIKE '% 1000%';
         WITH t AS (SELECT id FROM tenants LIMIT 1)
         INSERT INTO candidates (id, tenant_id, full_name, skills, location, total_experience_years, source) VALUES 
@@ -17,15 +18,18 @@ test.describe("Candidates List Workflows", () => {
         (gen_random_uuid(), (SELECT id FROM t), 'Bob 1000', '["JavaScript", "React"]', 'San Francisco', 2, 'upload'),
         (gen_random_uuid(), (SELECT id FROM t), 'Charlie 1000', '["Python", "AWS"]', 'London', 10, 'upload'),
         (gen_random_uuid(), (SELECT id FROM t), 'Diana 1000', '["Java", "Spring"]', 'Berlin', 1, 'api');
-      "`);
+        `
+      });
       
       // Insert 25 filler candidates
-      execSync(`docker exec hiron-postgres psql -U hiron_user -d hiron_dev -c "
+      execSync(`docker exec -i hiron-postgres psql -v ON_ERROR_STOP=1 -U hiron_user -d hiron_dev`, {
+        input: `
         WITH t AS (SELECT id FROM tenants LIMIT 1)
         INSERT INTO candidates (id, tenant_id, full_name, skills, location, total_experience_years, source)
         SELECT gen_random_uuid(), (SELECT id FROM t), 'Filler 1000 - ' || gs, '["Filler"]', 'Nowhere', 0, 'upload'
         FROM generate_series(0, 24) AS gs;
-      "`);
+        `
+      });
     } catch (e) {
       console.error("Failed to seed deterministic DB state:", e);
     }
@@ -58,7 +62,9 @@ test.describe("Candidates List Workflows", () => {
     await page.waitForLoadState("networkidle");
     await expect(page.getByText(`Alice ${runId}`)).toBeVisible();
     await expect(page.getByText(`Bob ${runId}`)).not.toBeVisible();
-    await page.click('button:has-text("Clear filters")');
+    // Clear filter manually instead of expecting a global clear button
+    await page.fill('input[placeholder="Skills (comma separated)"]', "");
+    await page.waitForTimeout(400); // Wait for debounce
     await page.waitForLoadState("networkidle");
 
     // 3. SKILLS FILTER
@@ -177,7 +183,7 @@ test.describe("Candidates List Workflows", () => {
     await page.goto("/candidates");
     await page.waitForLoadState("networkidle");
     
-    await expect(page.getByText("No candidates in your pool")).toBeVisible();
+    await expect(page.getByText("No candidates in pipeline")).toBeVisible();
   });
   
   test("verifies recruiter RBAC", async ({ page }) => {

@@ -10,20 +10,22 @@ import { EmptyState } from "../../components/ui/EmptyState";
 import { Input } from "../../components/ui/Input";
 import { Select } from "../../components/ui/Select";
 import { useAuth } from "../../context/AuthContext";
+import { useRouter } from "next/navigation";
+
 import { ApiError, httpClient } from "../../lib/api";
 
 export interface CandidateListItem {
   id: string;
-  full_name: string;
+  fullName: string;
   email: string | null;
-  current_title: string | null;
-  current_company: string | null;
+  currentTitle: string | null;
+  currentCompany: string | null;
   location: string | null;
-  total_experience_years: number | null;
+  totalExperienceYears: number | null;
   skills: string[];
   source: string;
-  is_archived: boolean;
-  created_at: string;
+  isArchived: boolean;
+  createdAt: string;
 }
 
 export interface PaginationMeta {
@@ -43,6 +45,7 @@ export interface ResponseEnvelope<T> {
 
 function CandidatesListContent(): React.ReactElement {
   const { user } = useAuth();
+  const router = useRouter();
   const canManageCandidates = user?.role === "org_admin" || user?.role === "recruiter";
 
   const [candidates, setCandidates] = useState<CandidateListItem[]>([]);
@@ -306,17 +309,19 @@ function CandidatesListContent(): React.ReactElement {
               {candidates.map((candidate) => (
                 <tr
                   key={candidate.id}
+                  onClick={() => router.push(`/candidates/${candidate.id}`)}
                   style={{
                     borderBottom: "1px solid var(--border-subtle)",
                     transition: "background-color 0.15s ease",
+                    cursor: "pointer",
                   }}
                 >
                   <td style={{ padding: "1rem 1.25rem" }}>
                     <div style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: "0.9375rem" }}>
-                      {candidate.full_name}
+                      {candidate.fullName}
                     </div>
                     <div style={{ color: "var(--text-secondary)", fontSize: "0.8125rem", marginTop: "2px" }}>
-                      {[candidate.current_title, candidate.current_company].filter(Boolean).join(" @ ") || "—"}
+                      {[candidate.currentTitle, candidate.currentCompany].filter(Boolean).join(" @ ") || "—"}
                     </div>
                   </td>
                   <td style={{ padding: "1rem 1.25rem", color: "var(--text-secondary)", fontSize: "0.875rem" }}>
@@ -347,13 +352,13 @@ function CandidatesListContent(): React.ReactElement {
                     )}
                   </td>
                   <td style={{ padding: "1rem 1.25rem", color: "var(--text-secondary)", fontSize: "0.875rem" }}>
-                    {candidate.total_experience_years !== null ? `${candidate.total_experience_years}y` : "—"}
+                    {candidate.totalExperienceYears !== null ? `${candidate.totalExperienceYears}y` : "—"}
                   </td>
                   <td style={{ padding: "1rem 1.25rem", color: "var(--text-secondary)", fontSize: "0.875rem" }}>
                     {candidate.location || "—"}
                   </td>
                   <td style={{ padding: "1rem 1.25rem", color: "var(--text-muted)", fontSize: "0.875rem", textAlign: "right" }}>
-                    {new Date(candidate.created_at).toLocaleDateString("en-US", {
+                    {new Date(candidate.createdAt).toLocaleDateString("en-US", {
                       month: "short",
                       day: "numeric",
                       year: "numeric",
