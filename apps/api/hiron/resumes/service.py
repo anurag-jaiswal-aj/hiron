@@ -582,3 +582,23 @@ class ResumeService:
             status="pending",
             status_url=f"/api/v1/resumes/{resume.id}/status",
         )
+
+    async def get_resumes_by_candidate(
+        self, session: AsyncSession, tenant_id: uuid.UUID, candidate_id: uuid.UUID
+    ) -> list[ResumeStatusResponse]:
+        """Get all resumes for a candidate per API Contract extension."""
+        resumes = await self.resume_repo.get_resumes_by_candidate_id(
+            session=session, tenant_id=tenant_id, candidate_id=candidate_id
+        )
+        return [
+            ResumeStatusResponse(
+                resume_id=r.id,
+                status=r.status,
+                parse_confidence=r.parse_confidence,
+                parsed_data=r.parsed_data,
+                parse_error=r.parse_error,
+                parser_model_version=r.parser_model_version,
+                created_at=r.created_at,
+            )
+            for r in resumes
+        ]

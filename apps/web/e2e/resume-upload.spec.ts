@@ -95,7 +95,7 @@ test.describe("Resume Upload UI", () => {
     expect(uploadResponse.status()).toBe(202); // 202 Accepted per API contract
     
     // Wait for parsing state or parsed state
-    await expect(page.getByText("Uploaded")).toBeVisible();
+    await expect(page.getByText("Parsed").or(page.getByText("Parsing..."))).toBeVisible();
   });
 
   test("valid DOCX can be selected and successful upload reaches the REAL backend", async ({ page }) => {

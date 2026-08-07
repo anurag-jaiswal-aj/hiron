@@ -31,6 +31,7 @@ interface FileUploadState {
   error?: string;
   progress?: number;
   resumeId?: string;
+  candidateId?: string;
 }
 
 function UploadContent(): React.ReactElement {
@@ -111,24 +112,16 @@ function UploadContent(): React.ReactElement {
         prev.map((f) => (f.id === fileState.id ? { ...f, status: "uploading" } : f))
       );
 
-      console.log("Calling API endpoint...", "/api/v1/resumes/upload");
-
-      const res = await httpClient.post<ResponseEnvelope<{ resumeId: string }>>("/api/v1/resumes/upload", formData);
-      
-      console.log("API response received:", res);
+      const res = await httpClient.post<ResponseEnvelope<{ resumeId: string; candidateId: string }>>("/api/v1/resumes/upload", formData);
       
       const resumeId = res.data?.resumeId;
+      const candidateId = res.data?.candidateId;
 
       setFilesState((prev) =>
         prev.map((f) =>
-          f.id === fileState.id ? { ...f, status: "parsing", resumeId } : f
+          f.id === fileState.id ? { ...f, status: "parsing", resumeId, candidateId } : f
         )
       );
-
-      // Start polling
-      if (resumeId) {
-        pollStatus(fileState.id, resumeId);
-      }
     } catch (err: unknown) {
       console.error("API error:", err);
       const errorMsg = err instanceof Error ? err.message : "Upload failed";
@@ -185,22 +178,58 @@ function UploadContent(): React.ReactElement {
     setIsUploading(false);
   };
 
-  const pollStatus = async (fileId: string, resumeId: string): Promise<void> => {
-    try {
-      const res = await httpClient.get<ResponseEnvelope<{ status: string; parseError?: string }>>(`/api/v1/resumes/${resumeId}/status`);
-      const status = res.data?.status;
+  const filesStateRef = React.useRef(filesState);
+  useEffect(() => {
+    filesStateRef.current = filesState;
+  }, [filesState]);
 
-      if (status === "parsed" || status === "failed") {
-        setFilesState((prev) =>
-          prev.map((f) =>
-            f.id === fileId ? { ...f, status: status as FileUploadState["status"], error: res.data?.parseError } : f
-          )
-        );
-      } else {
-        setTimeout(() => pollStatus(fileId, resumeId), 2000);
-      }
-    } catch (err) {
-      // ignore poll errors
+  useEffect(() => {
+    const intervalId = setInterval(async () => {
+      const currentFiles = filesStateRef.current;
+      const parsingFiles = currentFiles.filter((f) => f.status === "parsing" && f.resumeId);
+      
+      if (parsingFiles.length === 0) return;
+
+      // Poll each parsing file
+      await Promise.allSettled(
+        parsingFiles.map(async (file) => {
+          try {
+            const res = await httpClient.get<
+              ResponseEnvelope<{ status: string; parseError?: string; parseConfidence?: number }>
+            >(`/api/v1/resumes/${file.resumeId}/status`);
+            const status = res.data?.status;
+            
+            if (status === "parsed" || status === "failed") {
+              setFilesState((prev) =>
+                prev.map((f) =>
+                  f.id === file.id
+                    ? { ...f, status: status as FileUploadState["status"], error: res.data?.parseError }
+                    : f
+                )
+              );
+            }
+          } catch (err) {
+            // Transient error - keep polling next time
+          }
+        })
+      );
+    }, 2000);
+
+    return () => clearInterval(intervalId);
+  }, []);
+
+  const retryParse = async (fileState: FileUploadState): Promise<void> => {
+    if (!fileState.resumeId) return;
+    try {
+      setFilesState((prev) =>
+        prev.map((f) => (f.id === fileState.id ? { ...f, status: "parsing", error: undefined } : f))
+      );
+      await httpClient.post(`/api/v1/resumes/${fileState.resumeId}/retry`, {});
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : "Retry failed";
+      setFilesState((prev) =>
+        prev.map((f) => (f.id === fileState.id ? { ...f, status: "failed", error: errorMsg } : f))
+      );
     }
   };
 
@@ -314,29 +343,47 @@ function UploadContent(): React.ReactElement {
                     </div>
                   </div>
 
-                  {f.status === "parsed" && f.resumeId && (
-                    <Link
-                      href={`/candidates/${f.resumeId}`} // Ideally candidateId, but we might not have it here immediately unless we fetch it
-                      style={{ fontSize: "0.875rem", color: "var(--text-primary)", textDecoration: "underline" }}
-                    >
-                      View candidate
-                    </Link>
-                  )}
+                  <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+                    {f.status === "parsed" && f.candidateId && (
+                      <Link
+                        href={`/candidates/${f.candidateId}`}
+                        style={{ fontSize: "0.875rem", color: "var(--text-primary)", textDecoration: "underline" }}
+                      >
+                        View candidate
+                      </Link>
+                    )}
 
-                  {(f.status === "pending" || f.status === "failed") && (
-                    <button
-                      onClick={() => removeFile(f.id)}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        color: "var(--text-secondary)",
-                        cursor: "pointer",
-                        fontSize: "0.875rem",
-                      }}
-                    >
-                      Remove
-                    </button>
-                  )}
+                    {f.status === "failed" && f.resumeId && (
+                      <button
+                        onClick={() => retryParse(f)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "var(--color-primary)",
+                          cursor: "pointer",
+                          fontSize: "0.875rem",
+                          textDecoration: "underline"
+                        }}
+                      >
+                        Retry
+                      </button>
+                    )}
+
+                    {(f.status === "pending" || f.status === "failed") && (
+                      <button
+                        onClick={() => removeFile(f.id)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "var(--text-secondary)",
+                          cursor: "pointer",
+                          fontSize: "0.875rem",
+                        }}
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -356,3 +403,4 @@ export default function ResumeUploadPage(): React.ReactElement {
     </ProtectedRoute>
   );
 }
+

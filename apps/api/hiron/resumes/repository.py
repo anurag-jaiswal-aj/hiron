@@ -161,3 +161,15 @@ class ResumeRepository:
 
         await session.flush()
         return resume
+
+    async def get_resumes_by_candidate_id(
+        self, session: AsyncSession, tenant_id: uuid.UUID, candidate_id: uuid.UUID
+    ) -> list[Resume]:
+        """Get all resumes for a specific candidate."""
+        stmt = (
+            select(Resume)
+            .where(Resume.tenant_id == tenant_id, Resume.candidate_id == candidate_id)
+            .order_by(Resume.created_at.desc())
+        )
+        result = await session.execute(stmt)
+        return list(result.scalars().all())

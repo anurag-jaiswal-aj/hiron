@@ -136,3 +136,21 @@ async def retry_resume_parse(
     )
 
     return ResponseEnvelope(data=result)
+
+@router.get(
+    "/candidate/{candidate_id}",
+    response_model=ResponseEnvelope[list[ResumeStatusResponse]],
+)
+async def get_candidate_resumes(
+    candidate_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    resume_service: Annotated[ResumeService, Depends(get_resume_service)],
+) -> ResponseEnvelope[list[ResumeStatusResponse]]:
+    """Get all resumes for a candidate to display in UI."""
+    result = await resume_service.get_resumes_by_candidate(
+        session=session,
+        tenant_id=current_user.tenant_id,
+        candidate_id=candidate_id,
+    )
+    return ResponseEnvelope(data=result)

@@ -51,12 +51,49 @@ interface JobsListResponse {
 
 type TabType = "profile" | "scores" | "notes" | "tags";
 
+interface ResumeExperience {
+  title?: string;
+  company?: string;
+  start_date?: string;
+  end_date?: string;
+  description?: string;
+}
+
+interface ResumeEducation {
+  degree?: string;
+  institution?: string;
+  start_date?: string;
+  end_date?: string;
+}
+
+interface ParsedData {
+  experience?: ResumeExperience[];
+  education?: ResumeEducation[];
+  skills?: string[];
+  certifications?: string[];
+  languages?: string[];
+  [key: string]: unknown;
+}
+
+interface ResumeStatusResponse {
+  resumeId: string;
+  status: string;
+  parseConfidence?: number;
+  parsedData?: ParsedData;
+  parseError?: string;
+  parserModelVersion?: string;
+  createdAt: string;
+}
+
 function CandidateDetailContent(): React.ReactElement {
   const params = useParams();
   const candidateId = params.id as string;
   const { user } = useAuth();
 
   const [candidate, setCandidate] = useState<CandidateDetail | null>(null);
+  const [resumes, setResumes] = useState<ResumeStatusResponse[]>([]);
+  const [isResumesLoading, setIsResumesLoading] = useState(true);
+  const [isRetrying, setIsRetrying] = useState<Record<string, boolean>>({});
   const [activeTab, setActiveTab] = useState<TabType>("profile");
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -74,6 +111,7 @@ function CandidateDetailContent(): React.ReactElement {
     if (!candidateId) return;
 
     setIsLoading(true);
+    setIsResumesLoading(true);
     setErrorMsg(null);
 
     try {
@@ -82,6 +120,18 @@ function CandidateDetailContent(): React.ReactElement {
         setCandidate(response.data);
       } else {
         setErrorMsg("Candidate not found.");
+      }
+      
+      try {
+        const resumesRes = await httpClient.get<ResponseEnvelope<ResumeStatusResponse[]>>(`/api/v1/resumes/candidate/${candidateId}`);
+        if (resumesRes && resumesRes.data) {
+          setResumes(resumesRes.data);
+        }
+      } catch (err) {
+        // Just log, don't fail the page if resumes fail to load
+        console.error("Failed to load resumes", err);
+      } finally {
+        setIsResumesLoading(false);
       }
     } catch (err) {
       if (err instanceof ApiError) {
@@ -93,6 +143,7 @@ function CandidateDetailContent(): React.ReactElement {
       } else {
         setErrorMsg("Failed to load candidate details. Please check network connection.");
       }
+      setIsResumesLoading(false);
     } finally {
       setIsLoading(false);
     }
@@ -139,6 +190,24 @@ function CandidateDetailContent(): React.ReactElement {
       }
     } finally {
       setIsAddingToJob(false);
+    }
+  };
+
+  const retryResumeParse = async (resumeId: string): Promise<void> => {
+    if (!candidateId) return;
+    setIsRetrying((prev) => ({ ...prev, [resumeId]: true }));
+    try {
+      await httpClient.post(`/api/v1/resumes/${resumeId}/retry`, {});
+      // Refresh to get the new 'processing' state
+      const resumesRes = await httpClient.get<ResponseEnvelope<ResumeStatusResponse[]>>(`/api/v1/resumes/candidate/${candidateId}`);
+      if (resumesRes && resumesRes.data) {
+        setResumes(resumesRes.data);
+      }
+    } catch (err) {
+      console.error("Failed to retry resume parse", err);
+      alert("Failed to retry resume parsing.");
+    } finally {
+      setIsRetrying((prev) => ({ ...prev, [resumeId]: false }));
     }
   };
 
@@ -340,10 +409,124 @@ function CandidateDetailContent(): React.ReactElement {
                     </div>
                   )}
 
-                  <EmptyState
-                    title="Parsed Resume Data"
-                    description="Detailed parsing of work experience, education, and certifications will be available in Phase 6 Resume Parsing."
-                  />
+                  {isResumesLoading ? (
+                    <div style={{ color: "var(--text-muted)", fontSize: "0.875rem" }}>Loading parsed resume data...</div>
+                  ) : resumes.length === 0 ? (
+                    <EmptyState
+                      title="No Resume"
+                      description="This candidate does not have an uploaded resume."
+                    />
+                  ) : (
+                    resumes.map((resume) => (
+                      <div
+                        key={resume.resumeId}
+                        style={{
+                          backgroundColor: "var(--bg-surface)",
+                          border: "1px solid var(--border-subtle)",
+                          borderRadius: "var(--radius-lg)",
+                          padding: "1.75rem",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "1.25rem"
+                        }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
+                            Parsed Resume
+                          </h3>
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                            {resume.status === "parsed" && resume.parseConfidence !== undefined && resume.parseConfidence !== null && (
+                              <Badge variant="active" style={{ backgroundColor: `rgba(40, 200, 100, ${Math.max(0.2, resume.parseConfidence)})` }}>
+                                Confidence: {Math.round(resume.parseConfidence * 100)}%
+                              </Badge>
+                            )}
+                            {resume.status === "failed" && (
+                              <Badge variant="error">Failed</Badge>
+                            )}
+                            {(resume.status === "pending" || resume.status === "processing") && (
+                              <Badge variant="warning">Processing...</Badge>
+                            )}
+                          </div>
+                        </div>
+
+                        {resume.status === "failed" && (
+                          <div style={{ color: "var(--color-danger)", fontSize: "0.875rem" }}>
+                            <p style={{ margin: "0 0 0.5rem 0" }}>{resume.parseError || "Parsing failed."}</p>
+                            {canManageCandidates && (
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => retryResumeParse(resume.resumeId)}
+                                disabled={isRetrying[resume.resumeId]}
+                              >
+                                {isRetrying[resume.resumeId] ? "Retrying..." : "Retry Parse"}
+                              </Button>
+                            )}
+                          </div>
+                        )}
+
+                        {resume.status === "parsed" && resume.parsedData && (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+                            {resume.parsedData.experience && resume.parsedData.experience.length > 0 && (
+                              <div>
+                                <h4 style={{ fontSize: "0.875rem", fontWeight: 600, color: "var(--text-primary)", margin: "0 0 0.75rem 0" }}>Experience</h4>
+                                <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                                  {resume.parsedData.experience.map((exp: ResumeExperience, i: number) => (
+                                    <div key={i} style={{ borderLeft: "2px solid var(--border-subtle)", paddingLeft: "1rem" }}>
+                                      <div style={{ fontSize: "0.875rem", fontWeight: 500, color: "var(--text-primary)" }}>{exp.title}</div>
+                                      <div style={{ fontSize: "0.8125rem", color: "var(--text-secondary)" }}>{exp.company} • {exp.start_date} - {exp.end_date || "Present"}</div>
+                                      {exp.description && <div style={{ fontSize: "0.8125rem", color: "var(--text-tertiary)", marginTop: "0.25rem", whiteSpace: "pre-wrap" }}>{exp.description}</div>}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {resume.parsedData.education && resume.parsedData.education.length > 0 && (
+                              <div>
+                                <h4 style={{ fontSize: "0.875rem", fontWeight: 600, color: "var(--text-primary)", margin: "0 0 0.75rem 0" }}>Education</h4>
+                                <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                                  {resume.parsedData.education.map((edu: ResumeEducation, i: number) => (
+                                    <div key={i} style={{ borderLeft: "2px solid var(--border-subtle)", paddingLeft: "1rem" }}>
+                                      <div style={{ fontSize: "0.875rem", fontWeight: 500, color: "var(--text-primary)" }}>{edu.degree}</div>
+                                      <div style={{ fontSize: "0.8125rem", color: "var(--text-secondary)" }}>{edu.institution}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {resume.parsedData.certifications && resume.parsedData.certifications.length > 0 && (
+                              <div>
+                                <h4 style={{ fontSize: "0.875rem", fontWeight: 600, color: "var(--text-primary)", margin: "0 0 0.75rem 0" }}>Certifications</h4>
+                                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem" }}>
+                                  {resume.parsedData.certifications.map((cert: string, i: number) => (
+                                    <Badge key={i} variant="neutral">{cert}</Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {resume.parsedData.languages && resume.parsedData.languages.length > 0 && (
+                              <div>
+                                <h4 style={{ fontSize: "0.875rem", fontWeight: 600, color: "var(--text-primary)", margin: "0 0 0.75rem 0" }}>Languages</h4>
+                                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem" }}>
+                                  {resume.parsedData.languages.map((lang: string, i: number) => (
+                                    <Badge key={i} variant="neutral">{lang}</Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        
+                        {resume.status === "parsed" && (!resume.parsedData || (Object.keys(resume.parsedData).length === 0)) && (
+                          <div style={{ color: "var(--text-muted)", fontSize: "0.875rem" }}>No parsed data available.</div>
+                        )}
+                      </div>
+                    ))
+                  )}
                 </div>
               )}
 

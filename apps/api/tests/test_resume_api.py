@@ -210,3 +210,39 @@ def test_upload_single_resume_unauthenticated() -> None:
         files=files,
     )
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+def test_get_candidate_resumes_endpoint_success(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    mock_resume_service: AsyncMock,
+) -> None:
+    """Verify GET /api/v1/resumes/candidate/{candidate_id} returns resumes list."""
+    candidate_id = uuid.uuid4()
+    resume_id_1 = uuid.uuid4()
+    resume_id_2 = uuid.uuid4()
+
+    mock_resume_service.get_resumes_by_candidate.return_value = [
+        ResumeStatusResponse(
+            resume_id=resume_id_1,
+            status="parsed",
+            created_at=datetime.now(UTC),
+        ),
+        ResumeStatusResponse(
+            resume_id=resume_id_2,
+            status="failed",
+            created_at=datetime.now(UTC),
+        ),
+    ]
+
+    response = client.get(
+        f"/api/v1/resumes/candidate/{candidate_id}",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    payload = response.json()
+    assert isinstance(payload["data"], list)
+    assert len(payload["data"]) == 2
+    assert payload["data"][0]["resumeId"] == str(resume_id_1)
+    assert payload["data"][1]["resumeId"] == str(resume_id_2)
+
