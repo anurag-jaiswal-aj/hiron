@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import React, { useCallback, useEffect, useState } from "react";
 
 import { AppShell } from "../../components/layout/AppShell";
@@ -135,9 +136,11 @@ function CandidatesListContent(): React.ReactElement {
               <Button type="button" variant="secondary" disabled>
                 Upload
               </Button>
-              <Button type="button" disabled>
-                + Add Candidate
-              </Button>
+              <Link href="/candidates/new" style={{ textDecoration: "none" }}>
+                <Button type="button">
+                  + Add Candidate
+                </Button>
+              </Link>
             </div>
           ) : undefined
         }
@@ -213,7 +216,7 @@ function CandidatesListContent(): React.ReactElement {
             options={[
               { value: "", label: "All Sources" },
               { value: "upload", label: "Upload" },
-              { value: "manual", label: "Manual" },
+              { value: "api", label: "API" },
             ]}
           />
         </div>

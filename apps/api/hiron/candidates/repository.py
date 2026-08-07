@@ -96,7 +96,8 @@ class CandidateRepository:
                 clean_skill = skill.strip()
                 if clean_skill:
                     if session.bind and getattr(session.bind.dialect, "name", None) == "postgresql":
-                        filters.append(Candidate.skills.contains([clean_skill]))
+                        from sqlalchemy.dialects.postgresql import JSONB
+                        filters.append(Candidate.skills.contains(func.cast([clean_skill], JSONB)))
                     else:
                         filters.append(Candidate.skills.cast(func.text).ilike(f"%{clean_skill}%"))
 

@@ -10,6 +10,8 @@ import { ProtectedRoute } from "../../../components/ProtectedRoute";
 import { Badge } from "../../../components/ui/Badge";
 import { Button } from "../../../components/ui/Button";
 import { EmptyState } from "../../../components/ui/EmptyState";
+import { Modal } from "../../../components/ui/Modal";
+import { Select } from "../../../components/ui/Select";
 import { useAuth } from "../../../context/AuthContext";
 import { ApiError, httpClient } from "../../../lib/api";
 
@@ -43,6 +45,10 @@ interface ResponseEnvelope<T> {
   data: T;
 }
 
+interface JobsListResponse {
+  data: { id: string; title: string }[];
+}
+
 type TabType = "profile" | "scores" | "notes" | "tags";
 
 function CandidateDetailContent(): React.ReactElement {
@@ -52,8 +58,15 @@ function CandidateDetailContent(): React.ReactElement {
 
   const [candidate, setCandidate] = useState<CandidateDetail | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>("profile");
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Add to Job Modal State
+  const [isAddJobModalOpen, setIsAddJobModalOpen] = useState(false);
+  const [availableJobs, setAvailableJobs] = useState<{ id: string; title: string }[]>([]);
+  const [selectedJobId, setSelectedJobId] = useState("");
+  const [isAddingToJob, setIsAddingToJob] = useState(false);
+  const [addJobError, setAddJobError] = useState<string | null>(null);
 
   const canManageCandidates = user?.role === "org_admin" || user?.role === "recruiter";
 
@@ -88,6 +101,46 @@ function CandidateDetailContent(): React.ReactElement {
   useEffect(() => {
     fetchCandidate();
   }, [fetchCandidate]);
+
+  const handleOpenAddJobModal = async (): Promise<void> => {
+    setIsAddJobModalOpen(true);
+    setAddJobError(null);
+    setSelectedJobId("");
+    try {
+      const res = await httpClient.get<ResponseEnvelope<JobsListResponse>>("/api/v1/jobs");
+      if (res && res.data && res.data.data) {
+        // filter out jobs the candidate is already in
+        const existingJobIds = new Set(candidate?.jobs.map((j) => j.jobId) || []);
+        setAvailableJobs(res.data.data.filter((j) => !existingJobIds.has(j.id)));
+      }
+    } catch (err) {
+      setAddJobError("Failed to load available jobs.");
+    }
+  };
+
+  const handleAddJobSubmit = async (e: React.FormEvent): Promise<void> => {
+    e.preventDefault();
+    if (!selectedJobId || !candidateId) return;
+
+    setIsAddingToJob(true);
+    setAddJobError(null);
+    try {
+      await httpClient.post(`/api/v1/jobs/${selectedJobId}/candidates`, {
+        candidateId: candidateId,
+      });
+      setIsAddJobModalOpen(false);
+      // Refresh candidate details to show new job
+      fetchCandidate();
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        setAddJobError("Candidate is already associated with this job.");
+      } else {
+        setAddJobError(err instanceof ApiError ? err.message : "Failed to add candidate to job.");
+      }
+    } finally {
+      setIsAddingToJob(false);
+    }
+  };
 
   return (
     <AppShell>
@@ -124,6 +177,9 @@ function CandidateDetailContent(): React.ReactElement {
             actions={
               canManageCandidates ? (
                 <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
+                  <Button type="button" variant="primary" size="sm" onClick={handleOpenAddJobModal}>
+                    Add to Job
+                  </Button>
                   <Button type="button" variant="secondary" size="sm" disabled>
                     Edit Profile
                   </Button>
@@ -316,6 +372,50 @@ function CandidateDetailContent(): React.ReactElement {
           </div>
         </>
       )}
+
+      <Modal
+        isOpen={isAddJobModalOpen}
+        onClose={() => setIsAddJobModalOpen(false)}
+        title="Add to Job"
+      >
+        <form onSubmit={handleAddJobSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          <p style={{ fontSize: "0.875rem", color: "var(--text-secondary)", margin: 0 }}>
+            Select a job to add {candidate?.fullName} to its pipeline. They will be placed in the first stage automatically.
+          </p>
+
+          {addJobError && (
+            <div style={{ color: "var(--text-error)", fontSize: "0.875rem" }}>{addJobError}</div>
+          )}
+
+          <div>
+            <Select
+              id="jobSelect"
+              label="Job"
+              value={selectedJobId}
+              onChange={(e) => setSelectedJobId(e.target.value)}
+              required
+              options={[
+                { value: "", label: "Select a job..." },
+                ...availableJobs.map((job) => ({ value: job.id, label: job.title }))
+              ]}
+            />
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "1rem" }}>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setIsAddJobModalOpen(false)}
+              disabled={isAddingToJob}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" disabled={!selectedJobId || isAddingToJob}>
+              {isAddingToJob ? "Adding..." : "Add Candidate"}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </AppShell>
   );
 }

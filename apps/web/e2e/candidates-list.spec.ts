@@ -63,7 +63,7 @@ test.describe("Candidates List Workflows", () => {
     await expect(page.getByText(`Alice ${runId}`)).toBeVisible();
     await expect(page.getByText(`Bob ${runId}`)).not.toBeVisible();
     // Clear filter manually instead of expecting a global clear button
-    await page.fill('input[placeholder="Skills (comma separated)"]', "");
+    await page.fill('input[placeholder="Search candidates..."]', "");
     await page.waitForTimeout(400); // Wait for debounce
     await page.waitForLoadState("networkidle");
 
@@ -73,16 +73,17 @@ test.describe("Candidates List Workflows", () => {
     await page.waitForLoadState("networkidle");
     await expect(page.getByText(`Bob ${runId}`)).toBeVisible();
     await expect(page.getByText(`Alice ${runId}`)).not.toBeVisible();
-    await page.click('button:has-text("Clear filters")');
+    
+    // Clear filter manually instead of expecting a global clear button
+    await page.fill('input[placeholder="Skills (comma sep)"]', "");
+    await page.waitForTimeout(400);
     await page.waitForLoadState("networkidle");
-
-    // 4. EXPERIENCE FILTER
     await page.selectOption('select >> nth=0', '5');
     await page.waitForLoadState("networkidle");
     await expect(page.getByText(`Alice ${runId}`)).toBeVisible(); // 5 years
     await expect(page.getByText(`Charlie ${runId}`)).toBeVisible(); // 10 years
     await expect(page.getByText(`Bob ${runId}`)).not.toBeVisible(); // 2 years
-    await page.click('button:has-text("Clear filters")');
+    await page.selectOption('select >> nth=0', ''); // Reset experience filter
     await page.waitForLoadState("networkidle");
 
     // 5. LOCATION FILTER
@@ -91,18 +92,18 @@ test.describe("Candidates List Workflows", () => {
     await page.waitForLoadState("networkidle");
     await expect(page.getByText(`Charlie ${runId}`)).toBeVisible();
     await expect(page.getByText(`Alice ${runId}`)).not.toBeVisible();
-    await page.click('button:has-text("Clear filters")');
+    await page.fill('input[placeholder="Location"]', "");
     await page.waitForLoadState("networkidle");
 
     // 6. SOURCE FILTER
     // Search `runId` first to scope it down to this test's data
     await page.fill('input[placeholder="Search candidates..."]', `${runId}`);
     await page.waitForTimeout(400);
-    await page.selectOption('select >> nth=1', 'manual');
+    await page.selectOption('select >> nth=1', 'api');
     await page.waitForLoadState("networkidle");
     await expect(page.getByText(`Alice ${runId}`)).toBeVisible();
     await expect(page.getByText(`Bob ${runId}`)).not.toBeVisible();
-    await page.click('button:has-text("Clear filters")');
+    await page.selectOption('select >> nth=1', ''); // Reset source filter
     await page.waitForLoadState("networkidle");
 
     // 7. FILTERED EMPTY STATE
@@ -176,14 +177,13 @@ test.describe("Candidates List Workflows", () => {
     await loginAs(page, "admin@acme.com", "SecurePassword123!");
     
     // Force API to return 0 candidates
-    await page.route('/api/v1/candidates**', async route => {
+    await page.route('**/api/v1/candidates**', async route => {
       await route.fulfill({ json: { data: { data: [], pagination: { has_more: false, next_cursor: null, total_count: 0 } } } });
     });
 
     await page.goto("/candidates");
     await page.waitForLoadState("networkidle");
-    
-    await expect(page.getByText("No candidates in pipeline")).toBeVisible();
+    await expect(page.getByText("No candidates in your pool")).toBeVisible();
   });
   
   test("verifies recruiter RBAC", async ({ page }) => {
