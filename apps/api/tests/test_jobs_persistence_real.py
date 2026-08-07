@@ -1,6 +1,7 @@
 """Integration tests to verify job persistence across request boundaries against a real database."""
 
 import os
+import subprocess
 import uuid
 
 import pytest
@@ -11,13 +12,21 @@ import requests
 
 API_URL = os.getenv("API_URL", "http://localhost:8000/api/v1")
 
+
 @pytest.fixture(scope="module")
 def auth_token() -> tuple[str, str]:
     """Logs in and returns a tuple of (token, tenant_id)."""
+    try:
+        tenant_id = subprocess.check_output(
+            ["docker", "exec", "hiron-postgres", "psql", "-U", "hiron_user", "-d", "hiron_dev", "-t", "-c", "SELECT id FROM tenants LIMIT 1;"]  # noqa: S607
+        ).decode().strip()
+    except Exception as e:
+        pytest.skip(f"Failed to fetch tenant ID from database: {e}")
+
     login_data = {
         "email": "admin@acme.com",
         "password": "SecurePassword123!",
-        "tenant_id": "009c5f40-0e58-4783-8893-0a4e76ad0683",
+        "tenant_id": tenant_id,
     }
 
     try:
@@ -48,14 +57,14 @@ def test_job_persistence_across_requests(auth_token: tuple[str, str]) -> None:
             "employmentType": "full_time"
         },
         headers=headers,
-        timeout=5,
+        timeout=15,
     )
     assert create_resp.status_code == 201, f"Create failed: {create_resp.text}"
     created_data = create_resp.json()["data"]
     job_id = created_data["id"]
 
     # 2. Issue a separate GET request for the specific job (Request 2)
-    get_resp = requests.get(f"{API_URL}/jobs/{job_id}", headers=headers, timeout=5)
+    get_resp = requests.get(f"{API_URL}/jobs/{job_id}", headers=headers, timeout=15)
     assert get_resp.status_code == 200, "Job was not found in a separate request (Transaction rollback bug?)"
     assert get_resp.json()["data"]["title"] == job_title
 

@@ -178,6 +178,7 @@ class CandidateService:
             tenant_id=str(tenant_id),
             action="candidate_created",
         )
+        await session.commit()
         return created_candidate
 
     async def get_candidate_by_id(
@@ -350,6 +351,7 @@ class CandidateService:
             tenant_id=str(tenant_id),
             action="candidate_updated",
         )
+        await session.commit()
         return updated_candidate
 
     async def archive_candidate(
@@ -373,6 +375,7 @@ class CandidateService:
             tenant_id=str(tenant_id),
             action="candidate_archived",
         )
+        await session.commit()
         return archived
 
     async def add_candidate_to_job(
@@ -427,4 +430,5 @@ class CandidateService:
             tenant_id=str(tenant_id),
             action="candidate_added_to_job",
         )
+        await session.commit()
         return result

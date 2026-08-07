@@ -1,6 +1,5 @@
 """Candidate repository responsible ONLY for database persistence per Engineering Guidelines §6."""
 
-import json
 import uuid
 from collections.abc import Sequence
 from typing import Any
@@ -96,8 +95,8 @@ class CandidateRepository:
             for skill in skills:
                 clean_skill = skill.strip()
                 if clean_skill:
-                    if session.bind and session.bind.dialect.name == "postgresql":
-                        filters.append(Candidate.skills.op("@>")(json.dumps([clean_skill])))
+                    if session.bind and getattr(session.bind.dialect, "name", None) == "postgresql":
+                        filters.append(Candidate.skills.contains([clean_skill]))
                     else:
                         filters.append(Candidate.skills.cast(func.text).ilike(f"%{clean_skill}%"))
 

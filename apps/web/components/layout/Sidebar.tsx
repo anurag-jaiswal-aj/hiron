@@ -13,6 +13,7 @@ export function Sidebar(): React.ReactElement {
   const navItems = [
     { label: "Overview", href: "/" },
     { label: "Jobs", href: "/jobs" },
+    { label: "Candidates", href: "/candidates" },
     { label: "Team", href: "/users" },
   ];
 
