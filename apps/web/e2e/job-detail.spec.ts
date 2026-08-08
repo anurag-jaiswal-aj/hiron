@@ -56,9 +56,38 @@ test.describe("Job Detail Workflows", () => {
     await page.click('button:has-text("Candidates")');
     await expect(page.getByRole("heading", { name: "Candidate Pool" })).toBeVisible();
 
+    // Mock the pipeline API to return at least one candidate so the Scores tab renders the list instead of EmptyState
+    await page.route(`**/api/v1/jobs/*/pipeline`, async (route) => {
+      await route.fulfill({
+        status: 200,
+        json: {
+          data: [
+            {
+              stageId: "applied",
+              stageName: "Applied",
+              position: 0,
+              candidateCount: 1,
+              candidates: [
+                {
+                  candidateId: "cand-1",
+                  jobCandidateId: "jc-1",
+                  fullName: "Jane Smith",
+                  currentTitle: "Backend Developer",
+                  fitScore: 92,
+                  confidence: 0.85,
+                  isShortlisted: false,
+                  appliedAt: new Date().toISOString()
+                }
+              ]
+            }
+          ]
+        }
+      });
+    });
+
     // Test Tab Switching to Scores
     await page.click('button:has-text("Scores")');
-    await expect(page.getByRole("heading", { name: "AI Fit Score Rankings" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Candidate AI Fit Scores" })).toBeVisible();
   });
 
   test("handles nonexistent job ID gracefully with error state", async ({ page }) => {
