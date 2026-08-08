@@ -417,3 +417,117 @@ test.describe("Responsive Scoring UI — 390px", () => {
     expect(scrollWidth).toBeLessThanOrEqual(clientWidth + 2); // 2px tolerance
   });
 });
+
+test.describe("Phase 8 Checkpoint 3: Batch Scoring", () => {
+  const jobId = "00000000-0000-0000-0000-000000000001";
+  
+  const setupBatchMocks = async (page: any, role: string) => {
+    await page.route("**/api/v1/auth/me", async (route: any) => {
+      await route.fulfill({ status: 200, json: { data: { id: "user-1", email: `${role}@acme.com`, role: role, tenantId: "tenant-1" } } });
+    });
+
+    await page.route(`**/api/v1/jobs/${jobId}`, async (route: any) => {
+      await route.fulfill({
+        status: 200,
+        json: { 
+          data: { 
+            id: jobId, 
+            title: "Senior Developer", 
+            description: "Some description",
+            candidateCount: 2,
+            status: "open", 
+            createdAt: new Date().toISOString() 
+          } 
+        },
+      });
+    });
+
+    await page.route(`**/api/v1/embeddings/jobs/${jobId}`, async (route: any) => {
+      await route.fulfill({
+        status: 200,
+        json: { data: { status: "current", modelVersion: "v1" } },
+      });
+    });
+
+    await page.route(`**/api/v1/jobs/${jobId}/pipeline`, async (route: any) => {
+      await route.fulfill({
+        status: 200,
+        json: {
+          data: [
+            {
+              stageId: "stage-1",
+              stageName: "Applied",
+              position: 1,
+              candidateCount: 2,
+              candidates: [
+                { candidateId: "cand-1", jobCandidateId: "jc-1", fullName: "Alice", isShortlisted: false, appliedAt: new Date().toISOString(), fitScore: null, confidence: null },
+                { candidateId: "cand-2", jobCandidateId: "jc-2", fullName: "Bob", isShortlisted: false, appliedAt: new Date().toISOString(), fitScore: null, confidence: null }
+              ]
+            }
+          ]
+        }
+      });
+    });
+  };
+
+  test("1. Score All Candidates visible to recruiter and runs successfully", async ({ page }) => {
+    page.on("console", (msg) => {
+      if (msg.type() === "error") {
+        console.error(`PAGE ERROR: ${msg.text()}`);
+      }
+    });
+    await setupBatchMocks(page, "recruiter");
+    
+    // Mock the batch trigger
+    const taskId = `batch-tenant-1-12345`;
+    await page.route(`**/api/v1/jobs/${jobId}/score-batch`, async (route: any) => {
+      await route.fulfill({ status: 202, json: { data: { taskId, candidatesQueued: 2, estimatedCompletionSeconds: 10, statusUrl: `/api/v1/tasks/${taskId}` } } });
+    });
+
+    // Mock the task polling
+    let pollCount = 0;
+    await page.route(`**/api/v1/tasks/${taskId}`, async (route: any) => {
+      pollCount++;
+      if (pollCount === 1) {
+        await route.fulfill({ status: 200, json: { data: { taskId, status: "progress", progress: { current: 1, total: 2, percent: 50.0 } } } });
+      } else {
+        await route.fulfill({ status: 200, json: { data: { taskId, status: "completed", progress: { current: 2, total: 2, percent: 100.0 } } } });
+      }
+    });
+
+    await loginAs(page, "recruiter@acme.com", "SecurePassword123!");
+    await page.goto(`/jobs/${jobId}`);
+    
+    await page.getByRole("button", { name: "Scores" }).click();
+    
+    // Expect Alice and Bob
+    await expect(page.getByText("Alice")).toBeVisible({ timeout: 2000 });
+    await expect(page.getByText("Bob")).toBeVisible();
+    
+    // Trigger Score All
+    const scoreAllBtn = page.getByRole("button", { name: "Score All Candidates" });
+    await expect(scoreAllBtn).toBeVisible();
+    await scoreAllBtn.click();
+    
+    // Check progress UI
+    await expect(page.getByText("Scoring Candidates...")).toBeVisible();
+    await expect(page.getByText("1 of 2")).toBeVisible();
+    
+    // Wait for completion and refresh
+    // The test naturally succeeds if it doesn't timeout here, since the second poll will complete it
+    await expect(page.getByText("Scoring Candidates...")).not.toBeVisible();
+    await expect(page.getByRole("button", { name: "Score All Candidates" })).toBeVisible();
+  });
+
+  test("2. Score All Candidates hidden for hiring manager", async ({ page }) => {
+    await setupBatchMocks(page, "manager");
+    
+    await loginAs(page, "manager@acme.com", "SecurePassword123!");
+    await page.goto(`/jobs/${jobId}`);
+    
+    await page.getByRole("button", { name: "Scores" }).click();
+    
+    await expect(page.getByText("Alice")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Score All Candidates" })).not.toBeVisible();
+  });
+});
