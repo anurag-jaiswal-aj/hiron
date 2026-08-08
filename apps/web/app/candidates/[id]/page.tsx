@@ -15,6 +15,7 @@ import { Select } from "../../../components/ui/Select";
 import { useAuth } from "../../../context/AuthContext";
 import { ApiError, httpClient } from "../../../lib/api";
 import { EmbeddingStatusBadge } from "../../../components/embeddings/EmbeddingStatusBadge";
+import { CandidateJobScoreCard } from "../../../components/scoring/CandidateJobScoreCard";
 
 export interface CandidateAssociatedJob {
   jobId: string;
@@ -536,10 +537,23 @@ function CandidateDetailContent(): React.ReactElement {
 
               {/* Placeholders for deferred tabs */}
               {activeTab === "scores" && (
-                <EmptyState
-                  title="Candidate Scores"
-                  description="Automated candidate fit score rankings across associated jobs will be available in Phase 8 Automated Scoring."
-                />
+                <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+                  {candidate.jobs && candidate.jobs.length > 0 ? (
+                    candidate.jobs.map((job) => (
+                      <CandidateJobScoreCard 
+                        key={job.jobId} 
+                        candidateId={candidate.id} 
+                        jobId={job.jobId} 
+                        jobTitle={job.jobTitle} 
+                      />
+                    ))
+                  ) : (
+                    <EmptyState
+                      title="No Jobs"
+                      description="Add this candidate to a job to generate a fit score."
+                    />
+                  )}
+                </div>
               )}
 
               {activeTab === "notes" && (
