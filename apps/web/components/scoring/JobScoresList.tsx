@@ -8,7 +8,6 @@ import { scoresApi, TaskStatusData } from "../../lib/scores-api";
 import { Button } from "../ui/Button";
 import { EmptyState } from "../ui/EmptyState";
 import { Badge } from "../ui/Badge";
-import { CandidateJobScoreCard } from "./CandidateJobScoreCard";
 
 interface KanbanCandidateCard {
   candidateId: string;
@@ -41,7 +40,7 @@ export function JobScoresList({ jobId }: JobScoresListProps): React.ReactElement
 
   // Batch scoring state
   const [isBatchScoring, setIsBatchScoring] = useState(false);
-  const [batchTaskId, setBatchTaskId] = useState<string | null>(null);
+  const [_batchTaskId, setBatchTaskId] = useState<string | null>(null);
   const [batchProgress, setBatchProgress] = useState<TaskStatusData | null>(null);
 
   const pollingTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -70,7 +69,7 @@ export function JobScoresList({ jobId }: JobScoresListProps): React.ReactElement
         });
         setCandidates(allCandidates);
       }
-    } catch (err: any) {
+    } catch (_err: unknown) {
       setErrorMsg("Failed to load candidates for scoring.");
     } finally {
       setIsLoading(false);
@@ -115,9 +114,9 @@ export function JobScoresList({ jobId }: JobScoresListProps): React.ReactElement
       setBatchTaskId(null);
       setErrorMsg("Failed to fetch batch scoring progress.");
     }
-  }, [fetchCandidates]);
+  }, [fetchCandidates, MAX_POLLING_TIME]);
 
-  const handleScoreAll = async () => {
+  const handleScoreAll = async (): Promise<void> => {
     if (isBatchScoring) return;
     setIsBatchScoring(true);
     setErrorMsg(null);
@@ -133,9 +132,9 @@ export function JobScoresList({ jobId }: JobScoresListProps): React.ReactElement
         setIsBatchScoring(false);
         setErrorMsg("Failed to start batch scoring.");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setIsBatchScoring(false);
-      setErrorMsg(err.message || "Failed to start batch scoring.");
+      setErrorMsg((err as Error).message || "Failed to start batch scoring.");
     }
   };
 
