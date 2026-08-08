@@ -43,8 +43,6 @@ export const searchApi = {
    * Search candidates using semantic search via pgvector.
    */
   async searchCandidates(request: SearchCandidatesRequest): Promise<SemanticSearchCandidatesResponse> {
-    return httpClient.post<SemanticSearchCandidatesResponse>("/api/v1/search/candidates", {
-      body: request,
-    });
+    return httpClient.post<SemanticSearchCandidatesResponse>("/api/v1/search/candidates", request);
   },
 };
