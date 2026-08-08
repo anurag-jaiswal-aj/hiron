@@ -54,6 +54,26 @@ export interface ScoreExplanationData {
   confidenceFactors: ConfidenceFactorsData;
 }
 
+export interface BatchScoreData {
+  taskId: string;
+  candidatesQueued: number;
+  estimatedCompletionSeconds: number;
+  statusUrl: string;
+}
+
+export interface TaskProgress {
+  current: number;
+  total: number;
+  percent: number;
+}
+
+export interface TaskStatusData {
+  taskId: string;
+  status: "pending" | "progress" | "completed" | "failed";
+  progress?: TaskProgress;
+  createdAt?: string;
+}
+
 export const scoresApi = {
   /**
    * Fetch current active score for candidate-job pair.
@@ -70,10 +90,12 @@ export const scoresApi = {
   },
 
   /**
-   * Get all historical scores for a candidate-job pair.
+   * Trigger batch AI scoring for all unscored candidates for a job.
    */
-  getScoreHistory: (jobId: string, candidateId: string): Promise<ResponseEnvelope<ScoreHistoryItem[]>> => {
-    return httpClient.get<ResponseEnvelope<ScoreHistoryItem[]>>(`/api/v1/jobs/${jobId}/candidates/${candidateId}/scores/history`);
+  scoreBatch: (jobId: string, forceRescore = false): Promise<ResponseEnvelope<BatchScoreData>> => {
+    return httpClient.post<ResponseEnvelope<BatchScoreData>>(`/api/v1/jobs/${jobId}/score-batch`, {
+      forceRescore,
+    });
   },
 
   /**
@@ -82,4 +104,19 @@ export const scoresApi = {
   getScoreExplanation: (scoreId: string): Promise<ResponseEnvelope<ScoreExplanationData>> => {
     return httpClient.get<ResponseEnvelope<ScoreExplanationData>>(`/api/v1/scores/${scoreId}/explanation`);
   },
+
+  /**
+   * Get all historical scores for a candidate-job pair.
+   */
+  getScoreHistory: (jobId: string, candidateId: string): Promise<ResponseEnvelope<ScoreHistoryItem[]>> => {
+    return httpClient.get<ResponseEnvelope<ScoreHistoryItem[]>>(`/api/v1/jobs/${jobId}/candidates/${candidateId}/scores/history`);
+  },
+
+  /**
+   * Poll for completion status of async background task.
+   */
+  getTaskStatus: (taskId: string): Promise<ResponseEnvelope<TaskStatusData>> => {
+    return httpClient.get<ResponseEnvelope<TaskStatusData>>(`/api/v1/tasks/${taskId}`);
+  },
 };
+

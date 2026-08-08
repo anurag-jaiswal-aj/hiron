@@ -99,6 +99,9 @@ def create_app() -> FastAPI:
     app.include_router(security_router, prefix="/api/v1", tags=["Security & Hardening"])
     app.include_router(maintenance_router, prefix="/api/v1", tags=["Maintenance"])
 
+    from hiron.tasks.router import router as tasks_router
+    app.include_router(tasks_router, prefix="/api/v1/tasks", tags=["Tasks"])
+
     return app
 
 

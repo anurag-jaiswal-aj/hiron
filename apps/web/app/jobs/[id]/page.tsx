@@ -15,6 +15,7 @@ import { Modal } from "../../../components/ui/Modal";
 import { useAuth } from "../../../context/AuthContext";
 import { ApiError, httpClient } from "../../../lib/api";
 import { EmbeddingStatusBadge } from "../../../components/embeddings/EmbeddingStatusBadge";
+import { JobScoresList } from "../../../components/scoring/JobScoresList";
 
 export interface PipelineStage {
   id: string;
@@ -496,10 +497,7 @@ function JobDetailContent(): React.ReactElement {
           )}
 
           {activeTab === "scores" && (
-            <EmptyState
-              title="AI Fit Score Rankings"
-              description="Automated candidate fit score rankings for this job will be available in Phase 8 Automated Scoring."
-            />
+            <JobScoresList jobId={jobId} />
           )}
 
           {/* Archive Confirmation Modal */}

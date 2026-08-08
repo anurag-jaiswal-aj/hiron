@@ -213,9 +213,21 @@ class ScoreService:
             )
             target_ids = [jc.candidate_id for jc in job_candidates]
 
-        task_id = f"task-{uuid.uuid4()}"
         queued_count = len(target_ids)
         estimated_sec = max(5, queued_count * 5)
+
+        from hiron.scores.tasks import execute_batch_scoring
+
+        task_id = f"batch-{tenant_id}-{uuid.uuid4()}"
+        execute_batch_scoring.apply_async(
+            kwargs={
+                "tenant_id": str(tenant_id),
+                "job_id": str(job_id),
+                "candidate_ids": [str(cid) for cid in target_ids],
+                "force_rescore": force_rescore,
+            },
+            task_id=task_id,
+        )
 
         logger.info(
             "Enqueued batch candidate scoring",

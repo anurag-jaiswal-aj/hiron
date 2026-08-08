@@ -13,6 +13,7 @@ celery_app = Celery(
     include=[
         "hiron.resumes.tasks",
         "hiron.embeddings.tasks",
+        "hiron.scores.tasks",
     ],
 )
 
