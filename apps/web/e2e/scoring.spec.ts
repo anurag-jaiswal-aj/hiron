@@ -52,7 +52,24 @@ test.describe("Phase 8 Checkpoint 1: Basic AI Scoring UI", () => {
           await route.fulfill({
             status: 200,
             json: {
-              data: { id: "score-1", fitScore: 85, confidence: 0.9, breakdown: {}, explanation: "Good fit", skillsMatched: [], skillsMissing: [], warnings: [], promptVersion: "1", modelVersion: "1", isCurrent: true, createdAt: new Date().toISOString() },
+              data: {
+                id: "score-1",
+                fitScore: 85,
+                confidence: 0.9,
+                breakdown: {
+                  skills: { score: 80, weight: 0.4, details: "80% skills match" },
+                  experience: { score: 90, weight: 0.3, details: "90% experience match" },
+                  education: { score: 85, weight: 0.3, details: "85% education match" }
+                },
+                explanation: "Good fit overall.",
+                skillsMatched: ["Python"],
+                skillsMissing: ["Docker"],
+                warnings: [],
+                promptVersion: "1.0",
+                modelVersion: "1.0",
+                isCurrent: true,
+                createdAt: new Date().toISOString()
+              },
             },
           });
         } else {
@@ -65,6 +82,47 @@ test.describe("Phase 8 Checkpoint 1: Basic AI Scoring UI", () => {
         await route.fallback();
       }
     });
+
+    // Mock history and explanation
+    await page.route(`**/api/v1/jobs/${jobId}/candidates/${candidateId}/scores/history`, async (route: any) => {
+      if (hasScore) {
+        await route.fulfill({
+          status: 200,
+          json: {
+            data: [
+              { id: "score-1", fitScore: 85, promptVersion: "1.0", isCurrent: true, createdAt: new Date().toISOString() },
+              { id: "score-0", fitScore: 70, promptVersion: "0.9", isCurrent: false, createdAt: new Date(Date.now() - 86400000).toISOString() }
+            ]
+          }
+        });
+      } else {
+        await route.fulfill({ status: 200, json: { data: [] } });
+      }
+    });
+
+    await page.route(`**/api/v1/scores/score-1/explanation`, async (route: any) => {
+      await route.fulfill({
+        status: 200,
+        json: {
+          data: {
+            scoreId: "score-1",
+            fitScore: 85,
+            explanation: "Detailed explanation text here.",
+            breakdown: {},
+            skillsMatched: ["Python"],
+            skillsMissing: ["Docker"],
+            warnings: ["Low confidence due to missing context"],
+            confidence: 0.9,
+            confidenceFactors: {
+              resumeCompleteness: 0.9,
+              outputConsistency: 0.95,
+              explanationQuality: 0.85,
+              sanityCheckPassed: true
+            }
+          }
+        }
+      });
+    });
   };
 
   test("1. Candidate with no score: Score Now visible and works", async ({ page }) => {
@@ -76,7 +134,24 @@ test.describe("Phase 8 Checkpoint 1: Basic AI Scoring UI", () => {
         await route.fulfill({
           status: 200,
           json: {
-            data: { id: "score-1", fitScore: 92, confidence: 0.9, breakdown: {}, explanation: "Great fit", skillsMatched: [], skillsMissing: [], warnings: [], promptVersion: "1", modelVersion: "1", isCurrent: true, createdAt: new Date().toISOString() },
+            data: {
+              id: "score-1",
+              fitScore: 92,
+              confidence: 0.9,
+              breakdown: {
+                skills: { score: 92, weight: 0.4, details: "92% skills match" },
+                experience: { score: 92, weight: 0.3, details: "92% experience match" },
+                education: { score: 92, weight: 0.3, details: "92% education match" }
+              },
+              explanation: "Great fit",
+              skillsMatched: [],
+              skillsMissing: [],
+              warnings: [],
+              promptVersion: "1",
+              modelVersion: "1",
+              isCurrent: true,
+              createdAt: new Date().toISOString()
+            },
           },
         });
       } else {
@@ -86,9 +161,9 @@ test.describe("Phase 8 Checkpoint 1: Basic AI Scoring UI", () => {
 
     await loginAs(page, "recruiter@acme.com", "SecurePassword123!");
     await page.goto(`/candidates/${candidateId}`);
-    
+
     await page.getByRole("button", { name: "Scores" }).click();
-    
+
     // Check "Score Now" is visible and "Not Scored" badge
     await expect(page.getByText("Not Scored")).toBeVisible();
     const scoreNowBtn = page.getByRole("button", { name: "Score Now" });
@@ -96,13 +171,13 @@ test.describe("Phase 8 Checkpoint 1: Basic AI Scoring UI", () => {
 
     // Click Score Now
     await scoreNowBtn.click();
-    
+
     // Should show Loading state
     await expect(page.getByRole("button", { name: "Scoring..." })).toBeVisible();
     await expect(page.getByText("Not Scored")).toBeVisible();
-    
+
     // After delay, should show score
-    await expect(page.getByText("92/100")).toBeVisible();
+    await expect(page.getByText("92/100").first()).toBeVisible();
     await expect(page.getByRole("button", { name: "Re-score" })).toBeVisible();
   });
 
@@ -113,7 +188,7 @@ test.describe("Phase 8 Checkpoint 1: Basic AI Scoring UI", () => {
     await page.goto(`/candidates/${candidateId}`);
     await page.getByRole("button", { name: "Scores" }).click();
 
-    await expect(page.getByText("85/100")).toBeVisible();
+    await expect(page.getByText("85/100").first()).toBeVisible();
     await expect(page.getByRole("button", { name: "Re-score" })).toBeVisible();
   });
 
@@ -124,7 +199,7 @@ test.describe("Phase 8 Checkpoint 1: Basic AI Scoring UI", () => {
     await page.goto(`/candidates/${candidateId}`);
     await page.getByRole("button", { name: "Scores" }).click();
 
-    await expect(page.getByText("85/100")).toBeVisible();
+    await expect(page.getByText("85/100").first()).toBeVisible();
     await expect(page.getByRole("button", { name: "Re-score" })).not.toBeVisible();
     await expect(page.getByRole("button", { name: "Score Now" })).not.toBeVisible();
   });
@@ -145,7 +220,24 @@ test.describe("Phase 8 Checkpoint 1: Basic AI Scoring UI", () => {
         await route.fulfill({
           status: 200,
           json: {
-            data: { id: "score-1", fitScore: 92, confidence: 0.9, breakdown: {}, explanation: "Great fit", skillsMatched: [], skillsMissing: [], warnings: [], promptVersion: "1", modelVersion: "1", isCurrent: true, createdAt: new Date().toISOString() },
+            data: {
+              id: "score-1",
+              fitScore: 92,
+              confidence: 0.9,
+              breakdown: {
+                skills: { score: 92, weight: 0.4, details: "92% skills match" },
+                experience: { score: 92, weight: 0.3, details: "92% experience match" },
+                education: { score: 92, weight: 0.3, details: "92% education match" }
+              },
+              explanation: "Great fit",
+              skillsMatched: [],
+              skillsMissing: [],
+              warnings: [],
+              promptVersion: "1",
+              modelVersion: "1",
+              isCurrent: true,
+              createdAt: new Date().toISOString()
+            },
           },
         });
       } else {
@@ -155,13 +247,13 @@ test.describe("Phase 8 Checkpoint 1: Basic AI Scoring UI", () => {
 
     await loginAs(page, "recruiter@acme.com", "SecurePassword123!");
     await page.goto(`/candidates/${candidateId}`);
-    
+
     await page.getByRole("button", { name: "Scores" }).click();
-    
+
     // Click Score Now
     const scoreNowBtn = page.getByRole("button", { name: "Score Now" });
     await scoreNowBtn.click();
-    
+
     // Should show Loading state
     const scoringBtn = page.getByRole("button", { name: "Scoring..." });
     await expect(scoringBtn).toBeVisible();
@@ -170,13 +262,13 @@ test.describe("Phase 8 Checkpoint 1: Basic AI Scoring UI", () => {
     // Playwright won't let you click a disabled button normally, so we force click it
     await scoringBtn.click({ force: true });
     await scoringBtn.click({ force: true });
-    
+
     // Resolve the request
     finishRequest!();
-    
+
     // After delay, should show score
-    await expect(page.getByText("92/100")).toBeVisible();
-    
+    await expect(page.getByText("92/100").first()).toBeVisible();
+
     // Verify only one POST request was sent
     expect(postRequestCount).toBe(1);
   });
@@ -197,22 +289,97 @@ test.describe("Phase 8 Checkpoint 1: Basic AI Scoring UI", () => {
 
     await loginAs(page, "recruiter@acme.com", "SecurePassword123!");
     await page.goto(`/candidates/${candidateId}`);
-    
+
     await page.getByRole("button", { name: "Scores" }).click();
-    
+
     await page.getByRole("button", { name: "Score Now" }).click();
-    
+
     await expect(page.getByText("Error: AI Scoring Failed")).toBeVisible();
+  });
+
+  test("6. Detailed scoring UI renders successfully", async ({ page }) => {
+    await setupMocks(page, true, "recruiter");
+
+    await loginAs(page, "recruiter@acme.com", "SecurePassword123!");
+    await page.goto(`/candidates/${candidateId}`);
+
+    await page.getByRole("button", { name: "Scores" }).click();
+
+    // Check Score Breakdown
+    await expect(page.getByText("Score Breakdown")).toBeVisible();
+    await expect(page.getByText("80/100")).toBeVisible();
+    await expect(page.getByText("80% skills match")).toBeVisible();
+
+    // Check Skills Analysis
+    await expect(page.getByText("Skills Analysis")).toBeVisible();
+    await expect(page.getByText("Matched Skills (1)")).toBeVisible();
+    await expect(page.getByText("Python")).toBeVisible();
+    await expect(page.getByText("Missing Skills (1)")).toBeVisible();
+    await expect(page.getByText("Docker")).toBeVisible();
+
+    // Check Score Explanation
+    await expect(page.getByText("AI Evaluation")).toBeVisible();
+    await expect(page.getByText("Detailed explanation text here.")).toBeVisible();
+    await expect(page.getByText("Review Warnings")).toBeVisible();
+    await expect(page.getByText("Low confidence due to missing context")).toBeVisible();
+    await expect(page.getByText("Confidence Factors")).toBeVisible();
+
+    // Check Score History
+    await expect(page.getByText("Score History")).toBeVisible();
+    await expect(page.getByText("70/100")).toBeVisible();
+    await expect(page.getByText("Superseded")).toBeVisible();
+  });
+
+  test("7. Explanation API failure handles gracefully", async ({ page }) => {
+    await setupMocks(page, true, "recruiter");
+
+    // Override the explanation mock to fail
+    await page.route(`**/api/v1/scores/score-1/explanation`, async (route: any) => {
+      await route.fulfill({
+        status: 500,
+        json: { error: { message: "Internal Error" } }
+      });
+    });
+
+    await loginAs(page, "recruiter@acme.com", "SecurePassword123!");
+    await page.goto(`/candidates/${candidateId}`);
+
+    await page.getByRole("button", { name: "Scores" }).click();
+
+    // Check that the error is caught
+    await expect(page.getByText("Explanation Error")).toBeVisible();
+    await expect(page.getByText("Failed to load the AI explanation.")).toBeVisible();
+  });
+
+  test("8. History API failure handles gracefully", async ({ page }) => {
+    await setupMocks(page, true, "recruiter");
+
+    // Override the history mock to fail
+    await page.route(`**/api/v1/jobs/${jobId}/candidates/${candidateId}/scores/history`, async (route: any) => {
+      await route.fulfill({
+        status: 500,
+        json: { error: { message: "Internal Error" } }
+      });
+    });
+
+    await loginAs(page, "recruiter@acme.com", "SecurePassword123!");
+    await page.goto(`/candidates/${candidateId}`);
+
+    await page.getByRole("button", { name: "Scores" }).click();
+
+    // Check that the error is caught
+    await expect(page.getByText("History Error")).toBeVisible();
+    await expect(page.getByText("Failed to load score history.")).toBeVisible();
   });
 });
 
 test.describe("Responsive Scoring UI — 390px", () => {
   test.use({ viewport: { width: 390, height: 844 } });
-  
+
   test("6. No horizontal overflow", async ({ page }) => {
     const jobId = "00000000-0000-0000-0000-000000000001";
     const candidateId = "11111111-1111-1111-1111-111111111111";
-    
+
     await page.route("**/api/v1/auth/me", async (route: any) => {
       await route.fulfill({ status: 200, json: { data: { id: "user-1", email: "admin@acme.com", role: "org_admin", tenantId: "tenant-1" } } });
     });
