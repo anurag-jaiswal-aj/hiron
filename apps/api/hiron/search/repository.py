@@ -4,7 +4,10 @@ import math
 import uuid
 from typing import Any
 
-from sqlalchemy import or_, select
+from sqlalchemy import literal, or_, select, text
+
+# Configure pgvector types for SQLAlchemy
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hiron.candidates.models import Candidate
@@ -35,7 +38,7 @@ class SearchRepository:
         similarity = dot_product / (norm_a * norm_b)
         return max(0.0, min(1.0, round(float(similarity), 4)))
 
-    async def search_candidates_by_vector_and_filters(
+    async def search_candidates_by_vector_and_filters(  # noqa: C901
         self,
         session: AsyncSession,
         tenant_id: uuid.UUID,
@@ -44,8 +47,17 @@ class SearchRepository:
         limit: int = 20,
     ) -> list[tuple[Candidate, float]]:
         """Query candidates with pgvector similarity search and hybrid metadata filter clauses."""
+
+        # Determine sorting/similarity behavior
+        if query_vector is not None:
+            similarity = (1 - CandidateEmbedding.embedding.cosine_distance(query_vector)).label("similarity")
+            order_clause = CandidateEmbedding.embedding.cosine_distance(query_vector)
+        else:
+            similarity = text("0.5 AS similarity")
+            order_clause = Candidate.created_at.desc()
+
         stmt = (
-            select(Candidate, CandidateEmbedding)
+            select(Candidate, similarity)
             .outerjoin(
                 CandidateEmbedding,
                 (Candidate.id == CandidateEmbedding.candidate_id)
@@ -76,27 +88,26 @@ class SearchRepository:
                         Candidate.current_company.ilike(q_term),
                     )
                 )
+            if filters.skills:
+                # Use PostgreSQL JSONB array containment
+                stmt = stmt.where(Candidate.skills.contains(literal(filters.skills, type_=JSONB)))
+
+        # Enforce ordering and limit directly in DB
+        stmt = stmt.order_by(order_clause).limit(limit)
 
         result = await session.execute(stmt)
         rows = result.all()
 
         scored_candidates: list[tuple[Candidate, float]] = []
 
-        for candidate, cand_emb in rows:
-            # Check skill filters if present
-            if filters and filters.skills:
-                cand_skills = {s.lower() for s in (candidate.skills or [])}
-                req_skills = {s.lower() for s in filters.skills}
-                if not req_skills.issubset(cand_skills):
-                    continue
+        for candidate, sim_score in rows:
+            # Ensure similarity score is between 0.0 and 1.0
+            if sim_score is None:
+                sim_score = 0.5
+            similarity_rounded = max(0.0, min(1.0, round(float(sim_score), 4)))
+            scored_candidates.append((candidate, similarity_rounded))
 
-            emb_vec = cand_emb.embedding if cand_emb else None
-            similarity = self.compute_cosine_similarity(query_vector, emb_vec)
-            scored_candidates.append((candidate, similarity))
-
-        # Sort by similarity score descending
-        scored_candidates.sort(key=lambda item: item[1], reverse=True)
-        return scored_candidates[:limit]
+        return scored_candidates
 
     async def search_jobs_by_vector(
         self,
@@ -106,8 +117,16 @@ class SearchRepository:
         limit: int = 20,
     ) -> list[tuple[Job, float]]:
         """Query open jobs ranked by vector similarity to candidate embedding or query."""
+
+        if query_vector is not None:
+            similarity = (1 - JobEmbedding.embedding.cosine_distance(query_vector)).label("similarity")
+            order_clause = JobEmbedding.embedding.cosine_distance(query_vector)
+        else:
+            similarity = text("0.5 AS similarity")
+            order_clause = Job.created_at.desc()
+
         stmt = (
-            select(Job, JobEmbedding)
+            select(Job, similarity)
             .outerjoin(
                 JobEmbedding,
                 (Job.id == JobEmbedding.job_id)
@@ -118,17 +137,20 @@ class SearchRepository:
                 Job.status == "published",
             )
         )
+
+        stmt = stmt.order_by(order_clause).limit(limit)
+
         result = await session.execute(stmt)
         rows = result.all()
 
         scored_jobs: list[tuple[Job, float]] = []
-        for job, job_emb in rows:
-            emb_vec = job_emb.embedding if job_emb else None
-            similarity = self.compute_cosine_similarity(query_vector, emb_vec)
-            scored_jobs.append((job, similarity))
+        for job, sim_score in rows:
+            if sim_score is None:
+                sim_score = 0.5
+            similarity_rounded = max(0.0, min(1.0, round(float(sim_score), 4)))
+            scored_jobs.append((job, similarity_rounded))
 
-        scored_jobs.sort(key=lambda item: item[1], reverse=True)
-        return scored_jobs[:limit]
+        return scored_jobs
 
     async def create_saved_search(
         self,

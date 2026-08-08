@@ -4,7 +4,7 @@ import uuid
 from collections.abc import Sequence
 from typing import Any
 
-from sqlalchemy import ColumnElement, func, or_, select
+from sqlalchemy import ColumnElement, func, literal, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -97,7 +97,7 @@ class CandidateRepository:
                 if clean_skill:
                     if session.bind and getattr(session.bind.dialect, "name", None) == "postgresql":
                         from sqlalchemy.dialects.postgresql import JSONB
-                        filters.append(Candidate.skills.contains(func.cast([clean_skill], JSONB)))
+                        filters.append(Candidate.skills.contains(literal([clean_skill], type_=JSONB)))
                     else:
                         filters.append(Candidate.skills.cast(func.text).ilike(f"%{clean_skill}%"))
 

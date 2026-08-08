@@ -34,10 +34,8 @@ async def test_search_candidates_by_vector_and_filters() -> None:
         skills=["Python"],
         total_experience_years=8,
     )
-    emb2 = CandidateEmbedding(id=uuid.uuid4(), candidate_id=cand2.id, embedding=[0.0, 1.0])
-
     mock_result = MagicMock()
-    mock_result.all.return_value = [(cand1, emb1), (cand2, emb2)]
+    mock_result.all.return_value = [(cand1, 1.0), (cand2, 0.0)]
     session.execute = AsyncMock(return_value=mock_result)
 
     results = await repo.search_candidates_by_vector_and_filters(

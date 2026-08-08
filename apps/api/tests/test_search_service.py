@@ -8,6 +8,7 @@ import pytest
 from hiron.candidates.models import Candidate
 from hiron.search.exceptions import InsufficientSearchPermissionsError, SearchQueryValidationError
 from hiron.search.service import SearchService
+from hiron.embeddings.generator import EmbeddingGenerationResult
 
 
 @pytest.mark.asyncio
@@ -60,7 +61,16 @@ async def test_search_candidates_success() -> None:
     tenant_id = uuid.uuid4()
     candidate_id = uuid.uuid4()
 
-    generator.generate_embedding.return_value = ([0.1] * 1536, "hash123")
+    generator.generate_embedding.return_value = EmbeddingGenerationResult(
+        embedding=[0.1] * 1536,
+        source_text_hash="hash123",
+        input_tokens=10,
+        total_tokens=15,
+        latency_ms=100,
+        is_fallback=False,
+        status="success",
+        error_type=None,
+    )
     cand = Candidate(
         id=candidate_id,
         tenant_id=tenant_id,

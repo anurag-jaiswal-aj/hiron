@@ -6,6 +6,7 @@ from typing import Any
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from hiron.ai_usage.repository import AIUsageRepository
 from hiron.candidates.models import Candidate
 from hiron.candidates.repository import CandidateRepository
 from hiron.common.exceptions import ResourceNotFoundException
@@ -45,6 +46,7 @@ class SearchService:
         self.job_repo = job_repository or JobRepository()
         self.embedding_repo = embedding_repository or EmbeddingRepository()
         self.generator = embedding_generator or EmbeddingGenerator()
+        self.ai_usage_repo = AIUsageRepository()
 
     def _validate_role_permissions(self, role: str) -> None:
         """Validate user role authorization for search operations."""
@@ -102,7 +104,24 @@ class SearchService:
             raise SearchQueryValidationError("Search query must be between 3 and 500 characters")
 
         # Generate query vector
-        query_vec, _hash = self.generator.generate_embedding(query)
+        embed_result = self.generator.generate_embedding(query)
+        query_vec = embed_result.embedding
+
+        # Log AI usage for generating search embedding
+        cost_usd = 0.00000002 * embed_result.total_tokens
+        await self.ai_usage_repo.create_usage_log(
+            session=session,
+            tenant_id=tenant_id,
+            operation="semantic_search",
+            model_version=self.generator.model_version,
+            input_tokens=embed_result.input_tokens,
+            output_tokens=0,
+            cost_usd=cost_usd,
+            latency_ms=embed_result.latency_ms,
+            status=embed_result.status,
+            error_type=embed_result.error_type,
+            is_cache_hit=embed_result.is_fallback,
+        )
 
         scored_candidates = await self.search_repo.search_candidates_by_vector_and_filters(
             session=session,
@@ -170,7 +189,24 @@ class SearchService:
         job_vec = job_emb.embedding if job_emb else None
         if not job_vec:
             job_text = f"{job.title} {job.department or ''} {job.description or ''}"
-            job_vec, _hash = self.generator.generate_embedding(job_text)
+            embed_result = self.generator.generate_embedding(job_text)
+            job_vec = embed_result.embedding
+
+            # Log AI usage
+            cost_usd = 0.00000002 * embed_result.total_tokens
+            await self.ai_usage_repo.create_usage_log(
+                session=session,
+                tenant_id=tenant_id,
+                operation="semantic_search_by_job",
+                model_version=self.generator.model_version,
+                input_tokens=embed_result.input_tokens,
+                output_tokens=0,
+                cost_usd=cost_usd,
+                latency_ms=embed_result.latency_ms,
+                status=embed_result.status,
+                error_type=embed_result.error_type,
+                is_cache_hit=embed_result.is_fallback,
+            )
 
         scored_candidates = await self.search_repo.search_candidates_by_vector_and_filters(
             session=session,
