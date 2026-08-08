@@ -6,9 +6,10 @@ export interface BadgeProps {
   children: React.ReactNode;
   variant?: "neutral" | "active" | "muted" | "warning" | "error";
   style?: React.CSSProperties;
+  title?: string;
 }
 
-export function Badge({ children, variant = "neutral", style }: BadgeProps): React.ReactElement {
+export function Badge({ children, variant = "neutral", style, title }: BadgeProps): React.ReactElement {
   let bg = "var(--bg-surface-secondary)";
   let color = "var(--text-secondary)";
   let border = "1px solid var(--border-subtle)";
@@ -29,6 +30,7 @@ export function Badge({ children, variant = "neutral", style }: BadgeProps): Rea
 
   return (
     <span
+      title={title}
       style={{
         display: "inline-flex",
         alignItems: "center",

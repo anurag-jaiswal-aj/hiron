@@ -19,6 +19,7 @@ export function Sidebar(): React.ReactElement {
 
   return (
     <aside
+      className="sidebar"
       style={{
         width: "240px",
         minWidth: "240px",

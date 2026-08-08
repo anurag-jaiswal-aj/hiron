@@ -14,6 +14,7 @@ import { Modal } from "../../../components/ui/Modal";
 import { Select } from "../../../components/ui/Select";
 import { useAuth } from "../../../context/AuthContext";
 import { ApiError, httpClient } from "../../../lib/api";
+import { EmbeddingStatusBadge } from "../../../components/embeddings/EmbeddingStatusBadge";
 
 export interface CandidateAssociatedJob {
   jobId: string;
@@ -244,19 +245,22 @@ function CandidateDetailContent(): React.ReactElement {
             backHref="/candidates"
             backLabel="Back to Candidates"
             actions={
-              canManageCandidates ? (
-                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
-                  <Button type="button" variant="primary" size="sm" onClick={handleOpenAddJobModal}>
-                    Add to Job
-                  </Button>
-                  <Button type="button" variant="secondary" size="sm" disabled>
-                    Edit Profile
-                  </Button>
-                  <Button type="button" variant="destructive" size="sm" disabled>
-                    Archive
-                  </Button>
-                </div>
-              ) : undefined
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
+                <EmbeddingStatusBadge entityType="candidate" entityId={candidate.id} />
+                {canManageCandidates && (
+                  <>
+                    <Button type="button" variant="primary" size="sm" onClick={handleOpenAddJobModal}>
+                      Add to Job
+                    </Button>
+                    <Button type="button" variant="secondary" size="sm" disabled>
+                      Edit Profile
+                    </Button>
+                    <Button type="button" variant="destructive" size="sm" disabled>
+                      Archive
+                    </Button>
+                  </>
+                )}
+              </div>
             }
           />
 

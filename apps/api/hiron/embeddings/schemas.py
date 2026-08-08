@@ -62,3 +62,18 @@ class EmbeddingStatusResponse(BaseModel):
     """200 OK response for tenant embedding status per §EMBED-3."""
 
     data: EmbeddingStatusData = Field(...)
+
+
+class IndividualEmbeddingStatusData(BaseModel):
+    """Status payload for a single candidate or job embedding."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    status: str = Field(..., description="'current', 'stale', or 'missing'")
+    model_version: str = Field(..., serialization_alias="modelVersion")
+
+
+class IndividualEmbeddingStatusResponse(BaseModel):
+    """200 OK response for individual embedding status."""
+
+    data: IndividualEmbeddingStatusData = Field(...)

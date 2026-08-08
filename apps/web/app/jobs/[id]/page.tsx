@@ -14,6 +14,7 @@ import { EmptyState } from "../../../components/ui/EmptyState";
 import { Modal } from "../../../components/ui/Modal";
 import { useAuth } from "../../../context/AuthContext";
 import { ApiError, httpClient } from "../../../lib/api";
+import { EmbeddingStatusBadge } from "../../../components/embeddings/EmbeddingStatusBadge";
 
 export interface PipelineStage {
   id: string;
@@ -253,11 +254,13 @@ function JobDetailContent(): React.ReactElement {
               gap: "1rem",
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
               <JobStatusBadge status={job.status} />
               <span style={{ fontSize: "0.875rem", color: "var(--text-secondary)" }}>
                 <strong style={{ color: "var(--text-primary)" }}>{job.candidateCount}</strong> candidates in pipeline
               </span>
+              <div style={{ width: "1px", height: "24px", backgroundColor: "var(--border-subtle)" }}></div>
+              <EmbeddingStatusBadge entityType="job" entityId={job.id} />
             </div>
 
             <div style={{ fontSize: "0.8125rem", color: "var(--text-muted)" }}>
@@ -294,6 +297,7 @@ function JobDetailContent(): React.ReactElement {
               gap: "0.5rem",
               borderBottom: "1px solid var(--border-subtle)",
               marginBottom: "1.5rem",
+              overflowX: "auto",
             }}
           >
             {(

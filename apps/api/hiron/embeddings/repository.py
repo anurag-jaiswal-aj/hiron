@@ -62,6 +62,25 @@ class EmbeddingRepository:
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_latest_candidate_embedding(
+        self,
+        session: AsyncSession,
+        tenant_id: uuid.UUID,
+        candidate_id: uuid.UUID,
+    ) -> CandidateEmbedding | None:
+        """Retrieve the most recent candidate vector embedding regardless of model version."""
+        stmt = (
+            select(CandidateEmbedding)
+            .where(
+                CandidateEmbedding.tenant_id == tenant_id,
+                CandidateEmbedding.candidate_id == candidate_id,
+            )
+            .order_by(CandidateEmbedding.created_at.desc())
+            .limit(1)
+        )
+        result = await session.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def upsert_job_embedding(
         self,
         session: AsyncSession,
@@ -113,16 +132,51 @@ class EmbeddingRepository:
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_latest_job_embedding(
+        self,
+        session: AsyncSession,
+        tenant_id: uuid.UUID,
+        job_id: uuid.UUID,
+    ) -> JobEmbedding | None:
+        """Retrieve the most recent job vector embedding regardless of model version."""
+        stmt = (
+            select(JobEmbedding)
+            .where(
+                JobEmbedding.tenant_id == tenant_id,
+                JobEmbedding.job_id == job_id,
+            )
+            .order_by(JobEmbedding.created_at.desc())
+            .limit(1)
+        )
+        result = await session.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def get_candidate_embeddings_map(
         self,
         session: AsyncSession,
         tenant_id: uuid.UUID,
-        model_version: str,
     ) -> dict[uuid.UUID, CandidateEmbedding]:
-        """Fetch candidate embeddings dictionary keyed by candidate_id."""
-        stmt = select(CandidateEmbedding).where(
-            CandidateEmbedding.tenant_id == tenant_id,
-            CandidateEmbedding.model_version == model_version,
+        """Fetch candidate embeddings dictionary keyed by candidate_id, taking the latest for each."""
+        from sqlalchemy import func
+
+        # Subquery to get max created_at per candidate
+        subq = (
+            select(
+                CandidateEmbedding.candidate_id,
+                func.max(CandidateEmbedding.created_at).label("max_created_at")
+            )
+            .where(CandidateEmbedding.tenant_id == tenant_id)
+            .group_by(CandidateEmbedding.candidate_id)
+            .subquery()
+        )
+
+        stmt = (
+            select(CandidateEmbedding)
+            .join(
+                subq,
+                (CandidateEmbedding.candidate_id == subq.c.candidate_id) &
+                (CandidateEmbedding.created_at == subq.c.max_created_at)
+            )
         )
         result = await session.execute(stmt)
         records = result.scalars().all()
@@ -132,12 +186,28 @@ class EmbeddingRepository:
         self,
         session: AsyncSession,
         tenant_id: uuid.UUID,
-        model_version: str,
     ) -> dict[uuid.UUID, JobEmbedding]:
-        """Fetch job embeddings dictionary keyed by job_id."""
-        stmt = select(JobEmbedding).where(
-            JobEmbedding.tenant_id == tenant_id,
-            JobEmbedding.model_version == model_version,
+        """Fetch job embeddings dictionary keyed by job_id, taking the latest for each."""
+        from sqlalchemy import func
+
+        # Subquery to get max created_at per job
+        subq = (
+            select(
+                JobEmbedding.job_id,
+                func.max(JobEmbedding.created_at).label("max_created_at")
+            )
+            .where(JobEmbedding.tenant_id == tenant_id)
+            .group_by(JobEmbedding.job_id)
+            .subquery()
+        )
+
+        stmt = (
+            select(JobEmbedding)
+            .join(
+                subq,
+                (JobEmbedding.job_id == subq.c.job_id) &
+                (JobEmbedding.created_at == subq.c.max_created_at)
+            )
         )
         result = await session.execute(stmt)
         records = result.scalars().all()

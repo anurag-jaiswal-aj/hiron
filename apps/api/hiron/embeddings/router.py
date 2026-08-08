@@ -11,6 +11,7 @@ from hiron.embeddings.schemas import (
     EmbeddingStatusResponse,
     GenerateCandidateEmbeddingResponse,
     GenerateJobEmbeddingResponse,
+    IndividualEmbeddingStatusResponse,
 )
 from hiron.embeddings.service import EmbeddingService
 from hiron.users.models import User
@@ -81,4 +82,44 @@ async def get_embedding_status_endpoint(
         session=session,
         tenant_id=current_user.tenant_id,
         user_role=current_user.role,
+    )
+
+
+@router.get(
+    "/embeddings/candidates/{candidate_id}",
+    response_model=IndividualEmbeddingStatusResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get Candidate Embedding Status",
+)
+async def get_candidate_embedding_status_endpoint(
+    candidate_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+    service: EmbeddingService = Depends(get_embedding_service),
+) -> IndividualEmbeddingStatusResponse:
+    """Check individual candidate embedding status."""
+    return await service.get_candidate_embedding_status(
+        session=session,
+        tenant_id=current_user.tenant_id,
+        candidate_id=candidate_id,
+    )
+
+
+@router.get(
+    "/embeddings/jobs/{job_id}",
+    response_model=IndividualEmbeddingStatusResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get Job Embedding Status",
+)
+async def get_job_embedding_status_endpoint(
+    job_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+    service: EmbeddingService = Depends(get_embedding_service),
+) -> IndividualEmbeddingStatusResponse:
+    """Check individual job embedding status."""
+    return await service.get_job_embedding_status(
+        session=session,
+        tenant_id=current_user.tenant_id,
+        job_id=job_id,
     )

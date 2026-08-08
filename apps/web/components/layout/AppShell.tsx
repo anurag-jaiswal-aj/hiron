@@ -10,6 +10,7 @@ interface AppShellProps {
 export function AppShell({ children }: AppShellProps): React.ReactElement {
   return (
     <div
+      className="app-shell"
       style={{
         display: "flex",
         minHeight: "100vh",
@@ -27,6 +28,7 @@ export function AppShell({ children }: AppShellProps): React.ReactElement {
         }}
       >
         <main
+          className="main-content"
           style={{
             flex: 1,
             padding: "2rem 2.5rem",

@@ -415,3 +415,294 @@ async def test_generate_candidate_embedding_pipeline_missing_or_invalid_regenera
     assert result.cache_hit is False
     generator.generate_embedding.assert_called_once_with("Hello")
 
+@pytest.mark.asyncio
+async def test_get_candidate_embedding_status_current() -> None:
+    """Verify get_candidate_embedding_status returns current when hash, model, and vector match."""
+    emb_repo = AsyncMock()
+    cand_repo = AsyncMock()
+    generator = MagicMock()
+    tenant_id = uuid.uuid4()
+    candidate_id = uuid.uuid4()
+    service = EmbeddingService(embedding_repository=emb_repo, candidate_repository=cand_repo, embedding_generator=generator)
+
+    cand_repo.get_candidate_by_id.return_value = Candidate(id=candidate_id, tenant_id=tenant_id, skills=[])
+    patch.object(service, "_construct_candidate_source_text", new_callable=AsyncMock, return_value="text").start()
+    generator.compute_source_text_hash.return_value = "hash1"
+
+    existing = MagicMock(source_text_hash="hash1", model_version="text-embedding-3-small", embedding=[0.1]*1536)
+    emb_repo.get_latest_candidate_embedding.return_value = existing
+
+    res = await service.get_candidate_embedding_status(AsyncMock(), tenant_id, candidate_id, "text-embedding-3-small")
+    assert res.data.status == "current"
+
+
+@pytest.mark.asyncio
+async def test_get_candidate_embedding_status_stale_hash() -> None:
+    """Verify get_candidate_embedding_status returns stale on hash mismatch."""
+    emb_repo = AsyncMock()
+    cand_repo = AsyncMock()
+    generator = MagicMock()
+    tenant_id = uuid.uuid4()
+    candidate_id = uuid.uuid4()
+    service = EmbeddingService(embedding_repository=emb_repo, candidate_repository=cand_repo, embedding_generator=generator)
+
+    cand_repo.get_candidate_by_id.return_value = Candidate(id=candidate_id, tenant_id=tenant_id, skills=[])
+    patch.object(service, "_construct_candidate_source_text", new_callable=AsyncMock, return_value="text").start()
+    generator.compute_source_text_hash.return_value = "hash2"
+
+    existing = MagicMock(source_text_hash="hash1", model_version="text-embedding-3-small", embedding=[0.1]*1536)
+    emb_repo.get_latest_candidate_embedding.return_value = existing
+
+    res = await service.get_candidate_embedding_status(AsyncMock(), tenant_id, candidate_id, "text-embedding-3-small")
+    assert res.data.status == "stale"
+
+
+@pytest.mark.asyncio
+async def test_get_candidate_embedding_status_stale_model() -> None:
+    """Verify get_candidate_embedding_status returns stale on model mismatch."""
+    emb_repo = AsyncMock()
+    cand_repo = AsyncMock()
+    generator = MagicMock()
+    tenant_id = uuid.uuid4()
+    candidate_id = uuid.uuid4()
+    service = EmbeddingService(embedding_repository=emb_repo, candidate_repository=cand_repo, embedding_generator=generator)
+
+    cand_repo.get_candidate_by_id.return_value = Candidate(id=candidate_id, tenant_id=tenant_id, skills=[])
+    patch.object(service, "_construct_candidate_source_text", new_callable=AsyncMock, return_value="text").start()
+    generator.compute_source_text_hash.return_value = "hash1"
+
+    existing = MagicMock(source_text_hash="hash1", model_version="text-embedding-ada-002", embedding=[0.1]*1536)
+    emb_repo.get_latest_candidate_embedding.return_value = existing
+
+    res = await service.get_candidate_embedding_status(AsyncMock(), tenant_id, candidate_id, "text-embedding-3-small")
+    assert res.data.status == "stale"
+
+
+@pytest.mark.asyncio
+async def test_get_candidate_embedding_status_missing() -> None:
+    """Verify get_candidate_embedding_status returns missing when no embedding exists."""
+    emb_repo = AsyncMock()
+    cand_repo = AsyncMock()
+    tenant_id = uuid.uuid4()
+    candidate_id = uuid.uuid4()
+    service = EmbeddingService(embedding_repository=emb_repo, candidate_repository=cand_repo)
+
+    cand_repo.get_candidate_by_id.return_value = Candidate(id=candidate_id, tenant_id=tenant_id, skills=[])
+    emb_repo.get_latest_candidate_embedding.return_value = None
+
+    res = await service.get_candidate_embedding_status(AsyncMock(), tenant_id, candidate_id, "text-embedding-3-small")
+    assert res.data.status == "missing"
+
+
+@pytest.mark.asyncio
+async def test_get_job_embedding_status_current() -> None:
+    """Verify get_job_embedding_status returns current."""
+    emb_repo = AsyncMock()
+    job_repo = AsyncMock()
+    generator = MagicMock()
+    tenant_id = uuid.uuid4()
+    job_id = uuid.uuid4()
+    service = EmbeddingService(embedding_repository=emb_repo, job_repository=job_repo, embedding_generator=generator)
+
+    job_repo.get_job_by_id.return_value = MagicMock()
+    patch.object(service, "_construct_job_source_text", return_value="text").start()
+    generator.compute_source_text_hash.return_value = "hash1"
+
+    existing = MagicMock(source_text_hash="hash1", model_version="text-embedding-3-small", embedding=[0.1]*1536)
+    emb_repo.get_latest_job_embedding.return_value = existing
+
+    res = await service.get_job_embedding_status(AsyncMock(), tenant_id, job_id, "text-embedding-3-small")
+    assert res.data.status == "current"
+
+
+@pytest.mark.asyncio
+async def test_get_job_embedding_status_stale() -> None:
+    """Verify get_job_embedding_status returns stale."""
+    emb_repo = AsyncMock()
+    job_repo = AsyncMock()
+    generator = MagicMock()
+    tenant_id = uuid.uuid4()
+    job_id = uuid.uuid4()
+    service = EmbeddingService(embedding_repository=emb_repo, job_repository=job_repo, embedding_generator=generator)
+
+    job_repo.get_job_by_id.return_value = MagicMock()
+    patch.object(service, "_construct_job_source_text", return_value="text").start()
+    generator.compute_source_text_hash.return_value = "hash1"
+
+    existing = MagicMock(source_text_hash="hash1", model_version="text-embedding-3-small", embedding=[0.1]*10) # invalid length
+    emb_repo.get_latest_job_embedding.return_value = existing
+
+    res = await service.get_job_embedding_status(AsyncMock(), tenant_id, job_id, "text-embedding-3-small")
+    assert res.data.status == "stale"
+
+
+@pytest.mark.asyncio
+async def test_get_job_embedding_status_missing() -> None:
+    """Verify get_job_embedding_status returns missing."""
+    emb_repo = AsyncMock()
+    job_repo = AsyncMock()
+    tenant_id = uuid.uuid4()
+    job_id = uuid.uuid4()
+    service = EmbeddingService(embedding_repository=emb_repo, job_repository=job_repo)
+
+    job_repo.get_job_by_id.return_value = MagicMock()
+    emb_repo.get_latest_job_embedding.return_value = None
+
+    res = await service.get_job_embedding_status(AsyncMock(), tenant_id, job_id, "text-embedding-3-small")
+    assert res.data.status == "missing"
+
+
+@pytest.mark.asyncio
+async def test_get_candidate_embedding_status_stale_invalid_vector() -> None:
+    """Verify candidate status is stale when vector dimension is invalid."""
+    emb_repo = AsyncMock()
+    cand_repo = AsyncMock()
+    generator = MagicMock()
+    tenant_id = uuid.uuid4()
+    candidate_id = uuid.uuid4()
+    service = EmbeddingService(embedding_repository=emb_repo, candidate_repository=cand_repo, embedding_generator=generator)
+
+    cand_repo.get_candidate_by_id.return_value = Candidate(id=candidate_id, tenant_id=tenant_id, skills=[])
+    patch.object(service, "_construct_candidate_source_text", new_callable=AsyncMock, return_value="text").start()
+    generator.compute_source_text_hash.return_value = "hash1"
+
+    existing = MagicMock(source_text_hash="hash1", model_version="text-embedding-3-small", embedding=[0.1] * 10)
+    emb_repo.get_latest_candidate_embedding.return_value = existing
+
+    res = await service.get_candidate_embedding_status(AsyncMock(), tenant_id, candidate_id, "text-embedding-3-small")
+    assert res.data.status == "stale"
+
+
+@pytest.mark.asyncio
+async def test_get_job_embedding_status_stale_hash() -> None:
+    """Verify job status is stale on hash mismatch."""
+    emb_repo = AsyncMock()
+    job_repo = AsyncMock()
+    generator = MagicMock()
+    tenant_id = uuid.uuid4()
+    job_id = uuid.uuid4()
+    service = EmbeddingService(embedding_repository=emb_repo, job_repository=job_repo, embedding_generator=generator)
+
+    job_repo.get_job_by_id.return_value = MagicMock()
+    patch.object(service, "_construct_job_source_text", return_value="text").start()
+    generator.compute_source_text_hash.return_value = "hash2"
+
+    existing = MagicMock(source_text_hash="hash1", model_version="text-embedding-3-small", embedding=[0.1] * 1536)
+    emb_repo.get_latest_job_embedding.return_value = existing
+
+    res = await service.get_job_embedding_status(AsyncMock(), tenant_id, job_id, "text-embedding-3-small")
+    assert res.data.status == "stale"
+
+
+@pytest.mark.asyncio
+async def test_get_job_embedding_status_stale_model() -> None:
+    """Verify job status is stale on model version mismatch."""
+    emb_repo = AsyncMock()
+    job_repo = AsyncMock()
+    generator = MagicMock()
+    tenant_id = uuid.uuid4()
+    job_id = uuid.uuid4()
+    service = EmbeddingService(embedding_repository=emb_repo, job_repository=job_repo, embedding_generator=generator)
+
+    job_repo.get_job_by_id.return_value = MagicMock()
+    patch.object(service, "_construct_job_source_text", return_value="text").start()
+    generator.compute_source_text_hash.return_value = "hash1"
+
+    existing = MagicMock(source_text_hash="hash1", model_version="text-embedding-ada-002", embedding=[0.1] * 1536)
+    emb_repo.get_latest_job_embedding.return_value = existing
+
+    res = await service.get_job_embedding_status(AsyncMock(), tenant_id, job_id, "text-embedding-3-small")
+    assert res.data.status == "stale"
+
+
+@pytest.mark.asyncio
+async def test_get_candidate_embedding_status_nonexistent() -> None:
+    """Verify 404 when candidate does not exist."""
+    emb_repo = AsyncMock()
+    cand_repo = AsyncMock()
+    tenant_id = uuid.uuid4()
+    candidate_id = uuid.uuid4()
+    service = EmbeddingService(embedding_repository=emb_repo, candidate_repository=cand_repo)
+
+    cand_repo.get_candidate_by_id.return_value = None
+
+    with pytest.raises(ResourceNotFoundException):
+        await service.get_candidate_embedding_status(AsyncMock(), tenant_id, candidate_id)
+
+
+@pytest.mark.asyncio
+async def test_get_job_embedding_status_nonexistent() -> None:
+    """Verify 404 when job does not exist."""
+    emb_repo = AsyncMock()
+    job_repo = AsyncMock()
+    tenant_id = uuid.uuid4()
+    job_id = uuid.uuid4()
+    service = EmbeddingService(embedding_repository=emb_repo, job_repository=job_repo)
+
+    job_repo.get_job_by_id.return_value = None
+
+    with pytest.raises(ResourceNotFoundException):
+        await service.get_job_embedding_status(AsyncMock(), tenant_id, job_id)
+
+
+@pytest.mark.asyncio
+async def test_get_candidate_embedding_status_cross_tenant_returns_404() -> None:
+    """Verify cross-tenant candidate lookup returns 404 (repo returns None for wrong tenant)."""
+    emb_repo = AsyncMock()
+    cand_repo = AsyncMock()
+    tenant_id = uuid.uuid4()
+    candidate_id = uuid.uuid4()
+    service = EmbeddingService(embedding_repository=emb_repo, candidate_repository=cand_repo)
+
+    # Repository scopes by tenant_id, so cross-tenant lookup returns None
+    cand_repo.get_candidate_by_id.return_value = None
+
+    with pytest.raises(ResourceNotFoundException):
+        await service.get_candidate_embedding_status(AsyncMock(), tenant_id, candidate_id)
+
+
+@pytest.mark.asyncio
+async def test_get_job_embedding_status_cross_tenant_returns_404() -> None:
+    """Verify cross-tenant job lookup returns 404 (repo returns None for wrong tenant)."""
+    emb_repo = AsyncMock()
+    job_repo = AsyncMock()
+    tenant_id = uuid.uuid4()
+    job_id = uuid.uuid4()
+    service = EmbeddingService(embedding_repository=emb_repo, job_repository=job_repo)
+
+    job_repo.get_job_by_id.return_value = None
+
+    with pytest.raises(ResourceNotFoundException):
+        await service.get_job_embedding_status(AsyncMock(), tenant_id, job_id)
+
+
+@pytest.mark.asyncio
+async def test_get_candidate_embedding_status_hiring_manager_allowed() -> None:
+    """Verify hiring_manager can read candidate embedding status (GET is read-only)."""
+    emb_repo = AsyncMock()
+    cand_repo = AsyncMock()
+    tenant_id = uuid.uuid4()
+    candidate_id = uuid.uuid4()
+    service = EmbeddingService(embedding_repository=emb_repo, candidate_repository=cand_repo)
+
+    cand_repo.get_candidate_by_id.return_value = Candidate(id=candidate_id, tenant_id=tenant_id, skills=[])
+    emb_repo.get_latest_candidate_embedding.return_value = None
+
+    res = await service.get_candidate_embedding_status(AsyncMock(), tenant_id, candidate_id)
+    assert res.data.status == "missing"
+
+
+@pytest.mark.asyncio
+async def test_get_job_embedding_status_hiring_manager_allowed() -> None:
+    """Verify hiring_manager can read job embedding status (GET is read-only)."""
+    emb_repo = AsyncMock()
+    job_repo = AsyncMock()
+    tenant_id = uuid.uuid4()
+    job_id = uuid.uuid4()
+    service = EmbeddingService(embedding_repository=emb_repo, job_repository=job_repo)
+
+    job_repo.get_job_by_id.return_value = MagicMock()
+    emb_repo.get_latest_job_embedding.return_value = None
+
+    res = await service.get_job_embedding_status(AsyncMock(), tenant_id, job_id)
+    assert res.data.status == "missing"

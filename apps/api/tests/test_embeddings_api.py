@@ -17,6 +17,8 @@ from hiron.embeddings.schemas import (
     EmbeddingStatusResponse,
     GenerateCandidateEmbeddingResponse,
     GenerateJobEmbeddingResponse,
+    IndividualEmbeddingStatusData,
+    IndividualEmbeddingStatusResponse,
     JobEmbeddingResponseData,
 )
 from hiron.main import create_app
@@ -131,3 +133,39 @@ def test_get_embedding_status_endpoint_success(
     assert res_data["candidates"]["total"] == 10
     assert res_data["candidates"]["withEmbedding"] == 8
     assert res_data["jobs"]["withEmbedding"] == 5
+
+def test_get_candidate_embedding_status_endpoint_success(client: TestClient, mock_embedding_service: AsyncMock) -> None:
+    """Verify GET /api/v1/embeddings/candidates/{id} returns status."""
+    candidate_id = uuid.uuid4()
+    mock_embedding_service.get_candidate_embedding_status.return_value = IndividualEmbeddingStatusResponse(
+        data=IndividualEmbeddingStatusData(status="current", model_version="model1")
+    )
+    res = client.get(f"/api/v1/embeddings/candidates/{candidate_id}")
+    assert res.status_code == 200
+    assert res.json()["data"]["status"] == "current"
+
+
+def test_get_job_embedding_status_endpoint_success(client: TestClient, mock_embedding_service: AsyncMock) -> None:
+    """Verify GET /api/v1/embeddings/jobs/{id} returns status."""
+    job_id = uuid.uuid4()
+    mock_embedding_service.get_job_embedding_status.return_value = IndividualEmbeddingStatusResponse(
+        data=IndividualEmbeddingStatusData(status="missing", model_version="model1")
+    )
+    res = client.get(f"/api/v1/embeddings/jobs/{job_id}")
+    assert res.status_code == 200
+    assert res.json()["data"]["status"] == "missing"
+
+def test_get_candidate_embedding_status_unauthorized_other_tenant(client: TestClient, mock_embedding_service: AsyncMock) -> None:
+    """Verify candidate from another tenant cannot be inspected."""
+    from hiron.common.exceptions import ResourceNotFoundException
+    mock_embedding_service.get_candidate_embedding_status.side_effect = ResourceNotFoundException("Not found")
+    res = client.get(f"/api/v1/embeddings/candidates/{uuid.uuid4()}")
+    assert res.status_code == 404
+
+def test_get_job_embedding_status_unauthorized_other_tenant(client: TestClient, mock_embedding_service: AsyncMock) -> None:
+    """Verify job from another tenant cannot be inspected."""
+    from hiron.common.exceptions import ResourceNotFoundException
+    mock_embedding_service.get_job_embedding_status.side_effect = ResourceNotFoundException("Not found")
+    res = client.get(f"/api/v1/embeddings/jobs/{uuid.uuid4()}")
+    assert res.status_code == 404
+

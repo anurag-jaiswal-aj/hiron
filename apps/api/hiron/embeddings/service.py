@@ -20,6 +20,8 @@ from hiron.embeddings.schemas import (
     EmbeddingStatusResponse,
     GenerateCandidateEmbeddingResponse,
     GenerateJobEmbeddingResponse,
+    IndividualEmbeddingStatusData,
+    IndividualEmbeddingStatusResponse,
     JobEmbeddingResponseData,
 )
 from hiron.jobs.models import Job
@@ -324,6 +326,98 @@ class EmbeddingService:
             )
         )
 
+    async def get_candidate_embedding_status(
+        self,
+        session: AsyncSession,
+        tenant_id: uuid.UUID,
+        candidate_id: uuid.UUID,
+        model_version: str = DEFAULT_EMBEDDING_MODEL,
+    ) -> IndividualEmbeddingStatusResponse:
+        """Fetch individual candidate embedding status (read-only, all roles)."""
+
+        candidate = await self.candidate_repo.get_candidate_by_id(
+            session=session,
+            candidate_id=candidate_id,
+            tenant_id=tenant_id,
+        )
+        if not candidate:
+            raise ResourceNotFoundException(f"Candidate with ID '{candidate_id}' not found")
+
+        existing = await self.embedding_repo.get_latest_candidate_embedding(
+            session=session,
+            tenant_id=tenant_id,
+            candidate_id=candidate_id,
+        )
+
+        status = "missing"
+        if existing:
+            current_text = await self._construct_candidate_source_text(
+                session=session, tenant_id=tenant_id, candidate=candidate
+            )
+            current_hash = self.generator.compute_source_text_hash(current_text)
+
+            if (
+                existing.source_text_hash == current_hash
+                and existing.model_version == model_version
+                and existing.embedding is not None
+                and len(existing.embedding) == 1536
+            ):
+                status = "current"
+            else:
+                status = "stale"
+
+        return IndividualEmbeddingStatusResponse(
+            data=IndividualEmbeddingStatusData(
+                status=status,
+                model_version=model_version,
+            )
+        )
+
+    async def get_job_embedding_status(
+        self,
+        session: AsyncSession,
+        tenant_id: uuid.UUID,
+        job_id: uuid.UUID,
+        model_version: str = DEFAULT_EMBEDDING_MODEL,
+    ) -> IndividualEmbeddingStatusResponse:
+        """Fetch individual job embedding status (read-only, all roles)."""
+
+        job = await self.job_repo.get_job_by_id(
+            session=session,
+            job_id=job_id,
+            tenant_id=tenant_id,
+        )
+        if not job:
+            raise ResourceNotFoundException(f"Job with ID '{job_id}' not found")
+
+        existing = await self.embedding_repo.get_latest_job_embedding(
+            session=session,
+            tenant_id=tenant_id,
+            job_id=job_id,
+        )
+
+        status = "missing"
+        if existing:
+            current_text = self._construct_job_source_text(job)
+            current_hash = self.generator.compute_source_text_hash(current_text)
+
+            if (
+                existing.source_text_hash == current_hash
+                and existing.model_version == model_version
+                and existing.embedding is not None
+                and len(existing.embedding) == 1536
+            ):
+                status = "current"
+            else:
+                status = "stale"
+
+        return IndividualEmbeddingStatusResponse(
+            data=IndividualEmbeddingStatusData(
+                status=status,
+                model_version=model_version,
+            )
+        )
+
     async def get_embedding_status(
         self,
         session: AsyncSession,
@@ -342,7 +436,7 @@ class EmbeddingService:
         candidates = res_cand.scalars().all()
 
         cand_embeddings_map = await self.embedding_repo.get_candidate_embeddings_map(
-            session=session, tenant_id=tenant_id, model_version=model_version
+            session=session, tenant_id=tenant_id
         )
 
         cand_total = len(candidates)
@@ -359,7 +453,7 @@ class EmbeddingService:
                     session=session, tenant_id=tenant_id, candidate=cand
                 )
                 current_hash = self.generator.compute_source_text_hash(current_text)
-                if emb.source_text_hash == current_hash:
+                if emb.source_text_hash == current_hash and emb.model_version == model_version and emb.embedding is not None and len(emb.embedding) == 1536:
                     cand_with_embedding += 1
                 else:
                     cand_stale += 1
@@ -370,7 +464,7 @@ class EmbeddingService:
         jobs = res_job.scalars().all()
 
         job_embeddings_map = await self.embedding_repo.get_job_embeddings_map(
-            session=session, tenant_id=tenant_id, model_version=model_version
+            session=session, tenant_id=tenant_id
         )
 
         job_total = len(jobs)
@@ -385,7 +479,7 @@ class EmbeddingService:
             else:
                 current_text = self._construct_job_source_text(job)
                 current_hash = self.generator.compute_source_text_hash(current_text)
-                if job_emb.source_text_hash == current_hash:
+                if job_emb.source_text_hash == current_hash and job_emb.model_version == model_version and job_emb.embedding is not None and len(job_emb.embedding) == 1536:
                     job_with_embedding += 1
                 else:
                     job_stale += 1

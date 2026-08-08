@@ -6,6 +6,7 @@ import { AppShell } from "../components/layout/AppShell";
 import { PageHeader } from "../components/layout/PageHeader";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { useAuth } from "../context/AuthContext";
+import { EmbeddingStatusPanel } from "../components/embeddings/EmbeddingStatusPanel";
 
 function DashboardContent(): React.ReactElement {
   const { user } = useAuth();
@@ -88,6 +89,10 @@ function DashboardContent(): React.ReactElement {
         <p style={{ margin: 0, fontSize: "0.875rem", color: "var(--text-secondary)", lineHeight: 1.6 }}>
           Authenticated Session Active. Multi-tenant row-level security (RLS) and role-based access control (RBAC) enforced.
         </p>
+      </div>
+
+      <div style={{ marginTop: "2rem" }}>
+        <EmbeddingStatusPanel />
       </div>
     </AppShell>
   );

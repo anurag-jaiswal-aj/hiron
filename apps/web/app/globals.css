@@ -69,3 +69,20 @@ a:focus-visible {
   background: var(--border-strong);
   border-radius: var(--radius-sm);
 }
+
+@media (max-width: 768px) {
+  .app-shell {
+    flex-direction: column !important;
+  }
+  .sidebar {
+    width: 100% !important;
+    min-width: 100% !important;
+    height: auto !important;
+    position: relative !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border-subtle) !important;
+  }
+  .main-content {
+    padding: 1rem !important;
+  }
+}
