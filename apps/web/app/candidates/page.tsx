@@ -14,6 +14,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useRouter } from "next/navigation";
 
 import { ApiError, httpClient } from "../../lib/api";
+import { tagsApi } from "../../lib/tags-api";
 
 export interface CandidateListItem {
   id: string;
@@ -65,7 +66,14 @@ function CandidatesListContent(): React.ReactElement {
   const [experienceMin, setExperienceMin] = useState("");
   const [sourceFilter, setSourceFilter] = useState("");
   const [sortBy, setSortBy] = useState("createdAt:desc");
+  const [tagFilter, setTagFilter] = useState("");
+  const [tenantTags, setTenantTags] = useState<string[]>([]);
   const [cursor, setCursor] = useState<string | undefined>(undefined);
+
+  // Load tenant tags for the tag filter dropdown
+  useEffect(() => {
+    tagsApi.listTenantTags().then(setTenantTags).catch(() => {});
+  }, []);
 
   const fetchCandidates = useCallback(async () => {
     setErrorMsg(null);
@@ -78,6 +86,7 @@ function CandidatesListContent(): React.ReactElement {
       if (locationFilter.trim()) params.append("location", locationFilter.trim());
       if (experienceMin.trim()) params.append("experienceMin", experienceMin.trim());
       if (sourceFilter.trim()) params.append("source", sourceFilter.trim());
+      if (tagFilter.trim()) params.append("tag", tagFilter.trim());
       if (sortBy) params.append("sort", sortBy);
       if (cursor) params.append("cursor", cursor);
       params.append("limit", "20");
@@ -103,7 +112,7 @@ function CandidatesListContent(): React.ReactElement {
     } finally {
       setIsLoading(false);
     }
-  }, [searchQuery, skillsFilter, locationFilter, experienceMin, sourceFilter, sortBy, cursor]);
+  }, [searchQuery, skillsFilter, locationFilter, experienceMin, sourceFilter, tagFilter, sortBy, cursor]);
 
   // Debounce effect for search typing
   useEffect(() => {
@@ -119,11 +128,12 @@ function CandidatesListContent(): React.ReactElement {
     setLocationFilter("");
     setExperienceMin("");
     setSourceFilter("");
+    setTagFilter("");
     setSortBy("createdAt:desc");
     setCursor(undefined);
   };
 
-  const isFiltered = Boolean(searchQuery || skillsFilter || locationFilter || experienceMin || sourceFilter);
+  const isFiltered = Boolean(searchQuery || skillsFilter || locationFilter || experienceMin || sourceFilter || tagFilter);
 
   return (
     <AppShell>
@@ -233,6 +243,20 @@ function CandidatesListContent(): React.ReactElement {
             options={[
               { value: "createdAt:desc", label: "Newest First" },
               { value: "createdAt:asc", label: "Oldest First" },
+            ]}
+          />
+        </div>
+
+        <div style={{ width: "130px" }}>
+          <Select
+            value={tagFilter}
+            onChange={(e) => {
+              setTagFilter(e.target.value);
+              setCursor(undefined);
+            }}
+            options={[
+              { value: "", label: "All Tags" },
+              ...tenantTags.map((t) => ({ value: t, label: t })),
             ]}
           />
         </div>

@@ -18,6 +18,7 @@ import { EmbeddingStatusBadge } from "../../../components/embeddings/EmbeddingSt
 import { CandidateJobScoreCard } from "../../../components/scoring/CandidateJobScoreCard";
 import { StageHistoryTimeline } from "../../../components/pipeline/StageHistoryTimeline";
 import { CandidateNotesTab } from "../../../components/notes/CandidateNotesTab";
+import { CandidateTagsTab } from "../../../components/tags/CandidateTagsTab";
 
 export interface CandidateAssociatedJob {
   jobId: string;
@@ -567,10 +568,7 @@ function CandidateDetailContent(): React.ReactElement {
               )}
 
               {activeTab === "tags" && (
-                <EmptyState
-                  title="Candidate Tags"
-                  description="Custom taxonomy tagging for candidates will be available in Phase 11 Notes & Tags."
-                />
+                <CandidateTagsTab candidateId={candidateId} />
               )}
             </div>
           </div>
