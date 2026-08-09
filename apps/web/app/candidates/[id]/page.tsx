@@ -17,6 +17,7 @@ import { ApiError, httpClient } from "../../../lib/api";
 import { EmbeddingStatusBadge } from "../../../components/embeddings/EmbeddingStatusBadge";
 import { CandidateJobScoreCard } from "../../../components/scoring/CandidateJobScoreCard";
 import { StageHistoryTimeline } from "../../../components/pipeline/StageHistoryTimeline";
+import { CandidateNotesTab } from "../../../components/notes/CandidateNotesTab";
 
 export interface CandidateAssociatedJob {
   jobId: string;
@@ -562,10 +563,7 @@ function CandidateDetailContent(): React.ReactElement {
               )}
 
               {activeTab === "notes" && (
-                <EmptyState
-                  title="Candidate Notes"
-                  description="Collaborative evaluation notes for candidates will be available in Phase 11 Notes & Tags."
-                />
+                <CandidateNotesTab candidateId={candidateId} />
               )}
 
               {activeTab === "tags" && (
