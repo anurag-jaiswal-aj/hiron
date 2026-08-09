@@ -6,9 +6,9 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from hiron.candidates.models import Candidate
+from hiron.embeddings.generator import EmbeddingGenerationResult
 from hiron.search.exceptions import InsufficientSearchPermissionsError, SearchQueryValidationError
 from hiron.search.service import SearchService
-from hiron.embeddings.generator import EmbeddingGenerationResult
 
 
 @pytest.mark.asyncio

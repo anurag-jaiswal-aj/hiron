@@ -66,6 +66,21 @@ class TagRepository:
         result = await session.execute(stmt)
         return list(result.scalars().all())
 
+    async def list_tenant_tags(
+        self,
+        session: AsyncSession,
+        tenant_id: uuid.UUID,
+    ) -> list[str]:
+        """Fetch all unique tag names for a tenant ordered alphabetically."""
+        stmt = (
+            select(CandidateTag.tag_name)
+            .where(CandidateTag.tenant_id == tenant_id)
+            .distinct()
+            .order_by(CandidateTag.tag_name.asc())
+        )
+        result = await session.execute(stmt)
+        return list(result.scalars().all())
+
     async def get_tag_by_id(
         self,
         session: AsyncSession,

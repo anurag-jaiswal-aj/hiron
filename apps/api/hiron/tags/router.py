@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hiron.auth.dependencies import get_current_user
+from hiron.common.schemas import ResponseEnvelope
 from hiron.core.database import get_db_session as get_db
 from hiron.tags.schemas import AddTagRequest, TagListResponse, TagResponse
 from hiron.tags.service import TagService
@@ -17,6 +18,25 @@ router = APIRouter(tags=["Candidate Tags"])
 def get_tag_service() -> TagService:
     """Dependency provider for TagService."""
     return TagService()
+
+
+@router.get(
+    "/tags",
+    response_model=ResponseEnvelope[list[str]],
+    status_code=status.HTTP_200_OK,
+    summary="List Unique Tenant Tags",
+)
+async def list_tenant_tags_endpoint(
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+    service: TagService = Depends(get_tag_service),
+) -> ResponseEnvelope[list[str]]:
+    """Get all unique tag names across the tenant for autocomplete."""
+    tags = await service.list_tenant_tags(
+        session=session,
+        tenant_id=current_user.tenant_id,
+    )
+    return ResponseEnvelope(data=tags)
 
 
 @router.get(

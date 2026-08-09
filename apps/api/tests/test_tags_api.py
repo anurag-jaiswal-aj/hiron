@@ -112,3 +112,18 @@ def test_remove_tag_endpoint_success(client: TestClient, mock_tag_service: Async
 
     assert response.status_code == 204
     mock_tag_service.remove_tag.assert_called_once()
+
+
+def test_list_tenant_tags_endpoint_success(client: TestClient, mock_tag_service: AsyncMock) -> None:
+    """Verify GET /api/v1/tags returns 200 OK and list of strings."""
+    mock_tag_service.list_tenant_tags.return_value = ["backend", "frontend", "leadership"]
+
+    response = client.get("/api/v1/tags")
+
+    assert response.status_code == 200
+    res_data = response.json()["data"]
+    assert len(res_data) == 3
+    assert res_data == ["backend", "frontend", "leadership"]
+
+    mock_tag_service.list_tenant_tags.assert_called_once()
+    # The tenant_id will be matched through the mock user dependency in client fixture

@@ -127,6 +127,7 @@ class CandidateRepository:
         experience_min: int | None,
         experience_max: int | None,
         source: str | None,
+        tag: str | None,
         include_archived: bool,
     ) -> list[ColumnElement[bool]]:
         """Construct WHERE filter expressions for candidate listing."""
@@ -134,6 +135,16 @@ class CandidateRepository:
             tenant_id, location, experience_min, experience_max, source, include_archived
         )
         filters.extend(self._build_candidate_search_and_skills_filters(session, q, skills))
+        if tag:
+            from hiron.tags.models import CandidateTag
+            tag_clean = tag.strip().lower()
+            if tag_clean:
+                # Subquery to find candidates with this specific tag
+                tag_stmt = select(CandidateTag.candidate_id).where(
+                    CandidateTag.tenant_id == tenant_id,
+                    CandidateTag.tag_name == tag_clean,
+                )
+                filters.append(Candidate.id.in_(tag_stmt))
         return filters
 
     def _build_candidate_order_by(self, sort: str) -> list[Any]:
@@ -168,6 +179,7 @@ class CandidateRepository:
         experience_min: int | None = None,
         experience_max: int | None = None,
         source: str | None = None,
+        tag: str | None = None,
         include_archived: bool = False,
         sort: str = "createdAt:desc",
         limit: int = 20,
@@ -184,6 +196,7 @@ class CandidateRepository:
             experience_min=experience_min,
             experience_max=experience_max,
             source=source,
+            tag=tag,
             include_archived=include_archived,
         )
 

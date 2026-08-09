@@ -47,6 +47,7 @@ async def list_candidates(
         int | None, Query(alias="experienceMax", ge=0, description="Max experience years")
     ] = None,
     source: Annotated[str | None, Query(description="Candidate source filter")] = None,
+    tag: Annotated[str | None, Query(description="Filter by tag name")] = None,
     sort: Annotated[str, Query(description="Sort field and direction")] = "createdAt:desc",
     limit: Annotated[int, Query(ge=1, le=100, description="Items per page")] = 20,
     offset: Annotated[int, Query(ge=0, description="Offset cursor")] = 0,
@@ -62,6 +63,7 @@ async def list_candidates(
         experience_min=experience_min,
         experience_max=experience_max,
         source=source,
+        tag=tag,
         sort=sort,
         limit=limit,
         offset=offset,

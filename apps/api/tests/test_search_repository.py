@@ -25,7 +25,7 @@ async def test_search_candidates_by_vector_and_filters() -> None:
         skills=["Python"],
         total_experience_years=6,
     )
-    emb1 = CandidateEmbedding(id=uuid.uuid4(), candidate_id=cand1.id, embedding=[1.0, 0.0])
+    CandidateEmbedding(id=uuid.uuid4(), candidate_id=cand1.id, embedding=[1.0, 0.0])
 
     cand2 = Candidate(
         id=uuid.uuid4(),

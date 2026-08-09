@@ -105,7 +105,7 @@ class TagService:
         tenant_id: uuid.UUID,
         candidate_id: uuid.UUID,
     ) -> TagListResponse:
-        """List all tags on a candidate per API Contract §TAG-1."""
+        """List tags on a candidate per API Contract §TAG-1."""
         candidate = await self.candidate_repo.get_candidate_by_id(
             session=session, candidate_id=candidate_id, tenant_id=tenant_id
         )
@@ -116,6 +116,16 @@ class TagService:
             session=session, tenant_id=tenant_id, candidate_id=candidate_id
         )
         return TagListResponse(data=[self._build_tag_data(t) for t in tags])
+
+    async def list_tenant_tags(
+        self,
+        session: AsyncSession,
+        tenant_id: uuid.UUID,
+    ) -> list[str]:
+        """List all unique tags across the tenant for autocomplete."""
+        return await self.tag_repo.list_tenant_tags(
+            session=session, tenant_id=tenant_id
+        )
 
     async def remove_tag(
         self,

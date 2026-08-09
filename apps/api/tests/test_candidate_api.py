@@ -100,6 +100,22 @@ def test_list_candidates_endpoint_success(
     assert data[0]["email"] == "sarah@example.com"
 
 
+def test_list_candidates_with_tag_filtering(
+    client: TestClient,
+    mock_candidate_service: AsyncMock,
+) -> None:
+    """Verify GET /api/v1/candidates passes the tag parameter to the service."""
+    mock_candidate_service.list_candidates.return_value = ([], 0, None)
+
+    response = client.get("/api/v1/candidates?tag=senior")
+    assert response.status_code == 200
+
+    # Ensure the tag parameter was correctly passed down
+    mock_candidate_service.list_candidates.assert_called_once()
+    kwargs = mock_candidate_service.list_candidates.call_args.kwargs
+    assert kwargs.get("tag") == "senior"
+
+
 def test_create_candidate_endpoint_success(
     client: TestClient,
     mock_candidate_service: AsyncMock,
