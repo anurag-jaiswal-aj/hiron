@@ -16,6 +16,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { ApiError, httpClient } from "../../../lib/api";
 import { EmbeddingStatusBadge } from "../../../components/embeddings/EmbeddingStatusBadge";
 import { CandidateJobScoreCard } from "../../../components/scoring/CandidateJobScoreCard";
+import { StageHistoryTimeline } from "../../../components/pipeline/StageHistoryTimeline";
 
 export interface CandidateAssociatedJob {
   jobId: string;
@@ -540,12 +541,16 @@ function CandidateDetailContent(): React.ReactElement {
                 <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
                   {candidate.jobs && candidate.jobs.length > 0 ? (
                     candidate.jobs.map((job) => (
-                      <CandidateJobScoreCard 
-                        key={job.jobId} 
-                        candidateId={candidate.id} 
-                        jobId={job.jobId} 
-                        jobTitle={job.jobTitle} 
-                      />
+                      <div key={job.jobId} style={{ display: "flex", flexDirection: "column", gap: "1rem", paddingBottom: "1.5rem", borderBottom: "1px solid var(--border-subtle)" }}>
+                        <CandidateJobScoreCard
+                          candidateId={candidate.id}
+                          jobId={job.jobId}
+                          jobTitle={job.jobTitle}
+                        />
+                        <div style={{ backgroundColor: "var(--bg-surface)", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-subtle)" }}>
+                          <StageHistoryTimeline jobId={job.jobId} candidateId={candidate.id} />
+                        </div>
+                      </div>
                     ))
                   ) : (
                     <EmptyState

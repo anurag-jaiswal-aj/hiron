@@ -16,6 +16,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { ApiError, httpClient } from "../../../lib/api";
 import { EmbeddingStatusBadge } from "../../../components/embeddings/EmbeddingStatusBadge";
 import { JobScoresList } from "../../../components/scoring/JobScoresList";
+import { PipelineKanbanBoard } from "../../../components/pipeline/PipelineKanbanBoard";
 
 export interface PipelineStage {
   id: string;
@@ -483,10 +484,7 @@ function JobDetailContent(): React.ReactElement {
 
           {/* Placeholders for Kanban, Candidates, Scores */}
           {activeTab === "kanban" && (
-            <EmptyState
-              title="Pipeline Kanban Board"
-              description="Interactive pipeline Kanban board for candidate stage progression is deferred to Phase 10."
-            />
+            <PipelineKanbanBoard jobId={jobId} canManage={canManageJobs} />
           )}
 
           {activeTab === "candidates" && (
