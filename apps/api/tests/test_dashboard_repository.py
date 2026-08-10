@@ -33,13 +33,19 @@ async def test_get_score_distribution_stats_computes_breakdown() -> None:
     tenant_id = uuid.uuid4()
 
     mock_result = MagicMock()
-    mock_result.scalars.return_value.all.return_value = [95, 85, 75, 65, 45]
+    mock_row = MagicMock()
+    mock_row.high = 2
+    mock_row.medium = 2
+    mock_row.low = 1
+    mock_row.total = 5
+    mock_row.avg = 73.0
+    mock_result.one.return_value = mock_row
     session.execute.return_value = mock_result
 
     high, medium, low, total, avg = await repo.get_score_distribution_stats(session, tenant_id)
 
-    assert high == 2  # 95, 85
-    assert medium == 2  # 75, 65
-    assert low == 1  # 45
+    assert high == 2
+    assert medium == 2
+    assert low == 1
     assert total == 5
     assert avg == 73.0

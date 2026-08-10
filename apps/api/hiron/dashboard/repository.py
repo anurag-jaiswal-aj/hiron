@@ -91,25 +91,37 @@ class DashboardRepository:
         jobs_res = await session.execute(jobs_stmt)
         jobs = list(jobs_res.scalars().all())
 
+        if not jobs:
+            return []
+
+        job_ids = [j.id for j in jobs]
+
+        # 2. Fetch stages and candidate counts for all top jobs in one query (Fixing N+1)
+        stages_stmt = (
+            select(PipelineStage, func.count(JobCandidate.id))
+            .outerjoin(
+                JobCandidate,
+                (PipelineStage.id == JobCandidate.current_stage_id)
+                & (JobCandidate.is_archived.is_(False)),
+            )
+            .where(
+                PipelineStage.tenant_id == tenant_id,
+                PipelineStage.job_id.in_(job_ids),
+            )
+            .group_by(PipelineStage.id)
+            .order_by(PipelineStage.job_id, PipelineStage.position.asc())
+        )
+        stages_res = await session.execute(stages_stmt)
+        all_stages = stages_res.all()
+
+        # 3. Group stages by job_id in python
+        stages_by_job: dict[uuid.UUID, list[tuple[PipelineStage, int]]] = {j.id: [] for j in jobs}
+        for stage, count in all_stages:
+            stages_by_job[stage.job_id].append((stage, count))
+
         results: list[tuple[Job, list[tuple[PipelineStage, int]]]] = []
         for j in jobs:
-            stages_stmt = (
-                select(PipelineStage, func.count(JobCandidate.id))
-                .outerjoin(
-                    JobCandidate,
-                    (PipelineStage.id == JobCandidate.current_stage_id)
-                    & (JobCandidate.is_archived.is_(False)),
-                )
-                .where(
-                    PipelineStage.tenant_id == tenant_id,
-                    PipelineStage.job_id == j.id,
-                )
-                .group_by(PipelineStage.id)
-                .order_by(PipelineStage.position.asc())
-            )
-            stages_res = await session.execute(stages_stmt)
-            stage_tuples = [(stage, count) for stage, count in stages_res.all()]
-            results.append((j, stage_tuples))
+            results.append((j, stages_by_job[j.id]))
 
         return results
 
@@ -119,23 +131,24 @@ class DashboardRepository:
         tenant_id: uuid.UUID,
     ) -> tuple[int, int, int, int, float | None]:
         """Compute high (>=80), medium (60-79), low (<60) score counts and average fit score."""
-        scores_stmt = select(Score.fit_score).where(
+        from sqlalchemy import case, cast, Float
+        scores_stmt = select(
+            func.count(case((Score.fit_score >= 80, 1))).label("high"),
+            func.count(case((Score.fit_score.between(60, 79), 1))).label("medium"),
+            func.count(case((Score.fit_score < 60, 1))).label("low"),
+            func.count(Score.id).label("total"),
+            func.avg(Score.fit_score).label("avg"),
+        ).where(
             Score.tenant_id == tenant_id,
             Score.is_current.is_(True),
         )
         res = await session.execute(scores_stmt)
-        scores = list(res.scalars().all())
+        row = res.one()
 
-        if not scores:
+        if row.total == 0:
             return 0, 0, 0, 0, None
 
-        high = sum(1 for s in scores if s >= 80)
-        medium = sum(1 for s in scores if 60 <= s < 80)
-        low = sum(1 for s in scores if s < 60)
-        total = len(scores)
-        avg = float(sum(scores)) / total
-
-        return high, medium, low, total, round(avg, 2)
+        return row.high, row.medium, row.low, row.total, round(float(row.avg), 2)
 
     async def get_recent_stage_activities(
         self,

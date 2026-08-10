@@ -266,6 +266,10 @@ class UserService:
         await session.commit()
         await session.refresh(updated)
 
+        # Invalidate cache
+        from hiron.core.cache import app_cache
+        await app_cache.invalidate(f"user:{tenant_id}:{user_id}:profile")
+
         logger.info("User updated successfully", user_id=str(user_id), tenant_id=str(tenant_id))
         return updated
 

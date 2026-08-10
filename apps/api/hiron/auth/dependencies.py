@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from hiron.auth.service import AccountDisabledError, AuthenticationError
 from hiron.common.exceptions import PermissionDeniedException
+from hiron.core.cache import app_cache
 from hiron.core.database import get_db_session
 from hiron.core.jwt import verify_token
 from hiron.users.models import User
@@ -74,7 +75,23 @@ async def get_current_user(
         raise AuthenticationError("Malformed token payload") from exc
 
     # 3. Lookup user with strict tenant context validation
-    user = await user_repo.get_by_id_and_tenant(session=db, user_id=user_id, tenant_id=tenant_id)
+    cache_key = f"user:{tenant_id}:{user_id}:profile"
+    cached_user = await app_cache.get(cache_key)
+    if cached_user:
+        user = User(**cached_user)
+    else:
+        user = await user_repo.get_by_id_and_tenant(session=db, user_id=user_id, tenant_id=tenant_id)
+        if user:
+            user_dict = {
+                "id": str(user.id),
+                "tenant_id": str(user.tenant_id),
+                "email": user.email,
+                "full_name": user.full_name,
+                "role": user.role,
+                "is_active": user.is_active,
+            }
+            await app_cache.set(cache_key, user_dict, ttl_seconds=300)
+
     if not user:
         raise AuthenticationError("Authenticated user not found")
 
