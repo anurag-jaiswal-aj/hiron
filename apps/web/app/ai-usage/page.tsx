@@ -5,7 +5,29 @@ import { ProtectedRoute } from "../../components/ProtectedRoute";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { AppShell } from "../../components/layout/AppShell";
 import { MetricCard } from "../../components/dashboard/MetricCard";
-import { UsageTrendChart } from "../../components/ai-usage/UsageTrendChart";
+import dynamic from "next/dynamic";
+
+const UsageTrendChart = dynamic(
+  () => import("../../components/ai-usage/UsageTrendChart").then((mod) => mod.UsageTrendChart),
+  {
+    ssr: false,
+    loading: () => (
+      <div style={{
+        padding: "1.25rem",
+        border: "1px solid var(--border-subtle)",
+        borderRadius: "var(--radius-lg)",
+        backgroundColor: "var(--bg-surface)",
+        height: "360px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "var(--text-muted)"
+      }}>
+        Loading chart...
+      </div>
+    )
+  }
+);
 import { OperationBreakdownTable } from "../../components/ai-usage/OperationBreakdownTable";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { Button } from "../../components/ui/Button";
@@ -151,7 +173,7 @@ function AIUsageContent(): React.ReactElement {
             icon="🎯"
           />
         </div>
-        
+
         {/* Charts & Tables */}
         <div style={{
           display: "grid",

@@ -16,7 +16,30 @@ import { useAuth } from "../../../context/AuthContext";
 import { ApiError, httpClient } from "../../../lib/api";
 import { EmbeddingStatusBadge } from "../../../components/embeddings/EmbeddingStatusBadge";
 import { JobScoresList } from "../../../components/scoring/JobScoresList";
-import { PipelineKanbanBoard } from "../../../components/pipeline/PipelineKanbanBoard";
+import dynamic from "next/dynamic";
+
+const PipelineKanbanBoard = dynamic(
+  () => import("../../../components/pipeline/PipelineKanbanBoard").then((mod) => mod.PipelineKanbanBoard),
+  {
+    ssr: false,
+    loading: () => (
+      <div style={{
+        padding: "2rem",
+        textAlign: "center",
+        color: "var(--text-muted)",
+        backgroundColor: "var(--bg-surface)",
+        border: "1px solid var(--border-subtle)",
+        borderRadius: "var(--radius-lg)",
+        height: "400px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center"
+      }}>
+        Loading Kanban board...
+      </div>
+    )
+  }
+);
 
 export interface PipelineStage {
   id: string;

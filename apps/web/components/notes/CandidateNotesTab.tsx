@@ -1,9 +1,31 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { notesApi, NoteData } from "../../lib/notes-api";
 import { useAuth } from "../../context/AuthContext";
-import { NoteEditor } from "./NoteEditor";
 import { EmptyState } from "../ui/EmptyState";
 import { Button } from "../ui/Button";
+import dynamic from "next/dynamic";
+
+const NoteEditor = dynamic(
+  () => import("./NoteEditor").then((mod) => mod.NoteEditor),
+  {
+    ssr: false,
+    loading: () => (
+      <div style={{
+        minHeight: "120px",
+        padding: "0.75rem",
+        background: "var(--bg-surface-secondary)",
+        borderRadius: "var(--radius-md)",
+        border: "1px solid var(--border-subtle)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "var(--text-muted)"
+      }}>
+        Loading editor...
+      </div>
+    )
+  }
+);
 
 interface CandidateNotesTabProps {
   candidateId: string;
@@ -14,7 +36,7 @@ export function CandidateNotesTab({ candidateId }: CandidateNotesTabProps): Reac
   const [notes, setNotes] = useState<NoteData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [isAdding, setIsAdding] = useState(false);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -71,7 +93,7 @@ export function CandidateNotesTab({ candidateId }: CandidateNotesTabProps): Reac
     if (!confirm("Are you sure you want to delete this note?")) {
       return;
     }
-    
+
     try {
       await notesApi.deleteNote(candidateId, noteId);
       await fetchNotes();
@@ -104,7 +126,7 @@ export function CandidateNotesTab({ candidateId }: CandidateNotesTabProps): Reac
       {/* Add Note Section */}
       {!isAdding && !editingNoteId && (
         <button
-          type="button" 
+          type="button"
           onClick={() => setIsAdding(true)}
           style={{
             width: "100%",
@@ -228,7 +250,7 @@ export function CandidateNotesTab({ candidateId }: CandidateNotesTabProps): Reac
                       </div>
                     )}
                   </div>
-                  <div 
+                  <div
                     className="tiptap-content"
                     style={{
                       fontSize: "0.875rem",
@@ -236,7 +258,7 @@ export function CandidateNotesTab({ candidateId }: CandidateNotesTabProps): Reac
                       color: "var(--text-primary)",
                       whiteSpace: "pre-wrap",
                     }}
-                    dangerouslySetInnerHTML={{ __html: note.content }} 
+                    dangerouslySetInnerHTML={{ __html: note.content }}
                   />
                 </div>
               )}

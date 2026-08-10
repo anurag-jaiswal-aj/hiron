@@ -10,7 +10,29 @@ import { MetricCard } from "../components/dashboard/MetricCard";
 import { PipelineOverview } from "../components/dashboard/PipelineOverview";
 import { RecentActivity } from "../components/dashboard/RecentActivity";
 import { DashboardOnboarding } from "../components/dashboard/DashboardOnboarding";
-import { ScoreDistributionChart } from "../components/dashboard/ScoreDistributionChart";
+import dynamic from "next/dynamic";
+
+const ScoreDistributionChart = dynamic(
+  () => import("../components/dashboard/ScoreDistributionChart").then((mod) => mod.ScoreDistributionChart),
+  {
+    ssr: false,
+    loading: () => (
+      <div style={{
+        padding: "1rem",
+        border: "1px solid var(--border-subtle)",
+        borderRadius: "var(--radius-md)",
+        backgroundColor: "var(--bg-surface)",
+        height: "320px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "var(--text-muted)"
+      }}>
+        Loading chart...
+      </div>
+    )
+  }
+);
 
 function DashboardContent(): React.ReactElement {
   const [summary, setSummary] = useState<DashboardSummaryData | null>(null);
