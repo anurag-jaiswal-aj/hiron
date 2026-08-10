@@ -30,7 +30,7 @@ export async function loginAs(
   const effectiveTenantId = tenantId || (await getTenantId());
 
   await page.goto("/login");
-  await page.waitForLoadState("networkidle");
+  await page.waitForLoadState("domcontentloaded");
 
   await page.fill("#tenantId", effectiveTenantId);
   await page.fill("#email", email);

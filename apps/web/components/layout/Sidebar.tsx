@@ -10,11 +10,14 @@ export function Sidebar(): React.ReactElement {
   const pathname = usePathname();
   const { user, logout } = useAuth();
 
+  const canViewAuditLogs = user?.role === "org_admin" || user?.role === "recruiter";
+
   const navItems = [
     { label: "Overview", href: "/" },
     { label: "Jobs", href: "/jobs" },
     { label: "Candidates", href: "/candidates" },
     { label: "Team", href: "/users" },
+    ...(canViewAuditLogs ? [{ label: "Audit Logs", href: "/audit-logs" }] : []),
   ];
 
   return (
