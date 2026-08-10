@@ -4,7 +4,7 @@ import datetime
 import decimal
 import uuid
 
-from sqlalchemy import Integer, func, select
+from sqlalchemy import Integer, func, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hiron.ai_usage.models import AIUsageLog
@@ -168,8 +168,7 @@ class AIUsageRepository:
             cursor_id = uuid.UUID(decoded["id"])
 
             stmt = stmt.where(
-                (AIUsageLog.created_at < cursor_dt)
-                | ((AIUsageLog.created_at == cursor_dt) & (AIUsageLog.id < cursor_id))
+                tuple_(AIUsageLog.created_at, AIUsageLog.id) < tuple_(cursor_dt, cursor_id)
             )
 
         stmt = stmt.limit(limit + 1)

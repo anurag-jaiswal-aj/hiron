@@ -4,7 +4,7 @@ import datetime
 import uuid
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -82,8 +82,7 @@ class AuditRepository:
             cursor_id = uuid.UUID(decoded["id"])
 
             stmt = stmt.where(
-                (AuditLog.created_at < cursor_dt)
-                | ((AuditLog.created_at == cursor_dt) & (AuditLog.id < cursor_id))
+                tuple_(AuditLog.created_at, AuditLog.id) < tuple_(cursor_dt, cursor_id)
             )
 
         stmt = stmt.limit(limit + 1)
