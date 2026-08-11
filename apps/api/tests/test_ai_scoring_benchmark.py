@@ -19,6 +19,7 @@ def test_ai_scoring_engine_evaluation_benchmark() -> None:
         title="Backend Engineer",
         required_skills=["Python", "FastAPI"],
         experience_years_min=3,
+        description="Backend engineering role",
     )
 
     eval_result = engine.evaluate(

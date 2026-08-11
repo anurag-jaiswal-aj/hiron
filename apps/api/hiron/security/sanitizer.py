@@ -29,7 +29,13 @@ def sanitize_text(text: str | None) -> str | None:
 
 
 def detect_prompt_injection(text: str | None) -> bool:
-    """Detect potential adversarial prompt injection vectors in candidate resumes or user prompts."""
+    """
+    Detect potential adversarial prompt injection vectors in candidate resumes or user prompts.
+
+    NOTE: This is a secondary telemetry signal, not an automatic content blocker.
+    Legitimate resume/job content containing prompt-related terminology must remain processable
+    unless a separately defined high-confidence blocking policy exists.
+    """
     if not text:
         return False
 

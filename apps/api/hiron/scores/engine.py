@@ -7,6 +7,7 @@ import structlog
 
 from hiron.candidates.models import Candidate
 from hiron.jobs.models import Job
+from hiron.security.prompt_builder import PromptBuilder
 
 logger = structlog.get_logger("hiron.scores.engine")
 
@@ -137,6 +138,23 @@ class AIScoringEngine:
         job_vector: list[float] | None = None,
     ) -> dict[str, Any]:
         """Perform AI candidate-job evaluation pipeline and produce structured score payload."""
+        # 1. Structural Security Boundary Construction
+        # Callers cannot construct raw messages; they must supply labeled user data here.
+        system_instructions = (
+            f"You are evaluating {candidate.full_name} for the role of {job.title}."
+        )
+        builder = PromptBuilder(system_instructions=system_instructions)
+        # The prompt builder automatically enforces length limits, XML encapsulation,
+        # and triggers secondary prompt-injection detection telemetry.
+        _llm_messages = builder.build_messages({
+            "candidate_skills": ", ".join(candidate.skills) if candidate.skills else "",
+            "candidate_summary": candidate.summary or "",
+            "candidate_resume_text": _resume_text or "",
+            "job_description": job.description or "",
+            "job_required_skills": ", ".join(job.required_skills) if job.required_skills else "",
+        })
+
+        # 2. Heuristic/Algorithmic Evaluation (Mocking LLM generation)
         cos_sim = self.compute_cosine_similarity(candidate_vector, job_vector)
 
         skills_matched, skills_missing, skills_score = self.calculate_skills_matching(

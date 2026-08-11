@@ -7,6 +7,7 @@ import time
 from dataclasses import dataclass
 
 import structlog
+import tiktoken
 
 from hiron.core.config import get_settings
 
@@ -60,6 +61,24 @@ class EmbeddingGenerator:
 
     def generate_embedding(self, text: str) -> EmbeddingGenerationResult:
         """Generate 1536-dim float vector and SHA-256 hash for given text input."""
+        # Enforce exact token limit to respect OpenAI's 8192 token limit precisely
+        # We use cl100k_base (the tokenizer for text-embedding-3-small)
+        # We also enforce disallowed_special="all" which hard-errors on token injection like <|endoftext|>
+        max_tokens = 8190 # Leave a small buffer
+        try:
+            encoding = tiktoken.get_encoding("cl100k_base")
+            tokens = encoding.encode(text if text else "", disallowed_special="all")
+            if len(tokens) > max_tokens:
+                logger.warning(
+                    "embedding_input_truncated",
+                    extra={"original_tokens": len(tokens), "max_tokens": max_tokens}
+                )
+                text = encoding.decode(tokens[:max_tokens])
+        except Exception as exc:
+            # Fallback to a very safe character limit if tokenization fails for any unexpected reason
+            logger.error("tokenization_failed", error=str(exc))
+            text = text[:8000] if text else ""
+
         source_hash = self.compute_source_text_hash(text)
 
         if not text or not text.strip():
