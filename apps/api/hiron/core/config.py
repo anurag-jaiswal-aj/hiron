@@ -8,6 +8,13 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    # Rate Limiting & Security
+    rate_limit_requests_per_minute: int = Field(default=600, description="Rate limit requests per minute per IP")
+    trusted_proxies: list[str] = Field(
+        default=["127.0.0.1", "::1"],
+        description="List of trusted proxy IPs/CIDRs for resolving X-Forwarded-For"
+    )
+
     """Application settings loaded from environment variables and .env files."""
 
     model_config = SettingsConfigDict(

@@ -26,7 +26,11 @@ from hiron.pipeline.router import router as pipeline_router
 from hiron.resumes.router import router as resumes_router
 from hiron.scores.router import router as scores_router
 from hiron.search.router import router as search_router
-from hiron.security.middleware import RequestSizeLimitMiddleware, SecurityHeadersMiddleware
+from hiron.security.middleware import (
+    RateLimitMiddleware,
+    RequestSizeLimitMiddleware,
+    SecurityHeadersMiddleware,
+)
 from hiron.security.router import router as security_router
 from hiron.tags.router import router as tags_router
 from hiron.tenants.router import router as tenants_router
@@ -76,6 +80,7 @@ def create_app() -> FastAPI:
     # 4. Security & Router Registration
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(RequestSizeLimitMiddleware)
+    app.add_middleware(RateLimitMiddleware)
 
     # Register API Routers
     app.include_router(health_router, prefix="/api/v1/health", tags=["Health"])
@@ -100,6 +105,7 @@ def create_app() -> FastAPI:
     app.include_router(maintenance_router, prefix="/api/v1", tags=["Maintenance"])
 
     from hiron.tasks.router import router as tasks_router
+
     app.include_router(tasks_router, prefix="/api/v1/tasks", tags=["Tasks"])
 
     return app

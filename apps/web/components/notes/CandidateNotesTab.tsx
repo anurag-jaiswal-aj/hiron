@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
+import DOMPurify from "dompurify";
 import { notesApi, NoteData } from "../../lib/notes-api";
 import { useAuth } from "../../context/AuthContext";
 import { EmptyState } from "../ui/EmptyState";
@@ -258,7 +259,7 @@ export function CandidateNotesTab({ candidateId }: CandidateNotesTabProps): Reac
                       color: "var(--text-primary)",
                       whiteSpace: "pre-wrap",
                     }}
-                    dangerouslySetInnerHTML={{ __html: note.content }}
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(note.content) }}
                   />
                 </div>
               )}

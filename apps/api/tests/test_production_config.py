@@ -79,10 +79,12 @@ def test_openapi_docs_disabled_in_production() -> None:
 
 def test_production_security_headers() -> None:
     """Verify security headers middleware attaches HSTS, CSP, and framing headers."""
-    app = create_app()
-    client = TestClient(app)
+    prod_settings = Settings(environment="production")
+    with patch("hiron.security.middleware.get_settings", return_value=prod_settings):
+        app = create_app()
+        client = TestClient(app)
 
-    response = client.get("/api/v1/health")
-    assert response.headers.get("x-frame-options") == "DENY"
-    assert response.headers.get("x-content-type-options") == "nosniff"
-    assert "max-age=31536000" in response.headers.get("strict-transport-security", "")
+        response = client.get("/api/v1/health")
+        assert response.headers.get("x-frame-options") == "DENY"
+        assert response.headers.get("x-content-type-options") == "nosniff"
+        assert "max-age=31536000" in response.headers.get("strict-transport-security", "")
