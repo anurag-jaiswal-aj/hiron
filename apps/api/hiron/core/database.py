@@ -4,13 +4,15 @@ import time
 from collections.abc import AsyncGenerator
 
 import structlog
-from sqlalchemy import text
+from sqlalchemy import event, text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
+
+from hiron.security.context import get_tenant_context
 
 from hiron.core.config import get_settings
 
@@ -35,6 +37,23 @@ AsyncSessionLocal: async_sessionmaker[AsyncSession] = async_sessionmaker(
     autoflush=False,
     autocommit=False,
 )
+
+@event.listens_for(engine.sync_engine, "checkout")
+def set_tenant_context_on_checkout(dbapi_connection, connection_record, connection_proxy) -> None:
+    """Inject tenant identity into the PostgreSQL session upon checking out a connection."""
+    tenant_id = get_tenant_context()
+    cursor = dbapi_connection.cursor()
+    try:
+        if tenant_id:
+            cursor.execute(f"SET app.current_tenant_id = '{tenant_id}'")
+        else:
+            # Clear tenant context to prevent data leakage from previous pooled connections
+            cursor.execute("RESET app.current_tenant_id")
+    except Exception as exc:
+        logger.error("Failed to set RLS context on checkout", error=str(exc))
+        raise
+    finally:
+        cursor.close()
 
 
 # 3. FastAPI Dependency Injection for Async Database Sessions (§5.2)

@@ -2,6 +2,7 @@
 
 import ipaddress
 import time
+import uuid
 from collections.abc import Awaitable, Callable, MutableMapping
 from typing import Any
 
@@ -9,9 +10,12 @@ import structlog
 from fastapi import Request, Response, status
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 
 from hiron.core.cache import CacheManager
 from hiron.core.config import get_settings
+from hiron.core.jwt import verify_token
+from hiron.security.context import set_tenant_context
 
 logger = structlog.get_logger("hiron.api.security")
 
@@ -213,3 +217,30 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             logger.error("Rate limiter failed", error=str(e))
 
         return await call_next(request)
+
+class TenantIsolationMiddleware(BaseHTTPMiddleware):
+    """Extracts tenant identity from authenticated JWTs and sets it in the request contextvar."""
+
+    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
+        tenant_id = None
+
+        auth = request.headers.get("Authorization")
+        if auth and auth.startswith("Bearer "):
+            token = auth.split(" ")[1]
+            try:
+                payload = verify_token(token, expected_type="access")
+                tenant_str = payload.get("tenantId")
+                if tenant_str:
+                    uuid.UUID(tenant_str) # strictly validate format
+                    tenant_id = tenant_str
+            except (ExpiredSignatureError, InvalidTokenError, ValueError, KeyError):
+                # Don't fail the request here, let FastAPI auth dependencies handle 401s
+                # if the route requires auth. Just leave tenant_id as None.
+                pass
+
+        set_tenant_context(tenant_id)
+        try:
+            return await call_next(request)
+        finally:
+            # Clear context so it doesn't leak to background tasks or subsequent requests in async workers
+            set_tenant_context(None)

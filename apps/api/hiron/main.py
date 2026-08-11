@@ -30,6 +30,7 @@ from hiron.security.middleware import (
     RateLimitMiddleware,
     RequestSizeLimitMiddleware,
     SecurityHeadersMiddleware,
+    TenantIsolationMiddleware,
 )
 from hiron.security.router import router as security_router
 from hiron.tags.router import router as tags_router
@@ -79,6 +80,7 @@ def create_app() -> FastAPI:
 
     # 4. Security & Router Registration
     app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(TenantIsolationMiddleware)
     app.add_middleware(RequestSizeLimitMiddleware)
     app.add_middleware(RateLimitMiddleware)
 
