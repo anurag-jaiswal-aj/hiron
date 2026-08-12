@@ -19,14 +19,27 @@ from hiron.core.config import get_settings
 logger = structlog.get_logger("hiron.api.database")
 settings = get_settings()
 
+import sys
+from sqlalchemy import pool
+
 # 1. Async SQLAlchemy Engine Configuration (§10 & Database Design)
+_is_celery = sys.argv and "celery" in sys.argv[0]
+_engine_kwargs = {
+    "echo": (settings.environment == "development" and settings.log_level == "DEBUG"),
+}
+if _is_celery:
+    # Celery workers execute async tasks in dynamically created/closed event loops.
+    # NullPool prevents asyncpg from reusing connection futures across different loops.
+    _engine_kwargs["poolclass"] = pool.NullPool
+else:
+    _engine_kwargs["pool_size"] = settings.db_pool_size
+    _engine_kwargs["max_overflow"] = settings.db_max_overflow
+    _engine_kwargs["pool_timeout"] = settings.db_pool_timeout
+    _engine_kwargs["pool_pre_ping"] = True
+
 engine: AsyncEngine = create_async_engine(
     settings.database_url,
-    echo=(settings.environment == "development" and settings.log_level == "DEBUG"),
-    pool_size=settings.db_pool_size,
-    max_overflow=settings.db_max_overflow,
-    pool_timeout=settings.db_pool_timeout,
-    pool_pre_ping=True,  # Automatically test connections before returning from pool
+    **_engine_kwargs,
 )
 
 # 2. Async Session Factory

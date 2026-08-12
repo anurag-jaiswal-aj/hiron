@@ -39,6 +39,7 @@ export function Select({ label, options, id, style, ...props }: SelectProps): Re
           ...style,
         }}
         {...props}
+        aria-label={props["aria-label"] || label || "Select an option"}
       >
         {options.map((opt) => (
           <option key={opt.value} value={opt.value}>

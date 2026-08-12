@@ -91,6 +91,7 @@ function AIUsageContent(): React.ReactElement {
 
   const periodSelector = (
     <select
+      aria-label="Time period"
       value={period}
       onChange={(e) => setPeriod(e.target.value as "7d" | "30d" | "90d")}
       style={{

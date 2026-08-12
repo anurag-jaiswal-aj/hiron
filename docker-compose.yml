@@ -110,7 +110,7 @@ services:
       dockerfile: infra/docker/Dockerfile.api
     container_name: hiron-worker
     restart: unless-stopped
-    command: celery -A hiron.core.celery worker --loglevel=info
+    command: celery -A hiron.core.celery worker --loglevel=info --concurrency=2
     healthcheck:
       disable: true
     env_file:
@@ -123,6 +123,7 @@ services:
       CELERY_RESULT_BACKEND: redis://redis:6379/2
     volumes:
       - ./keys:/app/keys:ro
+      - hiron_api_storage:/app/storage
     depends_on:
       postgres:
         condition: service_healthy

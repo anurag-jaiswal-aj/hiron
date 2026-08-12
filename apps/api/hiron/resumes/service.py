@@ -216,7 +216,9 @@ class ResumeService:
             else:
                 file_bytes = b"Jane Smith\njane@example.com\nSenior Python Engineer at Stripe\nSkills: Python, FastAPI, Docker, PostgreSQL"
 
-            raw_text = extract_text_from_file(
+            from fastapi.concurrency import run_in_threadpool
+            raw_text = await run_in_threadpool(
+                extract_text_from_file,
                 file_bytes=file_bytes,
                 content_type=resume_file.content_type,
                 filename=resume_file.original_filename,

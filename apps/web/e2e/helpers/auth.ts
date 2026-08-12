@@ -29,8 +29,13 @@ export async function loginAs(
 ): Promise<string | null> {
   const effectiveTenantId = tenantId || (await getTenantId());
 
+
+
   await page.goto("/login");
   await page.waitForLoadState("domcontentloaded");
+
+  // Wait for the login form to actually render (AuthContext loading resolved)
+  await page.waitForSelector("#tenantId", { timeout: 10000 });
 
   await page.fill("#tenantId", effectiveTenantId);
   await page.fill("#email", email);

@@ -229,7 +229,19 @@ function SemanticSearchContent(): React.ReactElement {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Try: 'Senior backend engineers with fintech experience who know Python'"
-              className="block w-full pl-12 pr-32 py-5 bg-white border-2 border-gray-200 rounded-2xl text-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-0 focus:border-indigo-500 shadow-sm transition-all hover:border-gray-300"
+              style={{
+                display: "block",
+                width: "100%",
+                padding: "1.25rem 8rem 1.25rem 3rem",
+                backgroundColor: "var(--bg-surface)",
+                border: "2px solid var(--border-subtle)",
+                borderRadius: "1rem",
+                fontSize: "1.125rem",
+                color: "var(--text-primary)",
+                boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+                outline: "none",
+                transition: "border-color 0.15s ease",
+              }}
             />
             <div className="absolute inset-y-2 right-2 flex items-center">
               <Button type="submit" size="lg" className="h-full rounded-xl px-6 font-semibold" disabled={isLoading || !searchQuery.trim()}>

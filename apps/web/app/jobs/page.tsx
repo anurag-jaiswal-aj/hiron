@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import React, { useCallback, useEffect, useState } from "react";
 
 import { JobStatusBadge } from "../../components/jobs/JobStatusBadge";
@@ -43,6 +44,7 @@ export interface ResponseEnvelope<T> {
 
 function JobsListContent(): React.ReactElement {
   const { user } = useAuth();
+  const router = useRouter();
   const canManageJobs = user?.role === "org_admin" || user?.role === "recruiter";
 
   const [jobs, setJobs] = useState<JobListItem[]>([]);
@@ -117,9 +119,9 @@ function JobsListContent(): React.ReactElement {
         subtitle="Manage open positions, pipeline configurations, and candidate sourcing."
         actions={
           canManageJobs ? (
-            <Link href="/jobs/new" style={{ textDecoration: "none" }}>
-              <Button type="button">+ Create Job</Button>
-            </Link>
+            <Button type="button" onClick={() => router.push("/jobs/new")}>
+              + Create Job
+            </Button>
           ) : undefined
         }
       />

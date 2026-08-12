@@ -217,7 +217,8 @@ export default function LoginPage(): React.ReactElement | null {
                   color: "var(--text-muted)",
                   cursor: "pointer",
                   fontSize: "0.875rem",
-                  padding: 0,
+                  padding: "0.25rem 0.5rem",
+                  minHeight: "24px",
                 }}
               >
                 {showPassword ? "Hide" : "Show"}

@@ -32,8 +32,8 @@ export function EmbeddingStatusBadge({ entityType, entityId }: EmbeddingStatusBa
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
       {status === "current" && (
-        <Badge variant="active" style={{ backgroundColor: "#16a34a", color: "white", borderColor: "#15803d" }}>
-          ✨ Embedding Current
+        <Badge variant="active" style={{ backgroundColor: "#166534", color: "white", borderColor: "#14532d" }}>
+          Embeddings Ready
         </Badge>
       )}
 

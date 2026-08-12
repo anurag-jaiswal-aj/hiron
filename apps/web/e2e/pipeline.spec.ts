@@ -82,17 +82,24 @@ test.describe("Pipeline / Kanban", () => {
     await page.getByRole('button', { name: 'Kanban' }).click();
 
     // Wait for Kanban to load
-    await expect(page.getByText("Applied")).toBeVisible();
-    await expect(page.getByText("Screening")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Applied" })).toBeVisible();
+
+    const isMobileLayout = await page.evaluate(() => window.innerWidth <= 768);
+    if (!isMobileLayout) {
+      await expect(page.getByRole("heading", { name: "Screening" })).toBeVisible();
+    } else {
+      await expect(page.getByLabel("Select Stage")).toBeVisible();
+    }
+
     await expect(page.getByText("Jane Smith")).toBeVisible();
     await expect(page.getByText("92")).toBeVisible(); // Fit score
 
     // Simulate drag and drop using keyboard for dnd-kit or mouse events
-    // dnd-kit is difficult to drag via simple mouse events in Playwright. 
+    // dnd-kit is difficult to drag via simple mouse events in Playwright.
     // We can interact with the Candidate Action Modal to test other actions.
     await page.getByRole("button", { name: "Jane Smith Backend Developer" }).click();
     await expect(page.getByText("Candidate Actions")).toBeVisible();
-    
+
     // Mock Shortlist API
     await page.route(`**/api/v1/jobs/${mockJobId}/candidates/cand-1/shortlist`, async (route) => {
       await route.fulfill({
@@ -110,13 +117,13 @@ test.describe("Pipeline / Kanban", () => {
     // Shortlist
     await page.getByRole("button", { name: "Shortlist" }).click();
     await expect(page.getByText("Candidate Actions")).toBeHidden();
-    
+
     // Test rejection
     await page.getByRole("button", { name: "Jane Smith Backend Developer" }).click();
     await expect(page.getByText("Candidate Actions")).toBeVisible();
     await page.getByRole("button", { name: "Reject" }).click();
     await expect(page.getByRole("heading", { name: "Reject Candidate" })).toBeVisible();
-    
+
     await page.route(`**/api/v1/jobs/${mockJobId}/candidates/cand-1/reject`, async (route) => {
       await route.fulfill({
         status: 200,
@@ -182,12 +189,12 @@ test.describe("Pipeline / Kanban", () => {
     });
 
     await page.goto(`/jobs/${mockJobId}`);
-    
+
     await page.getByRole('button', { name: 'Kanban' }).click();
 
-    await expect(page.getByText("Applied")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Applied" })).toBeVisible();
     await page.getByRole("button", { name: "Jane Smith Backend Developer" }).click({ force: true });
-    
+
     // The candidate actions modal should not show 'Shortlist' or 'Reject' buttons for HM
     await expect(page.getByText("Candidate Actions")).toBeVisible();
     await expect(page.getByRole("button", { name: "Shortlist" })).not.toBeVisible();

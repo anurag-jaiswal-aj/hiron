@@ -1,39 +1,100 @@
 """AI Candidate Scoring Benchmark evaluation test per Phase 17."""
 
+import json
+import math
+from pathlib import Path
 from unittest.mock import MagicMock
 
 from hiron.scores.engine import AIScoringEngine
 
 
+def pearson_correlation(x: list[float], y: list[float]) -> float:
+    """Calculate the Pearson Correlation Coefficient (r) between two arrays."""
+    n = len(x)
+    if n == 0:
+        return 0.0
+
+    mean_x = sum(x) / n
+    mean_y = sum(y) / n
+
+    numerator = sum((xi - mean_x) * (yi - mean_y) for xi, yi in zip(x, y))
+    denominator = math.sqrt(
+        sum((xi - mean_x) ** 2 for xi in x) * sum((yi - mean_y) ** 2 for yi in y)
+    )
+
+    if denominator == 0:
+        return 0.0
+
+    return numerator / denominator
+
+
 def test_ai_scoring_engine_evaluation_benchmark() -> None:
-    """Verify AI scoring engine calculates dimensional sub-scores and overall fit score."""
+    """Verify AI scoring engine distribution and confidence correlation on 100 candidates."""
     engine = AIScoringEngine()
 
-    mock_candidate = MagicMock(
-        full_name="Alice Candidate",
-        skills=["Python", "FastAPI", "PostgreSQL"],
-        total_experience_years=5,
-        summary="Bachelor of Science in Computer Science.",
-    )
+    # Target Job Mock (Standard Backend Engineer)
     mock_job = MagicMock(
         title="Backend Engineer",
-        required_skills=["Python", "FastAPI"],
+        required_skills=["Python", "FastAPI", "PostgreSQL", "Docker"],
         experience_years_min=3,
-        description="Backend engineering role",
+        description="Backend engineering role requiring Python and database expertise.",
     )
+    # The job vector will be ones to easily compute cosine similarity against candidates
+    job_vector = [1.0] * 1536
 
-    eval_result = engine.evaluate(
-        candidate=mock_candidate,
-        job=mock_job,
-        candidate_vector=[0.1] * 1536,
-        job_vector=[0.1] * 1536,
-    )
+    # Load 100 candidates fixture
+    fixture_path = Path(__file__).parent / "fixtures" / "candidates_100.json"
+    with open(fixture_path, "r") as f:
+        candidates_data = json.load(f)
 
-    assert 0 <= eval_result["fit_score"] <= 100
-    assert "skills" in eval_result["breakdown"]
-    assert "experience" in eval_result["breakdown"]
-    assert "education" in eval_result["breakdown"]
-    assert eval_result["explanation"] is not None
+    assert len(candidates_data) == 100
+
+    results = []
+    completeness_scores = []
+    confidence_scores = []
+
+    for c_data in candidates_data:
+        mock_candidate = MagicMock(
+            full_name=c_data["full_name"],
+            skills=c_data["skills"],
+            total_experience_years=c_data["total_experience_years"],
+            summary=c_data["summary"],
+        )
+
+        # Pad the mock vector to 1536 dimensions by repeating the core
+        core_vector = c_data["mock_vector_core"]
+        candidate_vector = (core_vector * (1536 // len(core_vector) + 1))[:1536]
+
+        eval_result = engine.evaluate(
+            candidate=mock_candidate,
+            job=mock_job,
+            candidate_vector=candidate_vector,
+            job_vector=job_vector,
+        )
+
+        results.append(eval_result)
+        completeness_scores.append(float(c_data["data_completeness_score"]))
+        confidence_scores.append(float(eval_result["confidence"]))
+
+    # 1. Assert Distribution Spread Requirements (Not all 90+, Not all < 50)
+    fit_scores = [r["fit_score"] for r in results]
+    assert any(s >= 90 for s in fit_scores), "Expected at least one score >= 90"
+    assert not all(s >= 90 for s in fit_scores), "Expected not ALL scores to be >= 90"
+
+    assert any(s < 50 for s in fit_scores), "Expected at least one score < 50"
+    assert not all(s < 50 for s in fit_scores), "Expected not ALL scores to be < 50"
+
+    # 2. Assert Confidence Correlation Requirement
+    # Pearson Correlation Coefficient (r) should be strongly positive
+    r_value = pearson_correlation(completeness_scores, confidence_scores)
+
+    # Print the r_value for the test report output
+    print(f"\nAI Benchmark Results:")
+    print(f"Min Fit Score: {min(fit_scores)}")
+    print(f"Max Fit Score: {max(fit_scores)}")
+    print(f"Pearson Correlation (Completeness vs Confidence): {r_value:.4f}")
+
+    assert r_value > 0.5, f"Expected strong positive correlation (>0.5), got {r_value:.4f}"
 
 
 def test_cosine_similarity_calculation() -> None:

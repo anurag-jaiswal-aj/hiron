@@ -10,6 +10,7 @@ import { MetricCard } from "../components/dashboard/MetricCard";
 import { PipelineOverview } from "../components/dashboard/PipelineOverview";
 import { RecentActivity } from "../components/dashboard/RecentActivity";
 import { DashboardOnboarding } from "../components/dashboard/DashboardOnboarding";
+import { EmbeddingStatusPanel } from "../components/embeddings/EmbeddingStatusPanel";
 import dynamic from "next/dynamic";
 
 const ScoreDistributionChart = dynamic(
@@ -138,6 +139,10 @@ function DashboardContent(): React.ReactElement {
           value={metrics.hiredCandidatesCount}
           icon="🎉"
         />
+      </div>
+
+      <div style={{ marginBottom: "2rem" }}>
+        <EmbeddingStatusPanel />
       </div>
 
       <div style={{

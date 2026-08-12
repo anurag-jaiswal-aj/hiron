@@ -39,7 +39,8 @@ target_metadata = Base.metadata
 
 # Retrieve database URL from application settings
 settings = get_settings()
-config.set_main_option("sqlalchemy.url", settings.database_url)
+if not config.get_main_option("sqlalchemy.url"):
+    config.set_main_option("sqlalchemy.url", settings.database_url)
 
 
 def run_migrations_offline() -> None:

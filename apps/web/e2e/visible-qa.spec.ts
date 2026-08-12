@@ -62,7 +62,7 @@ test("04 — Dashboard sidebar, layout, responsive", async ({ page }) => {
   await loginAs(page, "admin@acme.com", "SecurePassword123!");
 
   await expect(page.getByRole("link", { name: "Overview" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Jobs" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Jobs", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Team" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
 

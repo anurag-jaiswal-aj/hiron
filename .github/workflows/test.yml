@@ -24,4 +24,106 @@ jobs:
         run: uv sync --all-extras
 
       - name: Run PyTest Suite
-        run: uv run pytest
+        run: uv run pytest --cov=hiron --cov-fail-under=80
+
+  frontend-unit:
+    name: Frontend Unit Tests (Vitest)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.1.0
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Vitest Suite
+        run: pnpm --filter @hiron/web test:unit
+
+  frontend-e2e:
+    name: Frontend E2E (Playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.1.0
+
+      - name: Install JS dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps
+
+      - name: Install Python dependencies
+        run: uv sync --all-extras
+
+      - name: Start backend infrastructure
+        run: docker compose up -d postgres redis api worker
+
+      - name: Wait for API health
+        run: |
+          while ! curl -s http://localhost:8000/api/v1/health | grep -q "healthy"; do
+            echo "Waiting for API..."
+            sleep 2
+          done
+
+      - name: Initialize Database
+        run: |
+          cd apps/api && uv run alembic upgrade head
+          cd ../..
+          uv run python scripts/init-db.py
+          uv run python scripts/seed.py
+
+      - name: Run Playwright E2E Tests
+        run: |
+          set +e
+          PROJECTS=("chromium" "firefox" "webkit" "msedge" "mobile-chrome" "mobile-safari" "tablet")
+          EXIT_CODE=0
+
+          for PROJECT in "${PROJECTS[@]}"; do
+            echo "========================================================"
+            echo "Running E2E Project: $PROJECT"
+            echo "========================================================"
+
+            pnpm --filter @hiron/web test:e2e --workers=1 --project="$PROJECT"
+            PROJECT_EXIT=$?
+
+            if [ $PROJECT_EXIT -ne 0 ]; then
+              echo "::error::Project $PROJECT failed!"
+              EXIT_CODE=$PROJECT_EXIT
+            fi
+
+            echo "Restarting Celery worker to release accumulated memory..."
+            docker compose restart worker
+
+            # Brief pause to ensure worker is ready
+            sleep 2
+          done
+
+          exit $EXIT_CODE

@@ -6,7 +6,7 @@ import uuid
 import structlog
 
 from hiron.core.celery import celery_app
-from hiron.core.database import AsyncSessionLocal
+from hiron.core.database import AsyncSessionLocal, engine
 from hiron.resumes.repository import ResumeRepository
 from hiron.resumes.service import ResumeService
 
@@ -17,7 +17,8 @@ async def _async_parse_resume_task(tenant_id: str, resume_id: str) -> dict[str, 
     """Internal async execution logic for resume parsing task."""
     t_uuid = uuid.UUID(tenant_id)
     r_uuid = uuid.UUID(resume_id)
-    service = ResumeService()
+    from hiron.storage.provider import LocalStorageProvider
+    service = ResumeService(storage_provider=LocalStorageProvider())
 
     async with AsyncSessionLocal() as session:
         try:
@@ -74,9 +75,15 @@ async def _async_parse_resume_task(tenant_id: str, resume_id: str) -> dict[str, 
                     error=str(persist_exc),
                 )
             raise
+        finally:
+            await engine.dispose()
 
+
+from asgiref.sync import async_to_sync
+
+from hiron.storage.provider import LocalStorageProvider
 
 @celery_app.task(name="hiron.resumes.parse_resume")  # type: ignore[untyped-decorator]
 def parse_resume(tenant_id: str, resume_id: str) -> dict[str, str]:
     """Registered Celery background task for resume parsing per Architecture §10."""
-    return asyncio.run(_async_parse_resume_task(tenant_id=tenant_id, resume_id=resume_id))
+    return async_to_sync(_async_parse_resume_task)(tenant_id=tenant_id, resume_id=resume_id)

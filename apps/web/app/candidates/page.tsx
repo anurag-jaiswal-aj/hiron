@@ -143,16 +143,12 @@ function CandidatesListContent(): React.ReactElement {
         actions={
           canManageCandidates ? (
             <div style={{ display: "flex", gap: "0.5rem" }}>
-              <Link href="/candidates/upload" style={{ textDecoration: "none" }}>
-                <Button type="button" variant="secondary">
-                  Upload
-                </Button>
-              </Link>
-              <Link href="/candidates/new" style={{ textDecoration: "none" }}>
-                <Button type="button">
-                  + Add Candidate
-                </Button>
-              </Link>
+              <Button type="button" variant="secondary" onClick={() => router.push("/candidates/upload")}>
+                Upload
+              </Button>
+              <Button type="button" onClick={() => router.push("/candidates/new")}>
+                + Add Candidate
+              </Button>
             </div>
           ) : undefined
         }

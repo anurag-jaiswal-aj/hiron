@@ -24,11 +24,13 @@ def test_alembic_migration_upgrade_and_downgrade_smoke() -> None:
     assert alembic_ini_path.exists(), "alembic.ini must exist at apps/api/alembic.ini"
 
     settings = get_settings()
+    # Target the dedicated migration database to prevent destroying hiron_dev during downgrade base
+    migration_db_url = settings.database_url.replace("hiron_dev", "hiron_test_migration")
     # Convert asyncpg URL to psycopg/psycopg2 sync URL for Alembic sync inspector test
-    sync_db_url = settings.database_url.replace("postgresql+asyncpg://", "postgresql+psycopg://")
+    sync_db_url = migration_db_url.replace("postgresql+asyncpg://", "postgresql+psycopg://")
 
     alembic_cfg = Config(str(alembic_ini_path))
-    alembic_cfg.set_main_option("sqlalchemy.url", settings.database_url)
+    alembic_cfg.set_main_option("sqlalchemy.url", migration_db_url)
 
     engine = create_engine(sync_db_url)
 

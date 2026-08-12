@@ -12,14 +12,14 @@ test.describe("Jobs List Workflows", () => {
 
     await expect(page.getByRole("heading", { name: "Jobs", exact: true })).toBeVisible();
     await expect(page.getByPlaceholder("Search jobs by title...")).toBeVisible();
-    await expect(page.getByRole("link", { name: "+ Create Job" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "+ Create Job" })).toBeVisible();
   });
 
   test("Create Job CTA navigates to /jobs/new", async ({ page }) => {
     await page.goto("/jobs");
     await page.waitForLoadState("networkidle");
 
-    await page.click('a:has-text("+ Create Job")');
+    await page.getByRole("button", { name: "+ Create Job" }).click();
     await page.waitForURL(/\/jobs\/new$/, { timeout: 10000 });
     await expect(page).toHaveURL(/\/jobs\/new$/);
     await expect(page.getByRole("heading", { name: "Create New Job" })).toBeVisible();
@@ -55,6 +55,7 @@ test.describe("Jobs List Workflows", () => {
 
     // 3. Filter by non-matching search term to test filtered empty state
     await page.fill('input[placeholder="Search jobs by title..."]', "NonExistentSearchQueryXYZ");
+    await page.press('input[placeholder="Search jobs by title..."]', 'Enter');
     await page.waitForTimeout(400);
     await page.waitForLoadState("networkidle");
 

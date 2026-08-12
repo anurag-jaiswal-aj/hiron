@@ -24,7 +24,7 @@ export function middleware(request: NextRequest) {
     form-action 'self';
     frame-ancestors 'none';
     block-all-mixed-content;
-    upgrade-insecure-requests;
+    ${isDev ? "" : "upgrade-insecure-requests;"}
     connect-src 'self' ${apiUrl};
   `.replace(/\s{2,}/g, ' ').trim()
 

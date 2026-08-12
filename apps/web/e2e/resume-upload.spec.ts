@@ -4,11 +4,12 @@ import path from "path";
 import fs from "fs";
 
 test.describe("Resume Upload UI", () => {
-  const dummyPdfPath = path.join(__dirname, "dummy.pdf");
-  const dummyDocxPath = path.join(__dirname, "dummy.docx");
-  const dummyTxtPath = path.join(__dirname, "dummy.txt");
-  const dummyJpgPath = path.join(__dirname, "dummy.jpg");
-  const dummyLargePdfPath = path.join(__dirname, "dummy-large.pdf");
+  const uniqueId = `${Date.now()}-${Math.random().toString(36).substring(7)}`;
+  const dummyPdfPath = path.join(__dirname, `dummy-${uniqueId}.pdf`);
+  const dummyDocxPath = path.join(__dirname, `dummy-${uniqueId}.docx`);
+  const dummyTxtPath = path.join(__dirname, `dummy-${uniqueId}.txt`);
+  const dummyJpgPath = path.join(__dirname, `dummy-${uniqueId}.jpg`);
+  const dummyLargePdfPath = path.join(__dirname, `dummy-large-${uniqueId}.pdf`);
 
   test.beforeAll(() => {
     fs.writeFileSync(dummyPdfPath, "%PDF-1.4 sample");
@@ -58,7 +59,7 @@ test.describe("Resume Upload UI", () => {
     const fileInput = page.getByTestId("resume-upload-input");
     await fileInput.setInputFiles(dummyJpgPath);
     
-    await expect(page.getByText("dummy.jpg")).toBeVisible();
+    await expect(page.getByText(path.basename(dummyJpgPath))).toBeVisible();
     await expect(page.getByText("Unsupported file type")).toBeVisible();
   });
 
@@ -69,7 +70,7 @@ test.describe("Resume Upload UI", () => {
     const fileInput = page.getByTestId("resume-upload-input");
     await fileInput.setInputFiles(dummyLargePdfPath);
     
-    await expect(page.getByText("dummy-large.pdf")).toBeVisible();
+    await expect(page.getByText(path.basename(dummyLargePdfPath))).toBeVisible();
     await expect(page.getByText("File exceeds 10 MB limit")).toBeVisible();
   });
 
@@ -83,7 +84,7 @@ test.describe("Resume Upload UI", () => {
     const fileInput = page.getByTestId("resume-upload-input");
     await fileInput.setInputFiles(dummyPdfPath);
     
-    await expect(page.getByText("dummy.pdf")).toBeVisible();
+    await expect(page.getByText(path.basename(dummyPdfPath))).toBeVisible();
     await expect(page.getByText("Ready to upload")).toBeVisible();
     
     // Intercept API to verify it reaches backend
@@ -103,7 +104,7 @@ test.describe("Resume Upload UI", () => {
     await page.goto("/candidates/upload");
     const fileInput = page.getByTestId("resume-upload-input");
     await fileInput.setInputFiles(dummyDocxPath);
-    await expect(page.getByText("dummy.docx")).toBeVisible();
+    await expect(page.getByText(path.basename(dummyDocxPath))).toBeVisible();
     const uploadPromise = page.waitForResponse(response => response.url().includes("/api/v1/resumes/upload") && response.request().method() === "POST");
     await page.getByRole("button", { name: "Start Upload" }).click();
     const uploadResponse = await uploadPromise;
@@ -115,7 +116,7 @@ test.describe("Resume Upload UI", () => {
     await page.goto("/candidates/upload");
     const fileInput = page.getByTestId("resume-upload-input");
     await fileInput.setInputFiles(dummyTxtPath);
-    await expect(page.getByText("dummy.txt")).toBeVisible();
+    await expect(page.getByText(path.basename(dummyTxtPath))).toBeVisible();
     const uploadPromise = page.waitForResponse(response => response.url().includes("/api/v1/resumes/upload") && response.request().method() === "POST");
     await page.getByRole("button", { name: "Start Upload" }).click();
     const uploadResponse = await uploadPromise;

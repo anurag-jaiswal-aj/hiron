@@ -55,9 +55,9 @@ export function EmbeddingStatusPanel(): React.ReactElement {
           <h3 style={{ fontSize: "0.875rem", fontWeight: 700, color: "var(--text-primary)", letterSpacing: "0.05em", textTransform: "uppercase", margin: 0 }}>
             {label} Coverage
           </h3>
-          {isComplete ? (
-            <Badge variant="active" style={{ backgroundColor: "#16a34a", color: "white", borderColor: "#15803d" }}>
-              ✓ 100% Ready
+          {coverage === total && total > 0 ? (
+            <Badge variant="active" style={{ backgroundColor: "#166534", color: "white", borderColor: "#14532d" }}>
+              Fully Indexed
             </Badge>
           ) : (
             <Badge variant="warning" style={{ color: "#d97706", borderColor: "#d97706", backgroundColor: "transparent" }}>
@@ -86,7 +86,7 @@ export function EmbeddingStatusPanel(): React.ReactElement {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", marginTop: "auto" }}>
           <div style={{ display: "flex", flexDirection: "column", padding: "0.5rem", backgroundColor: "var(--bg-app)", borderRadius: "var(--radius-md)" }}>
             <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: 500 }}>Ready</span>
-            <span style={{ fontSize: "0.875rem", fontWeight: 700, color: "#16a34a" }}>{coverage} / {total}</span>
+            <span style={{ fontSize: "0.875rem", fontWeight: 700, color: "#22c55e" }}>{coverage} / {total}</span>
           </div>
           <div style={{ display: "flex", flexDirection: "column", padding: "0.5rem", backgroundColor: "var(--bg-app)", borderRadius: "var(--radius-md)" }}>
             <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: 500 }}>Stale / Missing</span>

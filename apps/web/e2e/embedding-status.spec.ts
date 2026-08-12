@@ -37,7 +37,7 @@ test.describe("Embedding Status Dashboard", () => {
     await page.waitForLoadState("networkidle");
 
     // Verify panel renders
-    await expect(page.getByText("AI Embedding Status")).toBeVisible();
+    await expect(page.getByText("✨ AI Embedding Status")).toBeVisible();
     await expect(page.getByText("text-embedding-3-small")).toBeVisible();
     await expect(page.getByText("Candidates Coverage")).toBeVisible();
     await expect(page.getByText("Jobs Coverage")).toBeVisible();
@@ -91,7 +91,7 @@ test.describe("Candidate Detail Embedding Status", () => {
     await page.goto(`/candidates/${testCandidateId}`);
     await page.waitForLoadState("networkidle");
 
-    await expect(page.getByText("Embedding Current")).toBeVisible();
+    await expect(page.getByText("Embeddings Ready")).toBeVisible();
     // "Generate" button should NOT be visible when status is current
     await expect(page.getByRole("button", { name: /Generate/ })).not.toBeVisible();
   });
@@ -108,7 +108,7 @@ test.describe("Candidate Detail Embedding Status", () => {
     await page.goto(`/candidates/${testCandidateId}`);
     await page.waitForLoadState("networkidle");
 
-    await expect(page.getByText("Embedding Stale")).toBeVisible();
+    await expect(page.getByText("⚠️ Embedding Stale")).toBeVisible();
     await expect(page.getByRole("button", { name: /Generate/ })).toBeVisible();
   });
 
@@ -142,10 +142,10 @@ test.describe("Candidate Detail Embedding Status", () => {
     await page.getByRole("button", { name: /Generate/ }).click();
 
     // Queued state should appear
-    await expect(page.getByText("Generating...")).toBeVisible();
+    await expect(page.getByText("⏳ Generating...")).toBeVisible();
 
     // Wait for polling to reach "current" (with 5s interval)
-    await expect(page.getByText("Embedding Current")).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText("Embeddings Ready")).toBeVisible({ timeout: 15000 });
   });
 
   test("D1. hiring_manager can see embedding status badge", async ({ page }) => {
@@ -161,7 +161,7 @@ test.describe("Candidate Detail Embedding Status", () => {
     await page.waitForLoadState("networkidle");
 
     // Should see status badge
-    await expect(page.getByText("Embedding Stale")).toBeVisible();
+    await expect(page.getByText("⚠️ Embedding Stale")).toBeVisible();
     // Should NOT see Generate button (hiring_manager has no mutation RBAC)
     await expect(page.getByRole("button", { name: /Generate/ })).not.toBeVisible();
   });
@@ -190,13 +190,13 @@ test.describe("Candidate Detail Embedding Status", () => {
     await page.waitForLoadState("networkidle");
 
     await page.getByRole("button", { name: /Generate/ }).click();
-    await expect(page.getByText("Generating...")).toBeVisible();
+    await expect(page.getByText("⏳ Generating...")).toBeVisible();
 
     // After MAX_POLL_ATTEMPTS * 5s = 60s, polling should stop and button revert
     test.slow();
-    await expect(page.getByText("Generating...")).not.toBeVisible({ timeout: 70000 });
+    await expect(page.getByText("⏳ Generating...")).not.toBeVisible({ timeout: 70000 });
     // Should revert to stale badge and Generate button
-    await expect(page.getByText("Embedding Stale")).toBeVisible();
+    await expect(page.getByText("⚠️ Embedding Stale")).toBeVisible();
   });
 
   test("F. API error produces graceful state", async ({ page }) => {
@@ -212,7 +212,7 @@ test.describe("Candidate Detail Embedding Status", () => {
     await page.waitForLoadState("networkidle");
 
     // Should show error badge, page should not crash
-    await expect(page.getByText("Embedding Error")).toBeVisible();
+    await expect(page.getByText("⚠️ Embedding Error")).toBeVisible();
     await expect(page.locator("h1")).toContainText(`Emb Cand ${runId}`);
   });
 });
@@ -259,7 +259,7 @@ test.describe("Job Detail Embedding Status", () => {
     await page.goto(`/jobs/${testJobId}`);
     await page.waitForLoadState("networkidle");
 
-    await expect(page.getByText("Embedding Current")).toBeVisible();
+    await expect(page.getByText("Embeddings Ready")).toBeVisible();
   });
 
   test("C2. missing status renders with Generate button", async ({ page }) => {
@@ -271,7 +271,7 @@ test.describe("Job Detail Embedding Status", () => {
     await page.goto(`/jobs/${testJobId}`);
     await page.waitForLoadState("networkidle");
 
-    await expect(page.getByText("No Embedding")).toBeVisible();
+    await expect(page.getByText("⚠️ No Embedding")).toBeVisible();
     await expect(page.getByRole("button", { name: /Generate/ })).toBeVisible();
   });
 
@@ -298,8 +298,8 @@ test.describe("Job Detail Embedding Status", () => {
     await page.waitForLoadState("networkidle");
 
     await page.getByRole("button", { name: /Generate/ }).click();
-    await expect(page.getByText("Generating...")).toBeVisible();
-    await expect(page.getByText("Embedding Current")).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText("⏳ Generating...")).toBeVisible();
+    await expect(page.getByText("Embeddings Ready")).toBeVisible({ timeout: 15000 });
   });
 
   test("D2. hiring_manager can view job embedding status but cannot regenerate", async ({ page }) => {
@@ -311,7 +311,7 @@ test.describe("Job Detail Embedding Status", () => {
     await page.goto(`/jobs/${testJobId}`);
     await page.waitForLoadState("networkidle");
 
-    await expect(page.getByText("Embedding Stale")).toBeVisible();
+    await expect(page.getByText("⚠️ Embedding Stale")).toBeVisible();
     await expect(page.getByRole("button", { name: /Generate/ })).not.toBeVisible();
   });
 
@@ -324,7 +324,7 @@ test.describe("Job Detail Embedding Status", () => {
     await page.goto(`/jobs/${testJobId}`);
     await page.waitForLoadState("networkidle");
 
-    await expect(page.getByText("Embedding Error")).toBeVisible();
+    await expect(page.getByText("⚠️ Embedding Error")).toBeVisible();
     await expect(page.getByRole("heading", { name: `Emb Job ${runId}` })).toBeVisible();
   });
 });
@@ -349,7 +349,7 @@ test.describe("Responsive Embedding UI — 390px", () => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
-    await expect(page.getByText("AI Embedding Status")).toBeVisible();
+    await expect(page.getByText("✨ AI Embedding Status")).toBeVisible();
 
 
     const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);

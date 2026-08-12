@@ -32,7 +32,7 @@ export function OperationBreakdownTable({ data }: Props): React.ReactElement {
           Note: Token usage and cache hit rate per-operation are not currently provided by the API.
         </p>
       </div>
-      <div style={{ flex: 1, overflow: "auto" }}>
+      <div style={{ flex: 1, overflow: "auto" }} tabIndex={0}>
         <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.875rem" }}>
           <thead style={{ position: "sticky", top: 0, backgroundColor: "var(--bg-surface-secondary)", zIndex: 1 }}>
             <tr>
