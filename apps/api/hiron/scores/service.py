@@ -200,6 +200,8 @@ class ScoreService:
             is_cache_hit=False,
         )
 
+        await session.commit()
+
         logger.info(
             "AI candidate scoring executed successfully",
             tenant_id=str(tenant_id),
