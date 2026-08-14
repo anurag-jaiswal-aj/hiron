@@ -65,8 +65,6 @@ services:
       POSTGRES_HOST: postgres
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-hiron_user}:${POSTGRES_PASSWORD:-hiron_secure_password}@postgres:5432/${POSTGRES_DB:-hiron_dev}
       REDIS_URL: redis://redis:6379/0
-      CELERY_BROKER_URL: redis://redis:6379/1
-      CELERY_RESULT_BACKEND: redis://redis:6379/2
     ports:
       - "8000:8000"
     volumes:
@@ -101,36 +99,6 @@ services:
     networks:
       - hiron_network
 
-  # ----------------------------------------------------------------------------
-  # 5. Celery Async Task Worker Container Skeleton (§10 & Architecture)
-  # ----------------------------------------------------------------------------
-  worker:
-    build:
-      context: .
-      dockerfile: infra/docker/Dockerfile.api
-    container_name: hiron-worker
-    restart: unless-stopped
-    command: celery -A hiron.core.celery worker --loglevel=info --concurrency=2
-    healthcheck:
-      disable: true
-    env_file:
-      - .env.local
-    environment:
-      POSTGRES_HOST: postgres
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-hiron_user}:${POSTGRES_PASSWORD:-hiron_secure_password}@postgres:5432/${POSTGRES_DB:-hiron_dev}
-      REDIS_URL: redis://redis:6379/0
-      CELERY_BROKER_URL: redis://redis:6379/1
-      CELERY_RESULT_BACKEND: redis://redis:6379/2
-    volumes:
-      - ./keys:/app/keys:ro
-      - hiron_api_storage:/app/storage
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - hiron_network
 
   # ----------------------------------------------------------------------------
   # 6. Web Frontend Container Skeleton (§10 & UI/UX Design)

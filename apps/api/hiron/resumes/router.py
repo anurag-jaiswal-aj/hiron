@@ -14,17 +14,28 @@ from hiron.resumes.schemas import (
     ResumeStatusResponse,
     UploadResumeResponse,
 )
+from hiron.core.config import get_settings
 from hiron.resumes.service import ResumeService
-from hiron.storage.provider import LocalStorageProvider, StorageProvider
+from hiron.storage.provider import LocalStorageProvider, StorageProvider, SupabaseStorageProvider
 from hiron.users.models import User
 
 router = APIRouter(tags=["resumes"])
 
-_storage_provider: StorageProvider = LocalStorageProvider()
-
+_storage_provider: StorageProvider | None = None
 
 def get_resume_service() -> ResumeService:
     """Dependency provider for ResumeService."""
+    global _storage_provider
+    if _storage_provider is None:
+        settings = get_settings()
+        if settings.supabase_url and settings.supabase_service_role_key:
+            _storage_provider = SupabaseStorageProvider(
+                supabase_url=settings.supabase_url,
+                supabase_service_role_key=settings.supabase_service_role_key,
+                bucket_name=settings.supabase_storage_bucket,
+            )
+        else:
+            _storage_provider = LocalStorageProvider()
     return ResumeService(storage_provider=_storage_provider)
 
 

@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 
 class CandidateEmbedding(Base):
-    """Stores 1536-dimensional vector embeddings for candidate resume text."""
+    """Stores 768-dimensional vector embeddings for candidate resume text."""
 
     __tablename__ = "candidate_embeddings"
     __table_args__ = (
@@ -34,7 +34,7 @@ class CandidateEmbedding(Base):
     candidate_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("candidates.id", ondelete="CASCADE"), nullable=False
     )
-    embedding: Mapped[list[float]] = mapped_column(pgvector.sqlalchemy.Vector(1536), nullable=False)
+    embedding: Mapped[list[float]] = mapped_column(pgvector.sqlalchemy.Vector(768), nullable=False)
     model_version: Mapped[str] = mapped_column(String(100), nullable=False)
     source_text_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     created_at: Mapped[datetime.datetime] = mapped_column(
@@ -46,7 +46,7 @@ class CandidateEmbedding(Base):
 
 
 class JobEmbedding(Base):
-    """Stores 1536-dimensional vector embeddings for job description text."""
+    """Stores 768-dimensional vector embeddings for job description text."""
 
     __tablename__ = "job_embeddings"
     __table_args__ = (
@@ -60,7 +60,7 @@ class JobEmbedding(Base):
     job_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False
     )
-    embedding: Mapped[list[float]] = mapped_column(pgvector.sqlalchemy.Vector(1536), nullable=False)
+    embedding: Mapped[list[float]] = mapped_column(pgvector.sqlalchemy.Vector(768), nullable=False)
     model_version: Mapped[str] = mapped_column(String(100), nullable=False)
     source_text_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     created_at: Mapped[datetime.datetime] = mapped_column(

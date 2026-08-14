@@ -58,11 +58,9 @@ When adjusting candidate-job fit prompts:
 
 If analytical query loads on `audit_logs` or `ai_usage_logs` exceed 60% CPU:
 
-1. Provision an AWS RDS Read Replica.
+1. Provision a Supabase Read Replica.
 2. Direct read-heavy analytics queries (`DashboardService`, `AuditService`) to `DATABASE_READ_REPLICA_URL`.
 
-### Connection Pool Optimization (PgBouncer)
+### Connection Pool Optimization
 
-If active database connections exceed 100 concurrent workers:
-
-- Deploy PgBouncer in transaction-pooling mode in front of RDS.
+Supabase automatically provides connection pooling via Supavisor (PgBouncer equivalent) in front of the database.

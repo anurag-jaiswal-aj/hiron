@@ -1,4 +1,4 @@
-"""Storage provider abstraction interface and implementations for S3-compatible file storage per Engineering Guidelines §11."""
+"""Storage provider abstraction interface and implementations for Supabase storage per Engineering Guidelines §11."""
 
 import uuid
 from abc import ABC, abstractmethod
@@ -107,12 +107,25 @@ class LocalStorageProvider(StorageProvider):
         return f"file://{file_path.resolve()}"
 
 
-class S3StorageProvider(StorageProvider):
-    """S3-compatible storage provider for production environments."""
+class SupabaseStorageProvider(StorageProvider):
+    """Supabase storage provider using REST API for serverless environments."""
 
-    def __init__(self, bucket_name: str = "hiron-resumes", region_name: str = "us-east-1") -> None:
+    def __init__(
+        self,
+        supabase_url: str,
+        supabase_service_role_key: str,
+        bucket_name: str = "resumes",
+    ) -> None:
+        if not supabase_url or not supabase_service_role_key:
+            raise ValueError("supabase_url and supabase_service_role_key are required")
+
+        self.supabase_url = supabase_url.rstrip("/")
         self.bucket_name = bucket_name
-        self.region_name = region_name
+        self.base_url = f"{self.supabase_url}/storage/v1/object"
+        self.headers = {
+            "Authorization": f"Bearer {supabase_service_role_key}",
+            "apikey": supabase_service_role_key,
+        }
 
     async def upload_file(
         self,
@@ -121,28 +134,47 @@ class S3StorageProvider(StorageProvider):
         file_data: bytes,
         content_type: str,
     ) -> str:
-        """Mock/S3 upload implementation."""
-        _ = (file_data, content_type)
-        s3_key = f"{tenant_id}/{key.lstrip('/')}"
-        return f"s3://{self.bucket_name}/{s3_key}"
+        """Upload file content to Supabase Storage."""
+        import httpx
+        path = f"{tenant_id}/{key.lstrip('/')}"
+        url = f"{self.base_url}/{self.bucket_name}/{path}"
+
+        headers = {**self.headers, "Content-Type": content_type}
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, content=file_data, headers=headers)
+            response.raise_for_status()
+
+        return f"{self.base_url}/public/{self.bucket_name}/{path}"
 
     async def download_file(
         self,
         tenant_id: uuid.UUID,
         key: str,
     ) -> bytes:
-        """Mock/S3 download implementation."""
-        _ = (tenant_id, key)
-        return b"%PDF-1.4 Mock S3 File Content"
+        """Retrieve raw file content bytes from Supabase Storage."""
+        import httpx
+        path = f"{tenant_id}/{key.lstrip('/')}"
+        url = f"{self.base_url}/authenticated/{self.bucket_name}/{path}"
+
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, headers=self.headers)
+            response.raise_for_status()
+            return response.content
 
     async def delete_file(
         self,
         tenant_id: uuid.UUID,
         key: str,
     ) -> bool:
-        """Mock/S3 delete implementation."""
-        _ = (tenant_id, key)
-        return True
+        """Remove file from Supabase Storage."""
+        import httpx
+        path = f"{tenant_id}/{key.lstrip('/')}"
+        url = f"{self.base_url}/{self.bucket_name}/{path}"
+
+        async with httpx.AsyncClient() as client:
+            response = await client.delete(url, headers=self.headers)
+            return response.status_code == 200
 
     async def generate_presigned_url(
         self,
@@ -150,7 +182,16 @@ class S3StorageProvider(StorageProvider):
         key: str,
         expires_in: int = 3600,
     ) -> str:
-        """Mock/S3 presigned URL generation."""
-        _ = expires_in
-        s3_key = f"{tenant_id}/{key.lstrip('/')}"
-        return f"https://{self.bucket_name}.s3.{self.region_name}.amazonaws.com/{s3_key}"
+        """Generate download URL via Supabase Storage sign endpoint."""
+        import httpx
+        path = f"{tenant_id}/{key.lstrip('/')}"
+        url = f"{self.base_url}/sign/{self.bucket_name}/{path}"
+
+        payload = {"expiresIn": expires_in}
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, json=payload, headers=self.headers)
+            response.raise_for_status()
+            data = response.json()
+            # The signedURL path returned by Supabase typically starts with '/object/sign/...'
+            return f"{self.supabase_url}/storage/v1{data['signedURL']}"

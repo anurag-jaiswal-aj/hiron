@@ -3,7 +3,7 @@
 import pytest
 
 from hiron.resumes.exceptions import ResumeParseFailedError
-from hiron.resumes.extractor import (
+from apps.worker.src.extractor import (
     extract_text_from_docx,
     extract_text_from_file,
     extract_text_from_pdf,

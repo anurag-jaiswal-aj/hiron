@@ -68,7 +68,7 @@ def test_generate_candidate_embedding_endpoint_success(
                 candidate_id=candidate_id,
                 task_id="task-123",
                 status="processing",
-                model_version="text-embedding-3-small",
+                model_version="gemini-embedding-2",
             )
         )
     )
@@ -91,7 +91,7 @@ def test_generate_job_embedding_endpoint_success(
             job_id=job_id,
             task_id="task-456",
             status="processing",
-            model_version="text-embedding-3-small",
+            model_version="gemini-embedding-2",
         )
     )
 
@@ -114,14 +114,14 @@ def test_get_embedding_status_endpoint_success(
                 with_embedding=8,
                 stale=1,
                 missing=1,
-                model_version="text-embedding-3-small",
+                model_version="gemini-embedding-2",
             ),
             jobs=CoverageMetricData(
                 total=5,
                 with_embedding=5,
                 stale=0,
                 missing=0,
-                model_version="text-embedding-3-small",
+                model_version="gemini-embedding-2",
             ),
         )
     )

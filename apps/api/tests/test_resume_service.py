@@ -316,14 +316,16 @@ async def test_retry_parse_success() -> None:
     resume_repo.update_resume_status.return_value = parsed_resume
     candidate_repo.get_candidate_by_id.return_value = None
 
-    with patch("hiron.resumes.tasks.parse_resume.delay") as mock_delay:
-        mock_delay.return_value.id = "task-retry-123"
-        response = await service.retry_parse(
-            session=session,
-            tenant_id=tenant_id,
-            user_role="recruiter",
-            resume_id=resume_id,
-        )
+    with patch("hiron.core.config.get_settings") as mock_settings:
+        mock_settings.return_value.worker_url = "http://test"
+        with patch("hiron.core.qstash_client.QStashPublisher.publish") as mock_publish:
+            mock_publish.return_value = "task-retry-123"
+            response = await service.retry_parse(
+                session=session,
+                tenant_id=tenant_id,
+                user_role="recruiter",
+                resume_id=resume_id,
+            )
 
         assert response.status == "pending"
         assert response.task_id == "task-retry-123"
@@ -352,3 +354,65 @@ async def test_retry_parse_not_failed_status_raises_validation_exception() -> No
             user_role="recruiter",
             resume_id=resume_id,
         )
+import uuid
+import pytest
+from unittest.mock import AsyncMock, patch
+
+from hiron.candidates.models import Candidate
+from hiron.resumes.models import Resume
+from hiron.resumes.service import ResumeService
+from hiron.common.exceptions import HironException
+
+@pytest.mark.asyncio
+async def test_upload_resume_qstash_publish_failure_raises_503() -> None:
+    """Verify that a QStash publish exception results in a failed resume status and raises a 503 error."""
+    resume_repo = AsyncMock()
+    candidate_repo = AsyncMock()
+    job_repo = AsyncMock()
+    candidate_service = AsyncMock()
+    storage_provider = AsyncMock()
+
+    service = ResumeService(
+        resume_repository=resume_repo,
+        candidate_repository=candidate_repo,
+        job_repository=job_repo,
+        candidate_service=candidate_service,
+        storage_provider=storage_provider,
+    )
+    session = AsyncMock()
+    tenant_id = uuid.uuid4()
+    resume_id = uuid.uuid4()
+    candidate_id = uuid.uuid4()
+
+    resume_repo.find_file_by_checksum.return_value = None
+    mock_candidate = Candidate(id=candidate_id, tenant_id=tenant_id, full_name="John Doe", source="upload")
+    candidate_repo.create_candidate.return_value = mock_candidate
+    mock_resume = Resume(id=resume_id, tenant_id=tenant_id, candidate_id=candidate_id, status="pending")
+    resume_repo.create_resume.return_value = mock_resume
+
+    with patch("hiron.core.config.get_settings") as mock_settings:
+        mock_settings.return_value.worker_url = "http://test"
+        with patch("hiron.core.qstash_client.QStashPublisher.publish") as mock_publish:
+            mock_publish.side_effect = Exception("Simulated QStash network failure")
+
+            with pytest.raises(HironException) as exc_info:
+                await service.upload_resume(
+                session=session,
+                tenant_id=tenant_id,
+                user_role="recruiter",
+                filename="resume.pdf",
+                content_type="application/pdf",
+                file_bytes=b"sample",
+            )
+
+        assert exc_info.value.status_code == 503
+        assert exc_info.value.code == "QUEUE_ERROR"
+
+        # Verify the database state update was called
+        resume_repo.update_resume_status.assert_called_once_with(
+            session=session,
+            resume=mock_resume,
+            status="failed",
+            parse_error="Queue error: Simulated QStash network failure"
+        )
+        assert session.commit.call_count == 2

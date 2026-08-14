@@ -112,3 +112,164 @@ class ScoreRepository:
         )
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def create_batch_score_job(
+        self,
+        session: AsyncSession,
+        tenant_id: uuid.UUID,
+        job_id: uuid.UUID,
+        queued_count: int,
+    ) -> "BatchScoreJob":
+        from hiron.scores.models import BatchScoreJob
+
+        new_batch = BatchScoreJob(
+            tenant_id=tenant_id,
+            job_id=job_id,
+            status="pending",
+            queued_count=queued_count,
+            completed_count=0,
+            failed_count=0,
+            completed_candidate_ids=[],
+            failed_candidate_ids=[],
+        )
+        session.add(new_batch)
+        await session.flush()
+        return new_batch
+
+    async def get_batch_score_job(
+        self,
+        session: AsyncSession,
+        tenant_id: uuid.UUID,
+        batch_id: str,
+    ) -> "BatchScoreJob | None":
+        from hiron.scores.models import BatchScoreJob
+
+        stmt = select(BatchScoreJob).where(
+            BatchScoreJob.tenant_id == tenant_id,
+            BatchScoreJob.id == uuid.UUID(batch_id),
+        )
+        result = await session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def transition_batch_score_job_to_processing(
+        self,
+        session: AsyncSession,
+        tenant_id: uuid.UUID,
+        batch_id: str,
+    ) -> int:
+        """Atomically transition batch from pending to processing."""
+        from hiron.scores.models import BatchScoreJob
+
+        stmt = (
+            update(BatchScoreJob)
+            .where(
+                BatchScoreJob.tenant_id == tenant_id,
+                BatchScoreJob.id == uuid.UUID(batch_id),
+                BatchScoreJob.status == "pending",
+            )
+            .values(status="processing")
+        )
+        result = await session.execute(stmt)
+        await session.flush()
+        return result.rowcount
+
+    async def _recompute_batch_status(
+        self,
+        session: AsyncSession,
+        tenant_id: uuid.UUID,
+        batch_id: str,
+    ) -> None:
+        """Recomputes and sets the status based on counters."""
+        from sqlalchemy import text
+
+        from hiron.scores.models import BatchScoreJob
+
+        stmt = (
+            update(BatchScoreJob)
+            .where(
+                BatchScoreJob.tenant_id == tenant_id,
+                BatchScoreJob.id == uuid.UUID(batch_id),
+            )
+            .values(
+                status=text(
+                    """
+                    CASE
+                        WHEN completed_count + failed_count < queued_count THEN 'processing'
+                        WHEN failed_count = queued_count THEN 'failed'
+                        WHEN completed_count + failed_count = queued_count THEN 'completed'
+                        ELSE status
+                    END
+                    """
+                )
+            )
+        )
+        await session.execute(stmt)
+
+    async def claim_batch_score_worker_success(
+        self,
+        session: AsyncSession,
+        tenant_id: uuid.UUID,
+        batch_id: str,
+        candidate_id: uuid.UUID,
+    ) -> bool:
+        """Atomically claim a candidate success, increment counter, and append to array."""
+        from sqlalchemy import func
+
+        from hiron.scores.models import BatchScoreJob
+
+        # Use conditional update on array to ensure atomicity and idempotency
+        stmt = (
+            update(BatchScoreJob)
+            .where(
+                BatchScoreJob.tenant_id == tenant_id,
+                BatchScoreJob.id == uuid.UUID(batch_id),
+                ~BatchScoreJob.completed_candidate_ids.contains([candidate_id]),
+                ~BatchScoreJob.failed_candidate_ids.contains([candidate_id]),
+            )
+            .values(
+                completed_count=BatchScoreJob.completed_count + 1,
+                completed_candidate_ids=func.array_append(
+                    BatchScoreJob.completed_candidate_ids, candidate_id
+                ),
+            )
+        )
+        result = await session.execute(stmt)
+        if result.rowcount > 0:
+            await self._recompute_batch_status(session, tenant_id, batch_id)
+            await session.flush()
+            return True
+        return False
+
+    async def claim_batch_score_worker_failure(
+        self,
+        session: AsyncSession,
+        tenant_id: uuid.UUID,
+        batch_id: str,
+        candidate_id: uuid.UUID,
+    ) -> bool:
+        """Atomically claim a candidate failure, increment counter, and append to array."""
+        from sqlalchemy import func
+
+        from hiron.scores.models import BatchScoreJob
+
+        stmt = (
+            update(BatchScoreJob)
+            .where(
+                BatchScoreJob.tenant_id == tenant_id,
+                BatchScoreJob.id == uuid.UUID(batch_id),
+                ~BatchScoreJob.completed_candidate_ids.contains([candidate_id]),
+                ~BatchScoreJob.failed_candidate_ids.contains([candidate_id]),
+            )
+            .values(
+                failed_count=BatchScoreJob.failed_count + 1,
+                failed_candidate_ids=func.array_append(
+                    BatchScoreJob.failed_candidate_ids, candidate_id
+                ),
+            )
+        )
+        result = await session.execute(stmt)
+        if result.rowcount > 0:
+            await self._recompute_batch_status(session, tenant_id, batch_id)
+            await session.flush()
+            return True
+        return False

@@ -72,6 +72,59 @@ def test_load_public_key_success() -> None:
     assert content.startswith("-----BEGIN PUBLIC KEY-----")
 
 
+def test_load_private_key_env_var_success(
+    monkeypatch: pytest.MonkeyPatch, rsa_key_files: tuple[Path, Path]
+) -> None:
+    """Verify load_private_key prioritizes jwt_private_key_content if provided."""
+    priv_file, _ = rsa_key_files
+    pem_content = priv_file.read_text(encoding="utf-8")
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "jwt_private_key_content", pem_content)
+
+    # Intentionally break the file path to ensure it's not being used
+    monkeypatch.setattr(settings, "jwt_private_key_path", "/nonexistent/path")
+
+    load_private_key.cache_clear()
+    content = load_private_key()
+    assert content == pem_content.strip()
+
+
+def test_load_public_key_env_var_success(
+    monkeypatch: pytest.MonkeyPatch, rsa_key_files: tuple[Path, Path]
+) -> None:
+    """Verify load_public_key prioritizes jwt_public_key_content if provided."""
+    _, pub_file = rsa_key_files
+    pem_content = pub_file.read_text(encoding="utf-8")
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "jwt_public_key_content", pem_content)
+
+    # Intentionally break the file path to ensure it's not being used
+    monkeypatch.setattr(settings, "jwt_public_key_path", "/nonexistent/path")
+
+    load_public_key.cache_clear()
+    content = load_public_key()
+    assert content == pem_content.strip()
+
+
+def test_load_key_from_env_var_with_escaped_newlines(
+    monkeypatch: pytest.MonkeyPatch, rsa_key_files: tuple[Path, Path]
+) -> None:
+    """Verify load_private_key correctly normalizes escaped \\n newlines from env variables."""
+    priv_file, _ = rsa_key_files
+    pem_content = priv_file.read_text(encoding="utf-8")
+    escaped_pem = pem_content.replace("\n", "\\n")
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "jwt_private_key_content", escaped_pem)
+
+    load_private_key.cache_clear()
+    content = load_private_key()
+    assert content == pem_content.strip()
+    assert "\\n" not in content
+
+
 def test_load_private_key_missing_file_raises_file_not_found(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -108,6 +161,19 @@ def test_load_key_empty_file_raises_value_error(
     load_private_key.cache_clear()
 
     with pytest.raises(ValueError, match="is empty"):
+        load_private_key()
+
+
+def test_missing_key_configuration_raises_value_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify missing both file path and env var raises clear ValueError."""
+    settings = get_settings()
+    monkeypatch.setattr(settings, "jwt_private_key_path", None)
+    monkeypatch.setattr(settings, "jwt_private_key_content", None)
+
+    load_private_key.cache_clear()
+    with pytest.raises(ValueError, match="path is not configured and no content provided"):
         load_private_key()
 
 

@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from hiron.embeddings.generator import EMBEDDING_DIMENSION
 from hiron.embeddings.models import JobEmbedding
 from hiron.embeddings.repository import EmbeddingRepository
 
@@ -16,7 +17,7 @@ async def test_upsert_candidate_embedding_create_new() -> None:
     session = AsyncMock()
     tenant_id = uuid.uuid4()
     candidate_id = uuid.uuid4()
-    vector = [0.1] * 1536
+    vector = [0.1] * EMBEDDING_DIMENSION
 
     mock_result = MagicMock()
     mock_result.scalar_one_or_none.return_value = None
@@ -27,7 +28,7 @@ async def test_upsert_candidate_embedding_create_new() -> None:
         tenant_id=tenant_id,
         candidate_id=candidate_id,
         embedding=vector,
-        model_version="text-embedding-3-small",
+        model_version="gemini-embedding-2",
         source_text_hash="hash123",
     )
 
@@ -44,14 +45,14 @@ async def test_upsert_job_embedding_update_existing() -> None:
     session = AsyncMock()
     tenant_id = uuid.uuid4()
     job_id = uuid.uuid4()
-    vector = [0.2] * 1536
+    vector = [0.2] * EMBEDDING_DIMENSION
 
     existing = JobEmbedding(
         id=uuid.uuid4(),
         tenant_id=tenant_id,
         job_id=job_id,
-        embedding=[0.1] * 1536,
-        model_version="text-embedding-3-small",
+        embedding=[0.1] * EMBEDDING_DIMENSION,
+        model_version="gemini-embedding-2",
         source_text_hash="old_hash",
     )
     mock_result = MagicMock()
@@ -63,7 +64,7 @@ async def test_upsert_job_embedding_update_existing() -> None:
         tenant_id=tenant_id,
         job_id=job_id,
         embedding=vector,
-        model_version="text-embedding-3-small",
+        model_version="gemini-embedding-2",
         source_text_hash="new_hash",
     )
 

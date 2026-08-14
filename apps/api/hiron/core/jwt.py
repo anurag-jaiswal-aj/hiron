@@ -32,21 +32,27 @@ def load_private_key() -> str:
         ValueError: If the private key path/file is empty or has invalid PEM format.
     """
     settings = get_settings()
-    if not settings.jwt_private_key_path:
-        raise ValueError("JWT private key path is not configured.")
 
-    key_path = Path(settings.jwt_private_key_path)
-    if not key_path.exists() or not key_path.is_file():
-        raise FileNotFoundError(f"JWT private key file not found at path: {key_path}")
+    if settings.jwt_private_key_content:
+        # Normalize escaped newlines that might come from env vars
+        content = settings.jwt_private_key_content.replace("\\n", "\n").strip()
+    else:
+        if not settings.jwt_private_key_path:
+            raise ValueError("JWT private key path is not configured and no content provided.")
 
-    content = key_path.read_text(encoding="utf-8").strip()
+        key_path = Path(settings.jwt_private_key_path)
+        if not key_path.exists() or not key_path.is_file():
+            raise FileNotFoundError(f"JWT private key file not found at path: {key_path}")
+
+        content = key_path.read_text(encoding="utf-8").strip()
+
     if not content:
-        raise ValueError(f"JWT private key file is empty at path: {key_path}")
+        raise ValueError("JWT private key content is empty")
 
     try:
         serialization.load_pem_private_key(content.encode("utf-8"), password=None)
     except Exception as exc:
-        raise ValueError(f"Invalid RSA private key PEM format at path '{key_path}': {exc}") from exc
+        raise ValueError(f"Invalid RSA private key PEM format: {exc}") from exc
 
     return content
 
@@ -63,21 +69,26 @@ def load_public_key() -> str:
         ValueError: If the public key path/file is empty or has invalid PEM format.
     """
     settings = get_settings()
-    if not settings.jwt_public_key_path:
-        raise ValueError("JWT public key path is not configured.")
 
-    key_path = Path(settings.jwt_public_key_path)
-    if not key_path.exists() or not key_path.is_file():
-        raise FileNotFoundError(f"JWT public key file not found at path: {key_path}")
+    if settings.jwt_public_key_content:
+        content = settings.jwt_public_key_content.replace("\\n", "\n").strip()
+    else:
+        if not settings.jwt_public_key_path:
+            raise ValueError("JWT public key path is not configured and no content provided.")
 
-    content = key_path.read_text(encoding="utf-8").strip()
+        key_path = Path(settings.jwt_public_key_path)
+        if not key_path.exists() or not key_path.is_file():
+            raise FileNotFoundError(f"JWT public key file not found at path: {key_path}")
+
+        content = key_path.read_text(encoding="utf-8").strip()
+
     if not content:
-        raise ValueError(f"JWT public key file is empty at path: {key_path}")
+        raise ValueError("JWT public key content is empty")
 
     try:
         serialization.load_pem_public_key(content.encode("utf-8"))
     except Exception as exc:
-        raise ValueError(f"Invalid RSA public key PEM format at path '{key_path}': {exc}") from exc
+        raise ValueError(f"Invalid RSA public key PEM format: {exc}") from exc
 
     return content
 

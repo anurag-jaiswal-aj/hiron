@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from hiron.candidates.models import Candidate
-from hiron.embeddings.generator import EmbeddingGenerationResult
+from hiron.embeddings.generator import EMBEDDING_DIMENSION, EmbeddingGenerationResult
 from hiron.search.exceptions import InsufficientSearchPermissionsError, SearchQueryValidationError
 from hiron.search.service import SearchService
 
@@ -61,8 +61,8 @@ async def test_search_candidates_success() -> None:
     tenant_id = uuid.uuid4()
     candidate_id = uuid.uuid4()
 
-    generator.generate_embedding.return_value = EmbeddingGenerationResult(
-        embedding=[0.1] * 1536,
+    generator.generate_embedding = AsyncMock(return_value=EmbeddingGenerationResult(
+        embedding=[0.1] * EMBEDDING_DIMENSION,
         source_text_hash="hash123",
         input_tokens=10,
         total_tokens=15,
@@ -70,7 +70,7 @@ async def test_search_candidates_success() -> None:
         is_fallback=False,
         status="success",
         error_type=None,
-    )
+    ))
     cand = Candidate(
         id=candidate_id,
         tenant_id=tenant_id,

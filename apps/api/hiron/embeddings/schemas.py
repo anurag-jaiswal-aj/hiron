@@ -77,3 +77,13 @@ class IndividualEmbeddingStatusResponse(BaseModel):
     """200 OK response for individual embedding status."""
 
     data: IndividualEmbeddingStatusData = Field(...)
+
+class CandidateEmbeddingWebhookPayload(BaseModel):
+    tenant_id: uuid.UUID
+    candidate_id: uuid.UUID
+    model_version: str
+
+class JobEmbeddingWebhookPayload(BaseModel):
+    tenant_id: uuid.UUID
+    job_id: uuid.UUID
+    model_version: str

@@ -5,6 +5,7 @@ import math
 from pathlib import Path
 from unittest.mock import MagicMock
 
+from hiron.embeddings.generator import EMBEDDING_DIMENSION
 from hiron.scores.engine import AIScoringEngine
 
 
@@ -40,7 +41,7 @@ def test_ai_scoring_engine_evaluation_benchmark() -> None:
         description="Backend engineering role requiring Python and database expertise.",
     )
     # The job vector will be ones to easily compute cosine similarity against candidates
-    job_vector = [1.0] * 1536
+    job_vector = [1.0] * EMBEDDING_DIMENSION
 
     # Load 100 candidates fixture
     fixture_path = Path(__file__).parent / "fixtures" / "candidates_100.json"
@@ -61,9 +62,9 @@ def test_ai_scoring_engine_evaluation_benchmark() -> None:
             summary=c_data["summary"],
         )
 
-        # Pad the mock vector to 1536 dimensions by repeating the core
+        # Pad the mock vector to EMBEDDING_DIMENSION dimensions by repeating the core
         core_vector = c_data["mock_vector_core"]
-        candidate_vector = (core_vector * (1536 // len(core_vector) + 1))[:1536]
+        candidate_vector = (core_vector * (EMBEDDING_DIMENSION // len(core_vector) + 1))[:EMBEDDING_DIMENSION]
 
         eval_result = engine.evaluate(
             candidate=mock_candidate,

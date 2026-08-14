@@ -33,14 +33,15 @@ def client() -> Generator[TestClient, None, None]:
 
 
 def test_get_task_status_success(client: TestClient) -> None:
-    tenant_id = "550e8400-e29b-41d4-a716-446655440000"
-    task_id = f"batch-{tenant_id}-12345"
+    task_id = str(uuid.uuid4())
 
-    mock_result = MagicMock()
-    mock_result.state = "PROGRESS"
-    mock_result.info = {"current": 2, "total": 10, "percent": 20.0}
+    mock_batch_job = MagicMock()
+    mock_batch_job.status = "processing"
+    mock_batch_job.queued_count = 10
+    mock_batch_job.completed_count = 1
+    mock_batch_job.failed_count = 1
 
-    with patch("hiron.tasks.router.celery_app.AsyncResult", return_value=mock_result):
+    with patch("hiron.tasks.router.ScoreRepository.get_batch_score_job", return_value=mock_batch_job):
         resp = client.get(f"/api/v1/tasks/{task_id}")
 
     assert resp.status_code == 200
@@ -51,23 +52,20 @@ def test_get_task_status_success(client: TestClient) -> None:
     assert data["progress"]["total"] == 10
     assert data["progress"]["percent"] == 20.0
 
-def test_get_task_status_wrong_tenant(client: TestClient) -> None:
-    wrong_tenant_id = "11111111-1111-1111-1111-111111111111"
-    task_id = f"batch-{wrong_tenant_id}-12345"
+def test_get_task_status_not_uuid(client: TestClient) -> None:
+    task_id = "not-a-uuid"
 
     resp = client.get(f"/api/v1/tasks/{task_id}")
     assert resp.status_code == 404
     assert "not found" in resp.json()["error"]["message"].lower()
 
 def test_get_task_status_pending(client: TestClient) -> None:
-    tenant_id = "550e8400-e29b-41d4-a716-446655440000"
-    task_id = f"batch-{tenant_id}-12345"
+    task_id = str(uuid.uuid4())
 
-    mock_result = MagicMock()
-    mock_result.state = "PENDING"
-    mock_result.info = None
+    mock_batch_job = MagicMock()
+    mock_batch_job.status = "pending"
 
-    with patch("hiron.tasks.router.celery_app.AsyncResult", return_value=mock_result):
+    with patch("hiron.tasks.router.ScoreRepository.get_batch_score_job", return_value=mock_batch_job):
         resp = client.get(f"/api/v1/tasks/{task_id}")
 
     assert resp.status_code == 200

@@ -13,7 +13,7 @@ Hiron is a production-grade AI-powered Hiring Intelligence Platform that helps r
 
 ![Hiron Social Preview](assets/images/github-social-preview.png)
 
-_The official preview representing the Hiron AI-Powered Hiring Intelligence Platform built with FastAPI, OpenAI, pgvector, and AWS._
+_The official preview representing the Hiron AI-Powered Hiring Intelligence Platform built with FastAPI, OpenAI, pgvector, and Vercel/Supabase._
 
 ---
 
@@ -27,7 +27,7 @@ _The official preview representing the Hiron AI-Powered Hiring Intelligence Plat
 - **Dashboard & Analytics**: Recruitment overview counters, funnel stage conversion stats, score distribution metrics, and real-time activity feeds.
 - **Audit Logging**: Immutable `AuditLog` records tracking user actions, target entity types, IP addresses, and state changes.
 - **AI Usage Monitoring**: `AIUsageLog` tracking LLM prompt/completion token consumption, operation breakdown, and USD cost accounting.
-- **Production Infrastructure**: AWS Terraform IaC, multi-stage non-root Docker builds, and automated GitHub Actions CI/CD workflows.
+- **Production Infrastructure**: Vercel Serverless, Supabase PostgreSQL/Storage, Upstash QStash, and automated GitHub Actions CI/CD workflows (AWS infrastructure decommissioned).
 
 ---
 
@@ -40,7 +40,7 @@ graph TD
     end
 
     subgraph APILayer["API & Security Layer"]
-        ALB["AWS Application Load Balancer / WAF"]
+        ALB["Vercel Edge Network / WAF"]
         Middleware["Tenant Context & Security Middleware"]
         Routers["FastAPI Routers (/api/v1/*)"]
     end
@@ -61,22 +61,22 @@ graph TD
     end
 
     subgraph DataLayer["Data & State Layer"]
-        Postgres["AWS RDS PostgreSQL 16 + pgvector"]
-        Redis["AWS ElastiCache Redis / LRU Cache"]
+        Postgres["Supabase PostgreSQL 16 + pgvector"]
+        Redis["Upstash Redis / LRU Cache"]
     end
 
     subgraph ExternalServices["External AI & Storage"]
         OpenAI["OpenAI API (gpt-4o / text-embedding-3-small)"]
-        S3["AWS S3 Bucket (Resume Files)"]
+        S3["Supabase Storage (Resume Files)"]
     end
 
     subgraph WorkerLayer["Asynchronous Processing Layer"]
-        Workers["Celery Background Workers"]
+        Workers["Upstash QStash Webhooks"]
     end
 
-    subgraph InfrastructureLayer["Terraform AWS Infrastructure"]
-        VPC["AWS VPC (Public & Private Subnets)"]
-        ECS["AWS ECS Fargate Cluster"]
+    subgraph InfrastructureLayer["Serverless Infrastructure"]
+        VPC["Vercel / Supabase Environments"]
+        ECS["Vercel Serverless Functions"]
     end
 
     %% Client and Middleware Entry Points
@@ -126,7 +126,7 @@ graph TD
 - **Release Date**: July 31, 2026
 - **Stability**: Initial Stable Release
 
-Hiron v1.0.0 delivers a production-ready AI hiring intelligence platform featuring multi-tenant data isolation, spaCy NLP resume parsing, 3-dimensional AI candidate fit scoring, pgvector semantic search, Kanban pipelines, audit logging, and AWS ECS/Terraform infrastructure.
+Hiron v1.0.0 delivers a production-ready AI hiring intelligence platform featuring multi-tenant data isolation, spaCy NLP resume parsing, 3-dimensional AI candidate fit scoring, pgvector semantic search, Kanban pipelines, audit logging, and Vercel/Supabase/Upstash serverless infrastructure.
 
 For detailed release information, view the [v1.0.0 Release Notes](docs/releases/v1.0.0.md) or the [CHANGELOG.md](CHANGELOG.md).
 
@@ -165,8 +165,7 @@ hiron/
 ├── workers/
 │   └── celery/                 # Celery background workers for async processing
 ├── infra/
-│   ├── docker/                 # Container Dockerfiles & docker-compose manifests
-│   └── terraform/              # Infrastructure as Code (IaC) AWS manifests
+│   └── docker/                 # Container Dockerfiles & docker-compose manifests
 ├── docs/                       # Frozen Architecture & Design Documents
 ├── scripts/                    # Development automation & database scripts
 └── .github/
@@ -181,7 +180,7 @@ Hiron manages configuration using environment files and Pydantic BaseSettings:
 
 - **Local Development (`.env.local`)**: Initialized via `make setup` for local Docker Compose development.
 - **Production Template (`.env.production.example`)**: Template for production settings including database URLs, Redis URLs, OpenAI API keys, and JWT RSA keypair paths.
-- **Secret Management**: Production secrets, database credentials, and RSA private keys should be stored in AWS Secrets Manager or Parameter Store.
+- **Secret Management**: Production secrets, database credentials, and RSA private keys should be stored in Vercel Environment Variables.
 
 ---
 

@@ -17,8 +17,8 @@ test.describe("Embedding Status Dashboard", () => {
         status: 200,
         json: {
           data: {
-            candidates: { total: 25, withEmbedding: 20, stale: 3, missing: 2, modelVersion: "text-embedding-3-small" },
-            jobs: { total: 10, withEmbedding: 8, stale: 1, missing: 1, modelVersion: "text-embedding-3-small" },
+            candidates: { total: 25, withEmbedding: 20, stale: 3, missing: 2, modelVersion: "gemini-embedding-2" },
+            jobs: { total: 10, withEmbedding: 8, stale: 1, missing: 1, modelVersion: "gemini-embedding-2" },
           },
         },
       });
@@ -26,10 +26,10 @@ test.describe("Embedding Status Dashboard", () => {
 
     // Intercept individual status calls so they don't fail
     await page.route("**/api/v1/embeddings/candidates/**", async (route) => {
-      await route.fulfill({ status: 200, json: { data: { status: "current", modelVersion: "text-embedding-3-small" } } });
+      await route.fulfill({ status: 200, json: { data: { status: "current", modelVersion: "gemini-embedding-2" } } });
     });
     await page.route("**/api/v1/embeddings/jobs/**", async (route) => {
-      await route.fulfill({ status: 200, json: { data: { status: "current", modelVersion: "text-embedding-3-small" } } });
+      await route.fulfill({ status: 200, json: { data: { status: "current", modelVersion: "gemini-embedding-2" } } });
     });
 
     await loginAs(page, "admin@acme.com", "SecurePassword123!");
@@ -38,7 +38,7 @@ test.describe("Embedding Status Dashboard", () => {
 
     // Verify panel renders
     await expect(page.getByText("✨ AI Embedding Status")).toBeVisible();
-    await expect(page.getByText("text-embedding-3-small")).toBeVisible();
+    await expect(page.getByText("gemini-embedding-2")).toBeVisible();
     await expect(page.getByText("Candidates Coverage")).toBeVisible();
     await expect(page.getByText("Jobs Coverage")).toBeVisible();
     // Verify metric data
@@ -81,7 +81,7 @@ test.describe("Candidate Detail Embedding Status", () => {
 
   test("B1. current status renders correctly", async ({ page }) => {
     await page.route(`**/api/v1/embeddings/candidates/${testCandidateId}`, async (route) => {
-      await route.fulfill({ status: 200, json: { data: { status: "current", modelVersion: "text-embedding-3-small" } } });
+      await route.fulfill({ status: 200, json: { data: { status: "current", modelVersion: "gemini-embedding-2" } } });
     });
     await page.route("**/api/v1/resumes/**", async (route) => {
       await route.fulfill({ json: { data: [] } });
@@ -98,7 +98,7 @@ test.describe("Candidate Detail Embedding Status", () => {
 
   test("B2. stale status renders with Generate button", async ({ page }) => {
     await page.route(`**/api/v1/embeddings/candidates/${testCandidateId}`, async (route) => {
-      await route.fulfill({ status: 200, json: { data: { status: "stale", modelVersion: "text-embedding-3-small" } } });
+      await route.fulfill({ status: 200, json: { data: { status: "stale", modelVersion: "gemini-embedding-2" } } });
     });
     await page.route("**/api/v1/resumes/**", async (route) => {
       await route.fulfill({ json: { data: [] } });
@@ -118,13 +118,13 @@ test.describe("Candidate Detail Embedding Status", () => {
       statusCallCount++;
       // First 2 calls return stale, then current
       const status = statusCallCount <= 2 ? "stale" : "current";
-      await route.fulfill({ status: 200, json: { data: { status, modelVersion: "text-embedding-3-small" } } });
+      await route.fulfill({ status: 200, json: { data: { status, modelVersion: "gemini-embedding-2" } } });
     });
     await page.route(`**/api/v1/candidates/${testCandidateId}/embedding`, async (route) => {
       if (route.request().method() === "POST") {
         await route.fulfill({
           status: 202,
-          json: { data: { candidateId: testCandidateId, taskId: "task-123", status: "QUEUED", modelVersion: "text-embedding-3-small" } },
+          json: { data: { candidateId: testCandidateId, taskId: "task-123", status: "QUEUED", modelVersion: "gemini-embedding-2" } },
         });
       } else {
         await route.continue();
@@ -150,7 +150,7 @@ test.describe("Candidate Detail Embedding Status", () => {
 
   test("D1. hiring_manager can see embedding status badge", async ({ page }) => {
     await page.route(`**/api/v1/embeddings/candidates/${testCandidateId}`, async (route) => {
-      await route.fulfill({ status: 200, json: { data: { status: "stale", modelVersion: "text-embedding-3-small" } } });
+      await route.fulfill({ status: 200, json: { data: { status: "stale", modelVersion: "gemini-embedding-2" } } });
     });
     await page.route("**/api/v1/resumes/**", async (route) => {
       await route.fulfill({ json: { data: [] } });
@@ -169,13 +169,13 @@ test.describe("Candidate Detail Embedding Status", () => {
   test("E. polling timeout — status never becomes current", async ({ page }) => {
     await page.route(`**/api/v1/embeddings/candidates/${testCandidateId}`, async (route) => {
       // Always return stale
-      await route.fulfill({ status: 200, json: { data: { status: "stale", modelVersion: "text-embedding-3-small" } } });
+      await route.fulfill({ status: 200, json: { data: { status: "stale", modelVersion: "gemini-embedding-2" } } });
     });
     await page.route(`**/api/v1/candidates/${testCandidateId}/embedding`, async (route) => {
       if (route.request().method() === "POST") {
         await route.fulfill({
           status: 202,
-          json: { data: { candidateId: testCandidateId, taskId: "task-timeout", status: "QUEUED", modelVersion: "text-embedding-3-small" } },
+          json: { data: { candidateId: testCandidateId, taskId: "task-timeout", status: "QUEUED", modelVersion: "gemini-embedding-2" } },
         });
       } else {
         await route.continue();
@@ -252,7 +252,7 @@ test.describe("Job Detail Embedding Status", () => {
 
   test("C1. current status renders on job detail", async ({ page }) => {
     await page.route(`**/api/v1/embeddings/jobs/${testJobId}`, async (route) => {
-      await route.fulfill({ status: 200, json: { data: { status: "current", modelVersion: "text-embedding-3-small" } } });
+      await route.fulfill({ status: 200, json: { data: { status: "current", modelVersion: "gemini-embedding-2" } } });
     });
 
     await loginAs(page, "admin@acme.com", "SecurePassword123!");
@@ -264,7 +264,7 @@ test.describe("Job Detail Embedding Status", () => {
 
   test("C2. missing status renders with Generate button", async ({ page }) => {
     await page.route(`**/api/v1/embeddings/jobs/${testJobId}`, async (route) => {
-      await route.fulfill({ status: 200, json: { data: { status: "missing", modelVersion: "text-embedding-3-small" } } });
+      await route.fulfill({ status: 200, json: { data: { status: "missing", modelVersion: "gemini-embedding-2" } } });
     });
 
     await loginAs(page, "admin@acme.com", "SecurePassword123!");
@@ -280,13 +280,13 @@ test.describe("Job Detail Embedding Status", () => {
     await page.route(`**/api/v1/embeddings/jobs/${testJobId}`, async (route) => {
       statusCallCount++;
       const status = statusCallCount <= 2 ? "missing" : "current";
-      await route.fulfill({ status: 200, json: { data: { status, modelVersion: "text-embedding-3-small" } } });
+      await route.fulfill({ status: 200, json: { data: { status, modelVersion: "gemini-embedding-2" } } });
     });
     await page.route(`**/api/v1/jobs/${testJobId}/embedding`, async (route) => {
       if (route.request().method() === "POST") {
         await route.fulfill({
           status: 202,
-          json: { data: { jobId: testJobId, taskId: "task-456", status: "QUEUED", modelVersion: "text-embedding-3-small" } },
+          json: { data: { jobId: testJobId, taskId: "task-456", status: "QUEUED", modelVersion: "gemini-embedding-2" } },
         });
       } else {
         await route.continue();
@@ -304,7 +304,7 @@ test.describe("Job Detail Embedding Status", () => {
 
   test("D2. hiring_manager can view job embedding status but cannot regenerate", async ({ page }) => {
     await page.route(`**/api/v1/embeddings/jobs/${testJobId}`, async (route) => {
-      await route.fulfill({ status: 200, json: { data: { status: "stale", modelVersion: "text-embedding-3-small" } } });
+      await route.fulfill({ status: 200, json: { data: { status: "stale", modelVersion: "gemini-embedding-2" } } });
     });
 
     await loginAs(page, "manager@acme.com", "SecurePassword123!");
@@ -338,8 +338,8 @@ test.describe("Responsive Embedding UI — 390px", () => {
         status: 200,
         json: {
           data: {
-            candidates: { total: 10, withEmbedding: 8, stale: 1, missing: 1, modelVersion: "text-embedding-3-small" },
-            jobs: { total: 5, withEmbedding: 5, stale: 0, missing: 0, modelVersion: "text-embedding-3-small" },
+            candidates: { total: 10, withEmbedding: 8, stale: 1, missing: 1, modelVersion: "gemini-embedding-2" },
+            jobs: { total: 5, withEmbedding: 5, stale: 0, missing: 0, modelVersion: "gemini-embedding-2" },
           },
         },
       });
@@ -366,7 +366,7 @@ test.describe("Responsive Embedding UI — 390px", () => {
       });
     });
     await page.route(`**/api/v1/embeddings/candidates/${candId}`, async (route) => {
-      await route.fulfill({ status: 200, json: { data: { status: "stale", modelVersion: "text-embedding-3-small" } } });
+      await route.fulfill({ status: 200, json: { data: { status: "stale", modelVersion: "gemini-embedding-2" } } });
     });
     await page.route("**/api/v1/resumes/**", async (route) => {
       await route.fulfill({ json: { data: [] } });
@@ -390,7 +390,7 @@ test.describe("Responsive Embedding UI — 390px", () => {
       });
     });
     await page.route(`**/api/v1/embeddings/jobs/${jobId}`, async (route) => {
-      await route.fulfill({ status: 200, json: { data: { status: "missing", modelVersion: "text-embedding-3-small" } } });
+      await route.fulfill({ status: 200, json: { data: { status: "missing", modelVersion: "gemini-embedding-2" } } });
     });
 
     await loginAs(page, "admin@acme.com", "SecurePassword123!");

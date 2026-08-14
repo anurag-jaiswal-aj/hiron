@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   build-and-deploy:
-    name: Build, Migrate, and Deploy to AWS ECS
+    name: Production CI/CD and Database Migrations
     runs-on: ubuntu-latest
     environment: production
 
@@ -35,31 +35,8 @@ jobs:
           uv run mypy apps/api
           uv run pytest
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-region: us-east-1
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-
-      - name: Log in to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Build and Push Core API Docker Image
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          docker build -t $ECR_REGISTRY/hiron-api:$IMAGE_TAG -t $ECR_REGISTRY/hiron-api:latest -f infra/docker/Dockerfile.api .
-          docker push $ECR_REGISTRY/hiron-api:$IMAGE_TAG
-          docker push $ECR_REGISTRY/hiron-api:latest
-
       - name: Run Database Migrations (Alembic)
         env:
           DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
         run: |
           uv run alembic upgrade head
-
-      - name: Deploy Amazon ECS Task Definition
-        run: |
-          aws ecs update-service --cluster hiron-production-cluster --service hiron-api-service --force-new-deployment

@@ -10,6 +10,9 @@
 .env.development
 .env.staging
 .env.production
+.env.temp.*
+.env.test.*
+.env.vercel.*
 *.pem
 *.key
 *.crt
@@ -114,6 +117,8 @@ Thumbs.db
 # 5. Logs, Temp Files & Task Queue Artifacts
 # ------------------------------------------------------------------------------
 *.log
+*_logs.txt
+test_resume.txt
 logs/
 tmp/
 temp/
@@ -121,3 +126,6 @@ scratch/
 celerybeat-schedule
 celerybeat.pid
 
+.env.migration
+.env.migration
+.env*.local

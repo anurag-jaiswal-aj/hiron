@@ -7,6 +7,7 @@ import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hiron.candidates.models import JobCandidate
+from hiron.ai_usage.service import AIUsageService
 from hiron.candidates.repository import CandidateRepository
 from hiron.common.exceptions import ResourceNotFoundException
 from hiron.embeddings.generator import DEFAULT_EMBEDDING_MODEL
@@ -43,12 +44,14 @@ class ScoreService:
         job_repository: JobRepository | None = None,
         embedding_repository: EmbeddingRepository | None = None,
         scoring_engine: AIScoringEngine | None = None,
+        ai_usage_service: AIUsageService | None = None,
     ) -> None:
         self.score_repo = score_repository or ScoreRepository()
         self.candidate_repo = candidate_repository or CandidateRepository()
         self.job_repo = job_repository or JobRepository()
         self.embedding_repo = embedding_repository or EmbeddingRepository()
         self.engine = scoring_engine or AIScoringEngine()
+        self.ai_usage_service = ai_usage_service or AIUsageService()
 
     def _validate_role_permissions(self, role: str) -> None:
         """Validate user role authorization for scoring operations."""
@@ -153,7 +156,7 @@ class ScoreService:
         job_vec = job_emb.embedding if job_emb else None
 
         # Execute scoring engine
-        evaluation = self.engine.evaluate(
+        evaluation = await self.engine.evaluate(
             candidate=candidate,
             job=job,
             candidate_vector=cand_vec,
@@ -178,6 +181,23 @@ class ScoreService:
             output_tokens=evaluation["output_tokens"],
             latency_ms=evaluation["latency_ms"],
             warnings=evaluation["warnings"],
+        )
+
+        cost_usd = (evaluation["input_tokens"] / 1_000_000 * 0.075) + (evaluation["output_tokens"] / 1_000_000 * 0.30)
+
+        await self.ai_usage_service.record_ai_usage(
+            session=session,
+            tenant_id=tenant_id,
+            operation="generate_candidate_score",
+            model_version=evaluation["model_version"],
+            prompt_name=evaluation["prompt_name"],
+            prompt_version=evaluation["prompt_version"],
+            input_tokens=evaluation["input_tokens"],
+            output_tokens=evaluation["output_tokens"],
+            latency_ms=evaluation["latency_ms"],
+            cost_usd=cost_usd,
+            status="success",
+            is_cache_hit=False,
         )
 
         logger.info(
@@ -216,26 +236,49 @@ class ScoreService:
         queued_count = len(target_ids)
         estimated_sec = max(5, queued_count * 5)
 
-        from hiron.scores.tasks import execute_batch_scoring
+        from hiron.core.config import get_settings
+        settings = get_settings()
 
-        task_id = f"batch-{tenant_id}-{uuid.uuid4()}"
-        execute_batch_scoring.apply_async(
-            kwargs={
-                "tenant_id": str(tenant_id),
-                "job_id": str(job_id),
-                "candidate_ids": [str(cid) for cid in target_ids],
-                "force_rescore": force_rescore,
-            },
-            task_id=task_id,
+        if not settings.qstash_webhook_url:
+            raise ValueError("qstash_webhook_url is required to publish background tasks")
+
+        # Create exactly one BatchScoreJob row
+        batch_job = await self.score_repo.create_batch_score_job(
+            session=session,
+            tenant_id=tenant_id,
+            job_id=job_id,
+            queued_count=queued_count,
+        )
+        task_id = str(batch_job.id)
+
+        from hiron.core.qstash_client import qstash_publisher
+
+        payload = {
+            "batch_id": task_id,
+            "tenant_id": str(tenant_id),
+            "job_id": str(job_id),
+            "candidate_ids": [str(cid) for cid in target_ids],
+            "force_rescore": force_rescore,
+        }
+
+        dedup_id = f"batch-coord-{tenant_id}-{job_id}-{task_id}"
+
+        await session.commit()
+
+        await qstash_publisher.publish(
+            url=f"{settings.qstash_webhook_url}/api/v1/webhooks/qstash/scores/batch/coordinator",
+            payload=payload,
+            deduplication_id=dedup_id,
         )
 
         logger.info(
-            "Enqueued batch candidate scoring",
+            "Enqueued batch candidate scoring via QStash coordinator",
             tenant_id=str(tenant_id),
             job_id=str(job_id),
             candidates_queued=queued_count,
             task_id=task_id,
             force_rescore=force_rescore,
+            dedup_id=dedup_id,
         )
 
         return BatchScoreResponse(

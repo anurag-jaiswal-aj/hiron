@@ -1,23 +1,27 @@
 """SQLAlchemy model for scores table per Database Design §5.10."""
 
 import datetime
+import datetime
 import uuid
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import (
+    UUID,
     Boolean,
     CheckConstraint,
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     SmallInteger,
     String,
     Text,
+    UniqueConstraint,
     func,
     text,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from hiron.common.models import Base
@@ -78,3 +82,64 @@ class Score(Base):
 
     tenant: Mapped["Tenant"] = relationship("Tenant")
     job_candidate: Mapped["JobCandidate"] = relationship("JobCandidate")
+
+class BatchScoreJob(Base):
+    """Tracks state and accounting for asynchronous batch candidate scoring via external task engine."""
+
+    __tablename__ = "batch_score_jobs"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('pending', 'processing', 'completed', 'failed')",
+            name="ck_batch_score_jobs_status",
+        ),
+        Index("ix_batch_score_jobs_tenant_id", "tenant_id"),
+        Index("ix_batch_score_jobs_job_id", "job_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        comment="Globally unique primary key identifier (UUIDv4)",
+    )
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    job_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("jobs.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    status: Mapped[str] = mapped_column(String(20), server_default=text("'pending'"), nullable=False)
+
+    queued_count: Mapped[int] = mapped_column(Integer, server_default=text("0"), nullable=False)
+    completed_count: Mapped[int] = mapped_column(Integer, server_default=text("0"), nullable=False)
+    failed_count: Mapped[int] = mapped_column(Integer, server_default=text("0"), nullable=False)
+
+    completed_candidate_ids: Mapped[list[uuid.UUID]] = mapped_column(
+        ARRAY(UUID(as_uuid=True)), server_default=text("'{}'"), nullable=False, default=list
+    )
+    failed_candidate_ids: Mapped[list[uuid.UUID]] = mapped_column(
+        ARRAY(UUID(as_uuid=True)), server_default=text("'{}'"), nullable=False, default=list
+    )
+
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+        comment="UTC timestamp when the record was created",
+    )
+    updated_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+        comment="UTC timestamp when the record was last updated",
+    )
+
+    tenant: Mapped["Tenant"] = relationship("Tenant", foreign_keys=[tenant_id])
+    job: Mapped["Job"] = relationship("Job", foreign_keys=[job_id])

@@ -2,10 +2,10 @@
 
 from unittest.mock import MagicMock, patch
 
-from hiron.resumes.parser import ResumeParser, get_nlp
+from apps.worker.src.parser import ResumeParser, get_nlp
 
 
-@patch("hiron.resumes.parser.get_nlp", return_value=None)
+@patch("apps.worker.src.parser.get_nlp", return_value=None)
 def test_resume_parser_contact_info_extraction(mock_get_nlp: MagicMock) -> None:
     """Verify name, email, phone, location, and linkedin extraction."""
     _ = mock_get_nlp
@@ -44,7 +44,7 @@ def test_resume_parser_contact_info_extraction(mock_get_nlp: MagicMock) -> None:
     assert confidence == 1.0
 
 
-@patch("hiron.resumes.parser.get_nlp", return_value=None)
+@patch("apps.worker.src.parser.get_nlp", return_value=None)
 def test_resume_parser_confidence_score_calculation(mock_get_nlp: MagicMock) -> None:
     """Verify confidence score for partial resume data."""
     _ = mock_get_nlp
@@ -67,7 +67,7 @@ def test_resume_parser_confidence_score_calculation(mock_get_nlp: MagicMock) -> 
     assert parser.calculate_confidence(partial_data) == 0.25
 
 
-@patch("hiron.resumes.parser.get_nlp", return_value=None)
+@patch("apps.worker.src.parser.get_nlp", return_value=None)
 def test_resume_parser_incomplete_resume(mock_get_nlp: MagicMock) -> None:
     """Verify parsing handles incomplete resumes safely without crashing."""
     _ = mock_get_nlp
@@ -85,7 +85,7 @@ def test_resume_parser_incomplete_resume(mock_get_nlp: MagicMock) -> None:
     assert parsed_data["education"] == []
 
 
-@patch("hiron.resumes.parser.get_nlp", return_value=None)
+@patch("apps.worker.src.parser.get_nlp", return_value=None)
 def test_resume_parser_malformed_noisy_resume(mock_get_nlp: MagicMock) -> None:
     """Verify parsing handles noisy/malformed formatting."""
     _ = mock_get_nlp
@@ -112,7 +112,7 @@ def test_resume_parser_malformed_noisy_resume(mock_get_nlp: MagicMock) -> None:
     assert len(parsed_data["experience"]) >= 1
 
 
-@patch("hiron.resumes.parser.get_nlp", return_value=None)
+@patch("apps.worker.src.parser.get_nlp", return_value=None)
 def test_resume_parser_empty_optional_sections(mock_get_nlp: MagicMock) -> None:
     """Verify parsing handles empty optional sections safely."""
     _ = mock_get_nlp
@@ -143,13 +143,13 @@ def test_resume_parser_empty_optional_sections(mock_get_nlp: MagicMock) -> None:
 
 def test_parser_model_version_truthfulness() -> None:
     """Verify PARSER_MODEL_VERSION accurately describes the hybrid implementation."""
-    from hiron.resumes.parser import PARSER_MODEL_VERSION
-    assert PARSER_MODEL_VERSION == "spacy-en_core_web_trf-3.8.0"
+    from apps.worker.src.parser import PARSER_MODEL_VERSION
+    assert PARSER_MODEL_VERSION == "spacy-en_core_web_sm-3.8.0"
     parser = ResumeParser()
-    assert parser.model_version == "spacy-en_core_web_trf-3.8.0"
+    assert parser.model_version == "spacy-en_core_web_sm-3.8.0"
 
 
-@patch("hiron.resumes.parser.get_nlp")
+@patch("apps.worker.src.parser.get_nlp")
 def test_resume_parser_spacy_enhancement(mock_get_nlp: MagicMock) -> None:
     """Verify SpaCy correctly enhances fields like full_name, location, and company."""
     # Mock the SpaCy document and entities

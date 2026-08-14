@@ -8,14 +8,23 @@ import pytest
 from hiron.candidates.models import Candidate
 from hiron.common.exceptions import ResourceNotFoundException
 from hiron.embeddings.exceptions import InsufficientEmbeddingPermissionsError
+
+from hiron.embeddings.generator import EMBEDDING_DIMENSION
 from hiron.embeddings.service import EmbeddingService
 
 
+@pytest.fixture(autouse=True)
+def force_qstash_engine(monkeypatch):
+    monkeypatch.setenv("QSTASH_WEBHOOK_URL", "http://localhost:8000")
+    from hiron.core.config import get_settings
+    get_settings.cache_clear()
+
+
 @pytest.mark.asyncio
-@patch("hiron.embeddings.tasks.generate_candidate_embedding")
-async def test_generate_candidate_embedding_success(mock_task: MagicMock) -> None:
+@patch("hiron.core.qstash_client.QStashPublisher.publish")
+async def test_generate_candidate_embedding_success(mock_publish: MagicMock) -> None:
     """Verify generate_candidate_embedding executes pipeline and returns 202 response schema."""
-    mock_task.delay.return_value.id = "mock-task-id"
+    mock_publish.return_value = "mock-task-id"
     emb_repo = AsyncMock()
     cand_repo = AsyncMock()
     job_repo = AsyncMock()
@@ -35,7 +44,7 @@ async def test_generate_candidate_embedding_success(mock_task: MagicMock) -> Non
         id=candidate_id, tenant_id=tenant_id, full_name="Jane Doe", skills=["Python"]
     )
     cand_repo.get_candidate_by_id.return_value = mock_candidate
-    generator.generate_embedding.return_value = ([0.1] * 1536, "hash123")
+    generator.generate_embedding = AsyncMock(return_value=([0.1] * EMBEDDING_DIMENSION, "hash123"))
 
     mock_resume_result = MagicMock()
     mock_resume_result.scalars.return_value.all.return_value = []
@@ -50,13 +59,13 @@ async def test_generate_candidate_embedding_success(mock_task: MagicMock) -> Non
 
     assert response.data.candidate_id == candidate_id
     assert response.data.status == "processing"
-    assert response.data.model_version == "text-embedding-3-small"
+    assert response.data.model_version == "gemini-embedding-2"
 
-    mock_task.delay.assert_called_once_with(
-        str(tenant_id),
-        str(candidate_id),
-        "text-embedding-3-small",
-    )
+    mock_publish.assert_called_once()
+    kwargs = mock_publish.call_args.kwargs
+    assert "payload" in kwargs
+    assert kwargs["payload"]["candidate_id"] == str(candidate_id)
+    assert kwargs["payload"]["tenant_id"] == str(tenant_id)
 
 
 @pytest.mark.asyncio
@@ -94,10 +103,11 @@ async def test_generate_embedding_unauthorized_role_raises_403() -> None:
             job_id=uuid.uuid4(),
         )
 
+
 @pytest.mark.asyncio
-@patch("hiron.embeddings.tasks.generate_candidate_embedding.delay")
+@patch("hiron.core.qstash_client.QStashPublisher.publish")
 async def test_generate_candidate_embedding_not_found_raises_404_and_no_enqueue(
-    mock_embed_delay: MagicMock,
+    mock_publish: MagicMock,
 ) -> None:
     """Verify non-existent candidate ID raises ResourceNotFoundException and does not enqueue."""
     emb_repo = AsyncMock()
@@ -117,13 +127,13 @@ async def test_generate_candidate_embedding_not_found_raises_404_and_no_enqueue(
             candidate_id=candidate_id,
         )
 
-    mock_embed_delay.assert_not_called()
+    mock_publish.assert_not_called()
 
 
 @pytest.mark.asyncio
-@patch("hiron.embeddings.tasks.generate_job_embedding.delay")
+@patch("hiron.core.qstash_client.QStashPublisher.publish")
 async def test_generate_job_embedding_not_found_raises_404_and_no_enqueue(
-    mock_embed_delay: MagicMock,
+    mock_publish: MagicMock,
 ) -> None:
     """Verify non-existent job ID raises ResourceNotFoundException and does not enqueue."""
     emb_repo = AsyncMock()
@@ -143,13 +153,14 @@ async def test_generate_job_embedding_not_found_raises_404_and_no_enqueue(
             job_id=job_id,
         )
 
-    mock_embed_delay.assert_not_called()
+    mock_publish.assert_not_called()
+
 
 @pytest.mark.asyncio
-@patch("hiron.embeddings.tasks.generate_job_embedding.delay")
-async def test_generate_job_embedding_success(mock_task_delay: MagicMock) -> None:
+@patch("hiron.core.qstash_client.QStashPublisher.publish")
+async def test_generate_job_embedding_success(mock_publish: MagicMock) -> None:
     """Verify generate_job_embedding succeeds and enqueues task."""
-    mock_task_delay.return_value.id = "mock-task-id"
+    mock_publish.return_value = "mock-task-id"
     emb_repo = AsyncMock()
     job_repo = AsyncMock()
     service = EmbeddingService(embedding_repository=emb_repo, job_repository=job_repo)
@@ -171,11 +182,12 @@ async def test_generate_job_embedding_success(mock_task_delay: MagicMock) -> Non
     assert response.data.job_id == job_id
     assert response.data.status == "processing"
 
-    mock_task_delay.assert_called_once_with(
-        str(tenant_id),
-        str(job_id),
-        "text-embedding-3-small",
-    )
+    mock_publish.assert_called_once()
+    kwargs = mock_publish.call_args.kwargs
+    assert "payload" in kwargs
+    assert kwargs["payload"]["job_id"] == str(job_id)
+    assert kwargs["payload"]["tenant_id"] == str(tenant_id)
+
 
 @pytest.mark.asyncio
 async def test_generate_candidate_embedding_pipeline_cache_hit() -> None:
@@ -198,14 +210,16 @@ async def test_generate_candidate_embedding_pipeline_cache_hit() -> None:
     cand_repo.get_candidate_by_id.return_value = mock_candidate
 
     # Mock constructed text and hash
-    patch.object(service, "_construct_candidate_source_text", new_callable=AsyncMock, return_value="Python").start()
+    patch.object(
+        service, "_construct_candidate_source_text", new_callable=AsyncMock, return_value="Python"
+    ).start()
     generator.compute_source_text_hash.return_value = "hash123"
 
     # Existing valid embedding
     existing = MagicMock()
     existing.source_text_hash = "hash123"
-    existing.model_version = "text-embedding-3-small"
-    existing.embedding = [0.1] * 1536
+    existing.model_version = "gemini-embedding-2"
+    existing.embedding = [0.1] * EMBEDDING_DIMENSION
     emb_repo.get_candidate_embedding.return_value = existing
 
     session = AsyncMock()
@@ -213,7 +227,7 @@ async def test_generate_candidate_embedding_pipeline_cache_hit() -> None:
         session=session,
         tenant_id=tenant_id,
         candidate_id=candidate_id,
-        model_version="text-embedding-3-small",
+        model_version="gemini-embedding-2",
     )
 
     assert result.cache_hit is True
@@ -247,8 +261,8 @@ async def test_generate_job_embedding_pipeline_cache_hit() -> None:
 
     existing = MagicMock()
     existing.source_text_hash = "hash456"
-    existing.model_version = "text-embedding-3-small"
-    existing.embedding = [0.1] * 1536
+    existing.model_version = "gemini-embedding-2"
+    existing.embedding = [0.1] * EMBEDDING_DIMENSION
     emb_repo.get_job_embedding.return_value = existing
 
     session = AsyncMock()
@@ -283,17 +297,22 @@ async def test_generate_candidate_embedding_pipeline_changed_hash_regenerates() 
     mock_candidate = Candidate(id=candidate_id, tenant_id=tenant_id, skills=["Python"])
     cand_repo.get_candidate_by_id.return_value = mock_candidate
 
-    patch.object(service, "_construct_candidate_source_text", new_callable=AsyncMock, return_value="Python and Rust").start()
+    patch.object(
+        service,
+        "_construct_candidate_source_text",
+        new_callable=AsyncMock,
+        return_value="Python and Rust",
+    ).start()
     generator.compute_source_text_hash.return_value = "hash-new"
 
     existing = MagicMock()
     existing.source_text_hash = "hash-old"
-    existing.model_version = "text-embedding-3-small"
-    existing.embedding = [0.1] * 1536
+    existing.model_version = "gemini-embedding-2"
+    existing.embedding = [0.1] * EMBEDDING_DIMENSION
     emb_repo.get_candidate_embedding.return_value = existing
 
-    generator.generate_embedding.return_value = EmbeddingGenerationResult(
-        embedding=[0.2] * 1536,
+    generator.generate_embedding = AsyncMock(return_value=EmbeddingGenerationResult(
+        embedding=[0.2] * EMBEDDING_DIMENSION,
         source_text_hash="hash-new",
         input_tokens=10,
         total_tokens=10,
@@ -301,7 +320,7 @@ async def test_generate_candidate_embedding_pipeline_changed_hash_regenerates() 
         is_fallback=False,
         status="success",
         error_type=None,
-    )
+    ))
 
     session = AsyncMock()
     result = await service.generate_candidate_embedding_pipeline(
@@ -315,10 +334,12 @@ async def test_generate_candidate_embedding_pipeline_changed_hash_regenerates() 
     generator.generate_embedding.assert_called_once_with("Python and Rust")
     emb_repo.upsert_candidate_embedding.assert_called_once()
 
+
 @pytest.mark.asyncio
 async def test_generate_job_embedding_pipeline_model_mismatch_regenerates() -> None:
     """Verify mismatched model version regenerates."""
     from hiron.embeddings.generator import EmbeddingGenerationResult
+
     emb_repo = AsyncMock()
     job_repo = AsyncMock()
     generator = MagicMock()
@@ -341,11 +362,11 @@ async def test_generate_job_embedding_pipeline_model_mismatch_regenerates() -> N
     existing = MagicMock()
     existing.source_text_hash = "hash-same"
     existing.model_version = "text-embedding-ada-002"
-    existing.embedding = [0.1] * 1536
+    existing.embedding = [0.1] * EMBEDDING_DIMENSION
     emb_repo.get_job_embedding.return_value = existing
 
-    generator.generate_embedding.return_value = EmbeddingGenerationResult(
-        embedding=[0.2] * 1536,
+    generator.generate_embedding = AsyncMock(return_value=EmbeddingGenerationResult(
+        embedding=[0.2] * EMBEDDING_DIMENSION,
         source_text_hash="hash-same",
         input_tokens=5,
         total_tokens=5,
@@ -353,14 +374,14 @@ async def test_generate_job_embedding_pipeline_model_mismatch_regenerates() -> N
         is_fallback=False,
         status="success",
         error_type=None,
-    )
+    ))
 
     session = AsyncMock()
     result = await service.generate_job_embedding_pipeline(
         session=session,
         tenant_id=tenant_id,
         job_id=job_id,
-        model_version="text-embedding-3-small",
+        model_version="gemini-embedding-2",
     )
 
     assert result.cache_hit is False
@@ -371,6 +392,7 @@ async def test_generate_job_embedding_pipeline_model_mismatch_regenerates() -> N
 async def test_generate_candidate_embedding_pipeline_missing_or_invalid_regenerates() -> None:
     """Verify missing existing, null vector, or wrong dimension regenerates."""
     from hiron.embeddings.generator import EmbeddingGenerationResult
+
     emb_repo = AsyncMock()
     cand_repo = AsyncMock()
     generator = MagicMock()
@@ -384,18 +406,20 @@ async def test_generate_candidate_embedding_pipeline_missing_or_invalid_regenera
     )
     mock_candidate = Candidate(id=candidate_id, tenant_id=tenant_id, skills=[])
     cand_repo.get_candidate_by_id.return_value = mock_candidate
-    patch.object(service, "_construct_candidate_source_text", new_callable=AsyncMock, return_value="Hello").start()
+    patch.object(
+        service, "_construct_candidate_source_text", new_callable=AsyncMock, return_value="Hello"
+    ).start()
     generator.compute_source_text_hash.return_value = "hash123"
 
     # Existing but invalid vector len
     existing = MagicMock()
     existing.source_text_hash = "hash123"
-    existing.model_version = "text-embedding-3-small"
+    existing.model_version = "gemini-embedding-2"
     existing.embedding = [0.1] * 10
     emb_repo.get_candidate_embedding.return_value = existing
 
-    generator.generate_embedding.return_value = EmbeddingGenerationResult(
-        embedding=[0.2] * 1536,
+    generator.generate_embedding = AsyncMock(return_value=EmbeddingGenerationResult(
+        embedding=[0.2] * EMBEDDING_DIMENSION,
         source_text_hash="hash123",
         input_tokens=2,
         total_tokens=2,
@@ -403,7 +427,7 @@ async def test_generate_candidate_embedding_pipeline_missing_or_invalid_regenera
         is_fallback=False,
         status="success",
         error_type=None,
-    )
+    ))
 
     session = AsyncMock()
     result = await service.generate_candidate_embedding_pipeline(
@@ -415,6 +439,7 @@ async def test_generate_candidate_embedding_pipeline_missing_or_invalid_regenera
     assert result.cache_hit is False
     generator.generate_embedding.assert_called_once_with("Hello")
 
+
 @pytest.mark.asyncio
 async def test_get_candidate_embedding_status_current() -> None:
     """Verify get_candidate_embedding_status returns current when hash, model, and vector match."""
@@ -423,16 +448,26 @@ async def test_get_candidate_embedding_status_current() -> None:
     generator = MagicMock()
     tenant_id = uuid.uuid4()
     candidate_id = uuid.uuid4()
-    service = EmbeddingService(embedding_repository=emb_repo, candidate_repository=cand_repo, embedding_generator=generator)
+    service = EmbeddingService(
+        embedding_repository=emb_repo, candidate_repository=cand_repo, embedding_generator=generator
+    )
 
-    cand_repo.get_candidate_by_id.return_value = Candidate(id=candidate_id, tenant_id=tenant_id, skills=[])
-    patch.object(service, "_construct_candidate_source_text", new_callable=AsyncMock, return_value="text").start()
+    cand_repo.get_candidate_by_id.return_value = Candidate(
+        id=candidate_id, tenant_id=tenant_id, skills=[]
+    )
+    patch.object(
+        service, "_construct_candidate_source_text", new_callable=AsyncMock, return_value="text"
+    ).start()
     generator.compute_source_text_hash.return_value = "hash1"
 
-    existing = MagicMock(source_text_hash="hash1", model_version="text-embedding-3-small", embedding=[0.1]*1536)
+    existing = MagicMock(
+        source_text_hash="hash1", model_version="gemini-embedding-2", embedding=[0.1] * EMBEDDING_DIMENSION
+    )
     emb_repo.get_latest_candidate_embedding.return_value = existing
 
-    res = await service.get_candidate_embedding_status(AsyncMock(), tenant_id, candidate_id, "text-embedding-3-small")
+    res = await service.get_candidate_embedding_status(
+        AsyncMock(), tenant_id, candidate_id, "gemini-embedding-2"
+    )
     assert res.data.status == "current"
 
 
@@ -444,16 +479,26 @@ async def test_get_candidate_embedding_status_stale_hash() -> None:
     generator = MagicMock()
     tenant_id = uuid.uuid4()
     candidate_id = uuid.uuid4()
-    service = EmbeddingService(embedding_repository=emb_repo, candidate_repository=cand_repo, embedding_generator=generator)
+    service = EmbeddingService(
+        embedding_repository=emb_repo, candidate_repository=cand_repo, embedding_generator=generator
+    )
 
-    cand_repo.get_candidate_by_id.return_value = Candidate(id=candidate_id, tenant_id=tenant_id, skills=[])
-    patch.object(service, "_construct_candidate_source_text", new_callable=AsyncMock, return_value="text").start()
+    cand_repo.get_candidate_by_id.return_value = Candidate(
+        id=candidate_id, tenant_id=tenant_id, skills=[]
+    )
+    patch.object(
+        service, "_construct_candidate_source_text", new_callable=AsyncMock, return_value="text"
+    ).start()
     generator.compute_source_text_hash.return_value = "hash2"
 
-    existing = MagicMock(source_text_hash="hash1", model_version="text-embedding-3-small", embedding=[0.1]*1536)
+    existing = MagicMock(
+        source_text_hash="hash1", model_version="gemini-embedding-2", embedding=[0.1] * EMBEDDING_DIMENSION
+    )
     emb_repo.get_latest_candidate_embedding.return_value = existing
 
-    res = await service.get_candidate_embedding_status(AsyncMock(), tenant_id, candidate_id, "text-embedding-3-small")
+    res = await service.get_candidate_embedding_status(
+        AsyncMock(), tenant_id, candidate_id, "gemini-embedding-2"
+    )
     assert res.data.status == "stale"
 
 
@@ -465,16 +510,26 @@ async def test_get_candidate_embedding_status_stale_model() -> None:
     generator = MagicMock()
     tenant_id = uuid.uuid4()
     candidate_id = uuid.uuid4()
-    service = EmbeddingService(embedding_repository=emb_repo, candidate_repository=cand_repo, embedding_generator=generator)
+    service = EmbeddingService(
+        embedding_repository=emb_repo, candidate_repository=cand_repo, embedding_generator=generator
+    )
 
-    cand_repo.get_candidate_by_id.return_value = Candidate(id=candidate_id, tenant_id=tenant_id, skills=[])
-    patch.object(service, "_construct_candidate_source_text", new_callable=AsyncMock, return_value="text").start()
+    cand_repo.get_candidate_by_id.return_value = Candidate(
+        id=candidate_id, tenant_id=tenant_id, skills=[]
+    )
+    patch.object(
+        service, "_construct_candidate_source_text", new_callable=AsyncMock, return_value="text"
+    ).start()
     generator.compute_source_text_hash.return_value = "hash1"
 
-    existing = MagicMock(source_text_hash="hash1", model_version="text-embedding-ada-002", embedding=[0.1]*1536)
+    existing = MagicMock(
+        source_text_hash="hash1", model_version="text-embedding-ada-002", embedding=[0.1] * EMBEDDING_DIMENSION
+    )
     emb_repo.get_latest_candidate_embedding.return_value = existing
 
-    res = await service.get_candidate_embedding_status(AsyncMock(), tenant_id, candidate_id, "text-embedding-3-small")
+    res = await service.get_candidate_embedding_status(
+        AsyncMock(), tenant_id, candidate_id, "gemini-embedding-2"
+    )
     assert res.data.status == "stale"
 
 
@@ -487,10 +542,14 @@ async def test_get_candidate_embedding_status_missing() -> None:
     candidate_id = uuid.uuid4()
     service = EmbeddingService(embedding_repository=emb_repo, candidate_repository=cand_repo)
 
-    cand_repo.get_candidate_by_id.return_value = Candidate(id=candidate_id, tenant_id=tenant_id, skills=[])
+    cand_repo.get_candidate_by_id.return_value = Candidate(
+        id=candidate_id, tenant_id=tenant_id, skills=[]
+    )
     emb_repo.get_latest_candidate_embedding.return_value = None
 
-    res = await service.get_candidate_embedding_status(AsyncMock(), tenant_id, candidate_id, "text-embedding-3-small")
+    res = await service.get_candidate_embedding_status(
+        AsyncMock(), tenant_id, candidate_id, "gemini-embedding-2"
+    )
     assert res.data.status == "missing"
 
 
@@ -502,16 +561,22 @@ async def test_get_job_embedding_status_current() -> None:
     generator = MagicMock()
     tenant_id = uuid.uuid4()
     job_id = uuid.uuid4()
-    service = EmbeddingService(embedding_repository=emb_repo, job_repository=job_repo, embedding_generator=generator)
+    service = EmbeddingService(
+        embedding_repository=emb_repo, job_repository=job_repo, embedding_generator=generator
+    )
 
     job_repo.get_job_by_id.return_value = MagicMock()
     patch.object(service, "_construct_job_source_text", return_value="text").start()
     generator.compute_source_text_hash.return_value = "hash1"
 
-    existing = MagicMock(source_text_hash="hash1", model_version="text-embedding-3-small", embedding=[0.1]*1536)
+    existing = MagicMock(
+        source_text_hash="hash1", model_version="gemini-embedding-2", embedding=[0.1] * EMBEDDING_DIMENSION
+    )
     emb_repo.get_latest_job_embedding.return_value = existing
 
-    res = await service.get_job_embedding_status(AsyncMock(), tenant_id, job_id, "text-embedding-3-small")
+    res = await service.get_job_embedding_status(
+        AsyncMock(), tenant_id, job_id, "gemini-embedding-2"
+    )
     assert res.data.status == "current"
 
 
@@ -523,16 +588,22 @@ async def test_get_job_embedding_status_stale() -> None:
     generator = MagicMock()
     tenant_id = uuid.uuid4()
     job_id = uuid.uuid4()
-    service = EmbeddingService(embedding_repository=emb_repo, job_repository=job_repo, embedding_generator=generator)
+    service = EmbeddingService(
+        embedding_repository=emb_repo, job_repository=job_repo, embedding_generator=generator
+    )
 
     job_repo.get_job_by_id.return_value = MagicMock()
     patch.object(service, "_construct_job_source_text", return_value="text").start()
     generator.compute_source_text_hash.return_value = "hash1"
 
-    existing = MagicMock(source_text_hash="hash1", model_version="text-embedding-3-small", embedding=[0.1]*10) # invalid length
+    existing = MagicMock(
+        source_text_hash="hash1", model_version="gemini-embedding-2", embedding=[0.1] * 10
+    )  # invalid length
     emb_repo.get_latest_job_embedding.return_value = existing
 
-    res = await service.get_job_embedding_status(AsyncMock(), tenant_id, job_id, "text-embedding-3-small")
+    res = await service.get_job_embedding_status(
+        AsyncMock(), tenant_id, job_id, "gemini-embedding-2"
+    )
     assert res.data.status == "stale"
 
 
@@ -548,7 +619,9 @@ async def test_get_job_embedding_status_missing() -> None:
     job_repo.get_job_by_id.return_value = MagicMock()
     emb_repo.get_latest_job_embedding.return_value = None
 
-    res = await service.get_job_embedding_status(AsyncMock(), tenant_id, job_id, "text-embedding-3-small")
+    res = await service.get_job_embedding_status(
+        AsyncMock(), tenant_id, job_id, "gemini-embedding-2"
+    )
     assert res.data.status == "missing"
 
 
@@ -560,16 +633,26 @@ async def test_get_candidate_embedding_status_stale_invalid_vector() -> None:
     generator = MagicMock()
     tenant_id = uuid.uuid4()
     candidate_id = uuid.uuid4()
-    service = EmbeddingService(embedding_repository=emb_repo, candidate_repository=cand_repo, embedding_generator=generator)
+    service = EmbeddingService(
+        embedding_repository=emb_repo, candidate_repository=cand_repo, embedding_generator=generator
+    )
 
-    cand_repo.get_candidate_by_id.return_value = Candidate(id=candidate_id, tenant_id=tenant_id, skills=[])
-    patch.object(service, "_construct_candidate_source_text", new_callable=AsyncMock, return_value="text").start()
+    cand_repo.get_candidate_by_id.return_value = Candidate(
+        id=candidate_id, tenant_id=tenant_id, skills=[]
+    )
+    patch.object(
+        service, "_construct_candidate_source_text", new_callable=AsyncMock, return_value="text"
+    ).start()
     generator.compute_source_text_hash.return_value = "hash1"
 
-    existing = MagicMock(source_text_hash="hash1", model_version="text-embedding-3-small", embedding=[0.1] * 10)
+    existing = MagicMock(
+        source_text_hash="hash1", model_version="gemini-embedding-2", embedding=[0.1] * 10
+    )
     emb_repo.get_latest_candidate_embedding.return_value = existing
 
-    res = await service.get_candidate_embedding_status(AsyncMock(), tenant_id, candidate_id, "text-embedding-3-small")
+    res = await service.get_candidate_embedding_status(
+        AsyncMock(), tenant_id, candidate_id, "gemini-embedding-2"
+    )
     assert res.data.status == "stale"
 
 
@@ -581,16 +664,22 @@ async def test_get_job_embedding_status_stale_hash() -> None:
     generator = MagicMock()
     tenant_id = uuid.uuid4()
     job_id = uuid.uuid4()
-    service = EmbeddingService(embedding_repository=emb_repo, job_repository=job_repo, embedding_generator=generator)
+    service = EmbeddingService(
+        embedding_repository=emb_repo, job_repository=job_repo, embedding_generator=generator
+    )
 
     job_repo.get_job_by_id.return_value = MagicMock()
     patch.object(service, "_construct_job_source_text", return_value="text").start()
     generator.compute_source_text_hash.return_value = "hash2"
 
-    existing = MagicMock(source_text_hash="hash1", model_version="text-embedding-3-small", embedding=[0.1] * 1536)
+    existing = MagicMock(
+        source_text_hash="hash1", model_version="gemini-embedding-2", embedding=[0.1] * EMBEDDING_DIMENSION
+    )
     emb_repo.get_latest_job_embedding.return_value = existing
 
-    res = await service.get_job_embedding_status(AsyncMock(), tenant_id, job_id, "text-embedding-3-small")
+    res = await service.get_job_embedding_status(
+        AsyncMock(), tenant_id, job_id, "gemini-embedding-2"
+    )
     assert res.data.status == "stale"
 
 
@@ -602,16 +691,22 @@ async def test_get_job_embedding_status_stale_model() -> None:
     generator = MagicMock()
     tenant_id = uuid.uuid4()
     job_id = uuid.uuid4()
-    service = EmbeddingService(embedding_repository=emb_repo, job_repository=job_repo, embedding_generator=generator)
+    service = EmbeddingService(
+        embedding_repository=emb_repo, job_repository=job_repo, embedding_generator=generator
+    )
 
     job_repo.get_job_by_id.return_value = MagicMock()
     patch.object(service, "_construct_job_source_text", return_value="text").start()
     generator.compute_source_text_hash.return_value = "hash1"
 
-    existing = MagicMock(source_text_hash="hash1", model_version="text-embedding-ada-002", embedding=[0.1] * 1536)
+    existing = MagicMock(
+        source_text_hash="hash1", model_version="text-embedding-ada-002", embedding=[0.1] * EMBEDDING_DIMENSION
+    )
     emb_repo.get_latest_job_embedding.return_value = existing
 
-    res = await service.get_job_embedding_status(AsyncMock(), tenant_id, job_id, "text-embedding-3-small")
+    res = await service.get_job_embedding_status(
+        AsyncMock(), tenant_id, job_id, "gemini-embedding-2"
+    )
     assert res.data.status == "stale"
 
 
@@ -685,7 +780,9 @@ async def test_get_candidate_embedding_status_hiring_manager_allowed() -> None:
     candidate_id = uuid.uuid4()
     service = EmbeddingService(embedding_repository=emb_repo, candidate_repository=cand_repo)
 
-    cand_repo.get_candidate_by_id.return_value = Candidate(id=candidate_id, tenant_id=tenant_id, skills=[])
+    cand_repo.get_candidate_by_id.return_value = Candidate(
+        id=candidate_id, tenant_id=tenant_id, skills=[]
+    )
     emb_repo.get_latest_candidate_embedding.return_value = None
 
     res = await service.get_candidate_embedding_status(AsyncMock(), tenant_id, candidate_id)

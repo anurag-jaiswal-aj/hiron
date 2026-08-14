@@ -11,7 +11,7 @@ from hiron.main import create_app
 
 def test_production_settings_defaults() -> None:
     """Verify settings properties and environment detection."""
-    settings = Settings(environment="production")
+    settings = Settings(environment="production", worker_url="https://worker.hiron.dev")
     assert settings.is_production is True
     assert settings.environment == "production"
 
@@ -64,7 +64,7 @@ async def test_health_readiness_endpoint_not_ready() -> None:
 
 def test_openapi_docs_disabled_in_production() -> None:
     """Verify OpenAPI /docs and /redoc are disabled when environment is production."""
-    prod_settings = Settings(environment="production")
+    prod_settings = Settings(environment="production", worker_url="https://worker.hiron.dev")
 
     with patch("hiron.main.get_settings", return_value=prod_settings):
         prod_app = create_app()
@@ -79,7 +79,7 @@ def test_openapi_docs_disabled_in_production() -> None:
 
 def test_production_security_headers() -> None:
     """Verify security headers middleware attaches HSTS, CSP, and framing headers."""
-    prod_settings = Settings(environment="production")
+    prod_settings = Settings(environment="production", worker_url="https://worker.hiron.dev")
     with patch("hiron.security.middleware.get_settings", return_value=prod_settings):
         app = create_app()
         client = TestClient(app)

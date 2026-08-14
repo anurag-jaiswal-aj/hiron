@@ -43,7 +43,7 @@ We ask that security researchers:
 ## 🔑 Secrets Management
 
 - **No Hardcoded Secrets**: Production passwords, private RSA key material, database credentials, and OpenAI API keys must **never** be committed to version control.
-- **Environment Variables**: Use `.env.local` for local development and AWS Secrets Manager or Systems Manager Parameter Store for production deployments.
+- **Environment Variables**: Use `.env.local` for local development and Vercel Environment Variables or Supabase Vault for production deployments.
 - **RSA JWT Keys**: RS256 JWT private keys should be mounted dynamically into container environments at runtime.
 
 ---

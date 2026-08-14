@@ -1,5 +1,5 @@
 """Storage subsystem package."""
 
-from hiron.storage.provider import LocalStorageProvider, S3StorageProvider, StorageProvider
+from hiron.storage.provider import LocalStorageProvider, StorageProvider, SupabaseStorageProvider
 
-__all__ = ["LocalStorageProvider", "S3StorageProvider", "StorageProvider"]
+__all__ = ["LocalStorageProvider", "SupabaseStorageProvider", "StorageProvider"]

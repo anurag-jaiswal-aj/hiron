@@ -36,6 +36,7 @@ from hiron.security.router import router as security_router
 from hiron.tags.router import router as tags_router
 from hiron.tenants.router import router as tenants_router
 from hiron.users.router import router as users_router
+from hiron.webhooks.router import router as webhooks_router
 
 # Initialize structured logging
 settings = get_settings()
@@ -105,6 +106,7 @@ def create_app() -> FastAPI:
     app.include_router(performance_router, prefix="/api/v1", tags=["Performance & Benchmarking"])
     app.include_router(security_router, prefix="/api/v1", tags=["Security & Hardening"])
     app.include_router(maintenance_router, prefix="/api/v1", tags=["Maintenance"])
+    app.include_router(webhooks_router, prefix="/api/v1/webhooks", tags=["Webhooks"])
 
     from hiron.tasks.router import router as tasks_router
 

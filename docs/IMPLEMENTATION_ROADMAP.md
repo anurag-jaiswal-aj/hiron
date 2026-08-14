@@ -294,7 +294,7 @@ The highest-risk items are tackled early:
 **Risks**:
 
 - RLS misconfiguration leaks data → Mitigate with dedicated integration tests that assert zero cross-tenant rows
-- JWT key management complexity → Use RS256 with key pair stored in environment variables (production: AWS Secrets Manager)
+- JWT key management complexity → Use RS256 with key pair stored in environment variables (production: Vercel Environment Variables)
 
 **Estimated Complexity**: Large
 
@@ -1397,7 +1397,7 @@ The highest-risk items are tackled early:
 
 **Infrastructure Tasks**:
 
-- Configure AWS WAF rules
+- Configure Vercel Edge Network rules
 - Enable VPC security groups (DB not publicly accessible)
 - Enable S3 bucket encryption (AES-256)
 - Configure TLS 1.3 on ALB
@@ -1496,7 +1496,7 @@ The highest-risk items are tackled early:
 
 ### Phase 18 — Production Deployment
 
-**Objective**: Deploy Hiron to production AWS infrastructure with monitoring, alerting, and operational readiness.
+**Objective**: Deploy Hiron to production serverless infrastructure (Vercel/Supabase/Upstash) with monitoring, alerting, and operational readiness.
 
 **Backend Tasks**:
 
@@ -1525,7 +1525,7 @@ The highest-risk items are tackled early:
 
 **Infrastructure Tasks**:
 
-- Provision AWS infrastructure via Terraform:
+- Configure Vercel/Supabase infrastructure:
   - VPC with public/private subnets
   - ECS Fargate cluster (Core API, AI Service, Workers)
   - RDS PostgreSQL 16 (Multi-AZ)
@@ -1802,7 +1802,7 @@ Every phase must satisfy ALL of the following before the next phase begins:
 | 8   | **Docker/local environment inconsistencies** | Medium     | Low      | Standardize on Docker Compose. Document setup in README. Use `.env.local.example`.                                                          |
 | 9   | **Frontend bundle size too large**           | Low        | Low      | Code splitting per route. Bundle analyzer in CI. Lazy load heavy components (Recharts, Tiptap).                                             |
 | 10  | **Celery worker failures**                   | Medium     | Medium   | Health checks on worker containers. Auto-restart. Dead letter queue for permanently failed tasks.                                           |
-| 11  | **JWT key compromise**                       | Low        | Critical | RS256 (asymmetric keys). Keys in AWS Secrets Manager (production). Key rotation procedure documented.                                       |
+| 11  | **JWT key compromise**                       | Low        | Critical | RS256 (asymmetric keys). Keys in Vercel Environment Variables (production). Key rotation procedure documented.                                       |
 | 12  | **Team velocity slower than estimated**      | Medium     | Medium   | Sprints are estimates, not commitments. Cut scope from Phase 19, not from core phases. Focus on M3 (AI pipeline) as the critical milestone. |
 
 ---

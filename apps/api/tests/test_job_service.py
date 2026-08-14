@@ -14,6 +14,14 @@ from hiron.jobs.exceptions import (
 )
 from hiron.jobs.models import Job
 from hiron.jobs.service import JobService
+from hiron.users.models import User
+
+
+@pytest.fixture(autouse=True)
+def force_qstash_engine(monkeypatch):
+    monkeypatch.setenv("QSTASH_WEBHOOK_URL", "http://localhost:8000")
+    from hiron.core.config import get_settings
+    get_settings.cache_clear()
 
 
 @pytest.fixture
@@ -49,11 +57,12 @@ async def test_create_job_success_generates_default_pipeline_stages(
 
     mock_session.commit.side_effect = mock_commit
 
-    def mock_delay(*_args: typing.Any, **_kwargs: typing.Any) -> None:
-        call_order.append("delay")
+    async def mock_publish(*_args: typing.Any, **_kwargs: typing.Any) -> str:
+        call_order.append("publish")
+        return "mock-task-id"
 
     service = JobService(job_repo=mock_job_repo)
-    with patch("hiron.embeddings.tasks.generate_job_embedding.delay", side_effect=mock_delay) as mock_embed_delay:
+    with patch("hiron.core.qstash_client.QStashPublisher.publish", new_callable=AsyncMock, side_effect=mock_publish) as mock_publish_call:
         job = await service.create_job(
         session=mock_session,
         tenant_id=tenant_id,
@@ -79,8 +88,10 @@ async def test_create_job_success_generates_default_pipeline_stages(
     assert stages[4].name == "Hired"
     assert stages[5].name == "Rejected"
 
-    assert call_order == ["commit", "delay"], "Job embedding task must be enqueued strictly AFTER commit"
-    mock_embed_delay.assert_called_once_with(str(tenant_id), str(job.id))
+    assert call_order == ["commit", "publish"], "Job embedding task must be enqueued strictly AFTER commit"
+    mock_publish_call.assert_called_once()
+    kwargs = mock_publish_call.call_args.kwargs
+    assert kwargs["payload"]["job_id"] == str(job.id)
 
 
 @pytest.mark.asyncio
@@ -345,9 +356,9 @@ async def test_delete_pipeline_stage_below_minimum_raises_conflict(
         )
 
 @pytest.mark.asyncio
-@patch("hiron.embeddings.tasks.generate_job_embedding.delay")
+@patch("hiron.core.qstash_client.QStashPublisher.publish", new_callable=AsyncMock)
 async def test_update_job_relevant_fields_enqueues_embedding_after_commit(
-    mock_embed_delay: MagicMock,
+    mock_publish_call: MagicMock,
     mock_session: AsyncMock,
     mock_job_repo: AsyncMock,
 ) -> None:
@@ -368,10 +379,11 @@ async def test_update_job_relevant_fields_enqueues_embedding_after_commit(
 
     mock_session.commit.side_effect = mock_commit
 
-    def mock_delay(*_args: typing.Any, **_kwargs: typing.Any) -> None:
-        call_order.append("delay")
+    async def mock_publish(*_args: typing.Any, **_kwargs: typing.Any) -> str:
+        call_order.append("publish")
+        return "mock-task-id"
 
-    mock_embed_delay.side_effect = mock_delay
+    mock_publish_call.side_effect = mock_publish
 
     service = JobService(job_repo=mock_job_repo)
     await service.update_job(
@@ -382,14 +394,16 @@ async def test_update_job_relevant_fields_enqueues_embedding_after_commit(
         description="New Description",  # Relevant field
     )
 
-    assert call_order == ["commit", "delay"], "Job embedding task must be enqueued strictly AFTER commit"
-    mock_embed_delay.assert_called_once_with(str(tenant_id), str(job_id))
+    assert call_order == ["commit", "publish"], "Job embedding task must be enqueued strictly AFTER commit"
+    mock_publish_call.assert_called_once()
+    kwargs = mock_publish_call.call_args.kwargs
+    assert kwargs["payload"]["job_id"] == str(job_id)
 
 
 @pytest.mark.asyncio
-@patch("hiron.embeddings.tasks.generate_job_embedding.delay")
+@patch("hiron.core.qstash_client.QStashPublisher.publish", new_callable=AsyncMock)
 async def test_update_job_irrelevant_fields_does_not_enqueue_embedding(
-    mock_embed_delay: MagicMock,
+    mock_publish_call: MagicMock,
     mock_session: AsyncMock,
     mock_job_repo: AsyncMock,
 ) -> None:
@@ -413,4 +427,4 @@ async def test_update_job_irrelevant_fields_does_not_enqueue_embedding(
     )
 
     mock_session.commit.assert_awaited_once()
-    mock_embed_delay.assert_not_called()
+    mock_publish_call.assert_not_called()

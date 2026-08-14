@@ -3,7 +3,7 @@
 from functools import lru_cache
 from typing import Any, Literal
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -16,6 +16,24 @@ class Settings(BaseSettings):
     )
 
     """Application settings loaded from environment variables and .env files."""
+
+    gemini_api_key: str | None = Field(default=None, description="Google Gemini API key")
+    gemini_embedding_model: str = Field(
+        default="gemini-embedding-2", description="Gemini text embedding model"
+    )
+    qstash_current_signing_key: str | None = Field(default=None, repr=False)
+    qstash_next_signing_key: str | None = Field(default=None, repr=False)
+    qstash_webhook_url: str | None = Field(default=None)
+    qstash_token: str | None = Field(default=None, repr=False)
+    worker_url: str | None = Field(default=None, description="Base public URL of the deployed worker")
+
+    @model_validator(mode="after")
+    def validate_production_settings(self) -> "Settings":
+        """Validate required settings for production environment."""
+        if self.environment == "production":
+            if not self.worker_url:
+                raise ValueError("WORKER_URL is required in production environment")
+        return self
 
     model_config = SettingsConfigDict(
         env_file=".env.local",
@@ -67,10 +85,16 @@ class Settings(BaseSettings):
     # 2. Authentication & JWT Tokens (§16.1)
     jwt_algorithm: str = Field(default="RS256", description="JWT signing algorithm")
     jwt_private_key_path: str = Field(
-        default="keys/jwt_private.pem", description="Path to RSA private key"
+        default="keys/jwt_private.pem", description="Path to RSA private key for local development"
     )
     jwt_public_key_path: str = Field(
-        default="keys/jwt_public.pem", description="Path to RSA public key"
+        default="keys/jwt_public.pem", description="Path to RSA public key for local development"
+    )
+    jwt_private_key_content: str | None = Field(
+        default=None, repr=False, description="RSA private key PEM content (production)"
+    )
+    jwt_public_key_content: str | None = Field(
+        default=None, repr=False, description="RSA public key PEM content (production)"
     )
     access_token_expire_minutes: int = Field(default=15, description="Access token TTL in minutes")
     refresh_token_expire_days: int = Field(default=7, description="Refresh token TTL in days")
@@ -91,14 +115,8 @@ class Settings(BaseSettings):
     db_max_overflow: int = Field(default=20, description="SQLAlchemy connection max overflow")
     db_pool_timeout: int = Field(default=30, description="SQLAlchemy pool timeout in seconds")
 
-    # 4. Redis & Task Queue
+    # 4. Redis Configuration
     redis_url: str = Field(default="redis://localhost:6379/0", description="Redis connection URL")
-    celery_broker_url: str = Field(
-        default="redis://localhost:6379/1", description="Celery broker URL"
-    )
-    celery_result_backend: str = Field(
-        default="redis://localhost:6379/2", description="Celery backend URL"
-    )
 
     # 5. Security & Password Hashing Configuration (§16)
     argon2_time_cost: int = Field(default=3, description="Argon2id time cost iterations")
@@ -108,6 +126,11 @@ class Settings(BaseSettings):
     argon2_parallelism: int = Field(default=4, description="Argon2id parallelism threads")
     argon2_hash_len: int = Field(default=32, description="Argon2id hash output length in bytes")
     argon2_salt_len: int = Field(default=16, description="Argon2id salt length in bytes")
+
+    # 6. Supabase Storage Configuration
+    supabase_url: str | None = Field(default=None, description="Supabase API URL")
+    supabase_service_role_key: str | None = Field(default=None, repr=False, description="Supabase Service Role Key")
+    supabase_storage_bucket: str = Field(default="resumes", description="Supabase storage bucket name")
 
     @property
     def is_production(self) -> bool:

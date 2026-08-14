@@ -1,0 +1,94 @@
+ARCHITECTURE VALIDATED — PROCEED
+
+# Phase 7: Gemini Embedding Revalidation Report
+
+## 1. Previous Architecture
+The previous Phase 7 Step 1 architecture decision selected:
+- **Provider:** Google Gemini
+- **Model:** `models/text-embedding-004`
+- **Dimensionality:** 768
+- **SDK:** Not explicitly defined (implied `google-genai` in future steps)
+
+## 2. Why it is obsolete
+According to official Google documentation, the `text-embedding-004` model was shut down/deprecated as of January 14, 2026. Building a new production pipeline on a shut-down model would immediately fail upon execution.
+
+## 3. Official Gemini Evidence
+- The current, officially recommended natively multimodal embedding model from Google is `gemini-embedding-2`.
+- It unifies text, image, and video embeddings in the same vector space.
+
+## 4. Current Embedding Model
+- **Model Identifier:** `gemini-embedding-2`
+- **GA/Stable Status:** General Availability (Stable)
+- **Current Availability:** Available
+- **Shutdown/Deprecation Status:** Active (Current generation)
+
+## 5. Current Model Contract
+- **Required API Request Format:** `client.models.embed_content(model="gemini-embedding-2", contents="...", config=types.EmbedContentConfig(output_dimensionality=768, task_type="..."))`
+- **Supported Task Types:** `RETRIEVAL_QUERY`, `RETRIEVAL_DOCUMENT`, `SEMANTIC_SIMILARITY`, `CLASSIFICATION`, `CLUSTERING`
+- **Input Token Limits:** Up to 8,192 tokens per request
+- **Output Format:** Array of floats (vector representation)
+- **Usage/Token Metadata Availability:** Metadata is returned in the API response (prompt tokens).
+- **Pricing:** Usage-based pricing based on character/token count per official Vertex AI / Gemini API pricing.
+
+## 6. Current Dimensionality
+- **Default Output Dimensionality:** 3072
+- **Supported Output Dimensionalities:** 128 to 3072
+- **Configurability:** Explicitly configurable via the `output_dimensionality` parameter.
+- **Support for 768:** YES (Google officially recommends 768, 1536, or 3072 dimensions).
+- **Support for 1536:** YES.
+- **Maximum Supported Dimensionality:** 3072
+
+## 7. SDK/API Contract
+- **Required SDK:** `google-genai` (Official Google GenAI SDK).
+- **Current Repository State:** `google-genai` is **NOT** installed in `pyproject.toml`. (`openai` is currently installed as a placeholder).
+- **Python API:** 
+  ```python
+  from google import genai
+  from google.genai import types
+  client = genai.Client()
+  result = client.models.embed_content(
+      model="gemini-embedding-2",
+      contents=text,
+      config=types.EmbedContentConfig(
+          output_dimensionality=768,
+          task_type="RETRIEVAL_DOCUMENT" # or RETRIEVAL_QUERY
+      )
+  )
+  ```
+
+## 8. Database Dimension Recommendation
+Because `gemini-embedding-2` natively supports Matryoshka Representation Learning (MRL), it allows seamless truncation of the 3072-dimensional vector down to smaller sizes like **768** with high quality retention. 
+
+Therefore, **Vector(768)** remains the optimal database dimension. It maximizes pgvector HNSW index performance and minimizes storage costs, fully aligned with the official Gemini API contract.
+
+## 9. Impact on Step 1
+**STATE: Step 1 remains valid.**
+- The migration to 768 dimensions in `models.py` and Alembic is 100% correct and compatible.
+- The only necessary tweak is to update `DEFAULT_EMBEDDING_MODEL` in `generator.py` from `"models/text-embedding-004"` to `"gemini-embedding-2"`.
+
+## 10. Impact on Tests
+- Tests that mock `EMBEDDING_DIMENSION` as 768 remain valid.
+- The expected model version in tests will need to be updated to `gemini-embedding-2`.
+
+## 11. Impact on Phase 8 (Scoring)
+- No impact. The scoring engine evaluates cosine similarities of vectors. Since `gemini-embedding-2` outputs L2-normalized vectors (or easily normalizable ones), `pgvector` cosine distance will work identically, just with vastly superior semantic matching.
+
+## 12. Impact on Phase 9 (Semantic Search)
+- Highly beneficial. `gemini-embedding-2` supports distinct `task_type` optimizations. We can use `RETRIEVAL_DOCUMENT` for generating job/candidate embeddings, and `RETRIEVAL_QUERY` when users enter raw text searches to maximize search relevance. HNSW index on 768 dimensions remains fully compatible.
+
+## 13. Corrected Step 3 Implementation Plan
+To implement the embedding generator:
+1. **Dependencies:** Remove `openai`, install `google-genai`.
+2. **Configuration:** Add `GEMINI_API_KEY` to `.env.example` and `config.py`.
+3. **Model:** Update `DEFAULT_EMBEDDING_MODEL` to `gemini-embedding-2`.
+4. **Generator Logic:** Use `client.models.embed_content()` with `output_dimensionality=768` and `task_type="RETRIEVAL_DOCUMENT"`.
+5. **Tests:** Update mocked API responses to reflect the new `google-genai` response object.
+
+## 14. Risks
+- MRL truncation (768) reduces the vector precision slightly compared to the full 3072, but Google considers it a recommended size.
+- Ensure that historical mock vectors (generated by deterministic math) do not randomly trigger cache-hits if their hash aligns but the model string changes. Changing the model string to `gemini-embedding-2` mitigates this cache collision risk.
+
+## 15. Final Recommendation
+The architecture decision to move to 768 dimensions was inadvertently highly prescient for the `gemini-embedding-2` MRL capabilities. The database migration and Step 1 refactoring remain entirely valid. 
+
+**Recommendation:** Proceed to Phase 7 Step 3 with `gemini-embedding-2` as the target model and `768` as the dimension using the `google-genai` SDK.

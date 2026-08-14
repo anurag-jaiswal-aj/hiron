@@ -11,7 +11,7 @@ from hiron.candidates.models import Candidate
 from hiron.candidates.repository import CandidateRepository
 from hiron.common.exceptions import ResourceNotFoundException
 from hiron.embeddings.exceptions import InsufficientEmbeddingPermissionsError
-from hiron.embeddings.generator import DEFAULT_EMBEDDING_MODEL, EmbeddingGenerator
+from hiron.embeddings.generator import DEFAULT_EMBEDDING_MODEL, EMBEDDING_DIMENSION, EmbeddingGenerator
 from hiron.embeddings.repository import EmbeddingRepository
 from hiron.embeddings.schemas import (
     CandidateEmbeddingResponseData,
@@ -34,6 +34,7 @@ logger = structlog.get_logger("hiron.embeddings.service")
 @dataclass
 class PipelineResult:
     """Telemetry metadata for an embedding pipeline execution."""
+
     cache_hit: bool
     model_version: str
     input_tokens: int
@@ -133,7 +134,7 @@ class EmbeddingService:
             and existing.source_text_hash == current_hash
             and existing.model_version == model_version
             and existing.embedding is not None
-            and len(existing.embedding) == 1536
+            and len(existing.embedding) == EMBEDDING_DIMENSION
         ):
             logger.info(
                 "Candidate embedding skipped (cache hit)",
@@ -150,7 +151,7 @@ class EmbeddingService:
                 error_type=None,
             )
 
-        gen_result = self.generator.generate_embedding(source_text)
+        gen_result = await self.generator.generate_embedding(source_text)
 
         await self.embedding_repo.upsert_candidate_embedding(
             session=session,
@@ -208,7 +209,7 @@ class EmbeddingService:
             and existing.source_text_hash == current_hash
             and existing.model_version == model_version
             and existing.embedding is not None
-            and len(existing.embedding) == 1536
+            and len(existing.embedding) == EMBEDDING_DIMENSION
         ):
             logger.info(
                 "Job embedding skipped (cache hit)",
@@ -225,7 +226,7 @@ class EmbeddingService:
                 error_type=None,
             )
 
-        gen_result = self.generator.generate_embedding(source_text)
+        gen_result = await self.generator.generate_embedding(source_text)
 
         await self.embedding_repo.upsert_job_embedding(
             session=session,
@@ -271,15 +272,28 @@ class EmbeddingService:
         if not candidate:
             raise ResourceNotFoundException(f"Candidate with ID '{candidate_id}' not found")
 
-        from hiron.embeddings.tasks import (
-            generate_candidate_embedding as generate_candidate_embedding_task,
+        from hiron.core.config import get_settings
+        settings = get_settings()
+
+        if not settings.qstash_webhook_url:
+            raise ValueError("qstash_webhook_url is required to publish background tasks")
+
+        from hiron.core.qstash_client import qstash_publisher
+
+        payload = {
+            "tenant_id": str(tenant_id),
+            "candidate_id": str(candidate_id),
+            "model_version": model_version,
+        }
+        webhook_url = f"{settings.qstash_webhook_url.rstrip('/')}/api/v1/webhooks/qstash/embeddings/candidate"
+        # Deduplication ID ensures we don't enqueue multiple generation tasks for the same candidate simultaneously
+        task_id = await qstash_publisher.publish(
+            url=webhook_url,
+            payload=payload,
+            deduplication_id=f"embed-cand-{candidate_id}-{model_version}-{uuid.uuid4()}",
         )
-        task = generate_candidate_embedding_task.delay(
-            str(tenant_id),
-            str(candidate_id),
-            model_version,
-        )
-        task_id = task.id if task else f"task-{uuid.uuid4()}"
+        if not task_id:
+            task_id = f"task-{uuid.uuid4()}"
 
         return GenerateCandidateEmbeddingResponse(
             data=CandidateEmbeddingResponseData(
@@ -309,13 +323,30 @@ class EmbeddingService:
         if not job:
             raise ResourceNotFoundException(f"Job with ID '{job_id}' not found")
 
-        from hiron.embeddings.tasks import generate_job_embedding as generate_job_embedding_task
-        task = generate_job_embedding_task.delay(
-            str(tenant_id),
-            str(job_id),
-            model_version,
+        from hiron.core.config import get_settings
+        settings = get_settings()
+
+        if not settings.qstash_webhook_url:
+            raise ValueError("qstash_webhook_url is required to publish background tasks")
+
+        from hiron.core.qstash_client import qstash_publisher
+
+        payload = {
+            "tenant_id": str(tenant_id),
+            "job_id": str(job_id),
+            "model_version": model_version,
+        }
+        webhook_url = (
+            f"{settings.qstash_webhook_url.rstrip('/')}/api/v1/webhooks/qstash/embeddings/job"
         )
-        task_id = task.id if task else f"task-{uuid.uuid4()}"
+        # Deduplication ID ensures we don't enqueue multiple generation tasks for the same job simultaneously
+        task_id = await qstash_publisher.publish(
+            url=webhook_url,
+            payload=payload,
+            deduplication_id=f"embed-job-{job_id}-{model_version}-{uuid.uuid4()}",
+        )
+        if not task_id:
+            task_id = f"task-{uuid.uuid4()}"
 
         return GenerateJobEmbeddingResponse(
             data=JobEmbeddingResponseData(
@@ -360,7 +391,7 @@ class EmbeddingService:
                 existing.source_text_hash == current_hash
                 and existing.model_version == model_version
                 and existing.embedding is not None
-                and len(existing.embedding) == 1536
+                and len(existing.embedding) == EMBEDDING_DIMENSION
             ):
                 status = "current"
             else:
@@ -405,7 +436,7 @@ class EmbeddingService:
                 existing.source_text_hash == current_hash
                 and existing.model_version == model_version
                 and existing.embedding is not None
-                and len(existing.embedding) == 1536
+                and len(existing.embedding) == EMBEDDING_DIMENSION
             ):
                 status = "current"
             else:
@@ -453,7 +484,12 @@ class EmbeddingService:
                     session=session, tenant_id=tenant_id, candidate=cand
                 )
                 current_hash = self.generator.compute_source_text_hash(current_text)
-                if emb.source_text_hash == current_hash and emb.model_version == model_version and emb.embedding is not None and len(emb.embedding) == 1536:
+                if (
+                    emb.source_text_hash == current_hash
+                    and emb.model_version == model_version
+                    and emb.embedding is not None
+                    and len(emb.embedding) == EMBEDDING_DIMENSION
+                ):
                     cand_with_embedding += 1
                 else:
                     cand_stale += 1
@@ -479,7 +515,12 @@ class EmbeddingService:
             else:
                 current_text = self._construct_job_source_text(job)
                 current_hash = self.generator.compute_source_text_hash(current_text)
-                if job_emb.source_text_hash == current_hash and job_emb.model_version == model_version and job_emb.embedding is not None and len(job_emb.embedding) == 1536:
+                if (
+                    job_emb.source_text_hash == current_hash
+                    and job_emb.model_version == model_version
+                    and job_emb.embedding is not None
+                    and len(job_emb.embedding) == EMBEDDING_DIMENSION
+                ):
                     job_with_embedding += 1
                 else:
                     job_stale += 1

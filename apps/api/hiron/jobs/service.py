@@ -201,8 +201,26 @@ class JobService:
 
         # Auto-trigger job embedding generation
         try:
-            from hiron.embeddings.tasks import generate_job_embedding
-            generate_job_embedding.delay(str(tenant_id), str(created_job.id))
+            from hiron.core.config import get_settings
+            settings = get_settings()
+
+            if not settings.qstash_webhook_url:
+                logger.error("qstash_webhook_url is required to publish background tasks")
+            else:
+                from hiron.core.qstash_client import qstash_publisher
+                from hiron.embeddings.generator import DEFAULT_EMBEDDING_MODEL
+
+                payload = {
+                    "tenant_id": str(tenant_id),
+                    "job_id": str(created_job.id),
+                    "model_version": DEFAULT_EMBEDDING_MODEL,
+                }
+                webhook_url = f"{settings.qstash_webhook_url.rstrip('/')}/api/v1/webhooks/qstash/embeddings/job"
+                await qstash_publisher.publish(
+                    url=webhook_url,
+                    payload=payload,
+                    deduplication_id=f"embed-job-{created_job.id}-{DEFAULT_EMBEDDING_MODEL}",
+                )
         except Exception as emb_exc:
             logger.warning(
                 "Auto embedding generation for job failed to enqueue",
@@ -420,11 +438,29 @@ class JobService:
 
         await session.commit()
 
-        # Auto-trigger job embedding re-generation if description or skills updated
-        if description is not None or required_skills is not None:
+        # Auto-trigger job embedding re-generation if source text updated
+        if title is not None or description is not None or required_skills is not None:
             try:
-                from hiron.embeddings.tasks import generate_job_embedding
-                generate_job_embedding.delay(str(tenant_id), str(job_id))
+                from hiron.core.config import get_settings
+                settings = get_settings()
+
+                if not settings.qstash_webhook_url:
+                    logger.error("qstash_webhook_url is required to publish background tasks")
+                else:
+                    from hiron.core.qstash_client import qstash_publisher
+                    from hiron.embeddings.generator import DEFAULT_EMBEDDING_MODEL
+
+                    payload = {
+                        "tenant_id": str(tenant_id),
+                        "job_id": str(job_id),
+                        "model_version": DEFAULT_EMBEDDING_MODEL,
+                    }
+                    webhook_url = f"{settings.qstash_webhook_url.rstrip('/')}/api/v1/webhooks/qstash/embeddings/job"
+                    await qstash_publisher.publish(
+                        url=webhook_url,
+                        payload=payload,
+                        deduplication_id=f"embed-job-{job_id}-{DEFAULT_EMBEDDING_MODEL}",
+                    )
             except Exception as emb_exc:
                 logger.warning(
                     "Auto embedding re-generation for job failed to enqueue",

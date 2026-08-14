@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from hiron.candidates.models import Candidate
 from hiron.candidates.repository import CandidateRepository
 from hiron.candidates.service import CandidateService
-from hiron.common.exceptions import ResourceNotFoundException, ValidationException
+from hiron.common.exceptions import ResourceNotFoundException, ValidationException, HironException
 from hiron.jobs.repository import JobRepository
 from hiron.resumes.exceptions import (
     FileTooLargeError,
@@ -255,9 +255,18 @@ class ResumeService:
         try:
             task_id = await self._enqueue_parse_task(tenant_id=tenant_id, resume_id=resume.id)
         except Exception as e:
-            import traceback
-            trace = traceback.format_exc()
-            task_id = f"ERROR: {e} | TRACE: {trace[:300]}"
+            await self.resume_repo.update_resume_status(
+                session=session,
+                resume=resume,
+                status="failed",
+                parse_error=f"Queue error: {str(e)}"
+            )
+            await session.commit()
+            raise HironException(
+                message="Failed to enqueue resume for parsing",
+                code="QUEUE_ERROR",
+                status_code=503,
+            ) from e
 
         return UploadResumeResponse(
             resume_id=resume.id,
@@ -398,7 +407,21 @@ class ResumeService:
         await session.commit()
 
         # Enqueue background QStash task
-        task_id = self._enqueue_parse_task(tenant_id=tenant_id, resume_id=resume.id)
+        try:
+            task_id = await self._enqueue_parse_task(tenant_id=tenant_id, resume_id=resume.id)
+        except Exception as e:
+            await self.resume_repo.update_resume_status(
+                session=session,
+                resume=resume,
+                status="failed",
+                parse_error=f"Queue error: {str(e)}"
+            )
+            await session.commit()
+            raise HironException(
+                message="Failed to enqueue resume for parsing",
+                code="QUEUE_ERROR",
+                status_code=503,
+            ) from e
 
         return UploadResumeResponse(
             resume_id=resume.id,
