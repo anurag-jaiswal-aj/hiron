@@ -37,7 +37,7 @@
     "@types/react": "18.3.31",
     "@types/react-dom": "^18",
     "@vitejs/plugin-react": "^6.0.5",
-    "eslint-config-next": "14.2.35",
+    "eslint-config-next": "15.5.23",
     "jsdom": "25",
     "typescript": "^5.5.4",
     "vitest": "^4.1.10"
