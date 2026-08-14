@@ -102,3 +102,23 @@ async def generate_job_embedding_webhook(payload: JobEmbeddingPayload) -> dict[s
         except Exception as exc:
             logger.error("Error in generate_job_embedding_webhook", error=str(exc))
             raise
+
+
+from hiron.webhooks.router import (
+    qstash_batch_score_coordinator_webhook,
+    qstash_batch_score_worker_webhook,
+)
+
+app.add_api_route(
+    "/api/v1/webhooks/qstash/scores/batch/coordinator",
+    endpoint=qstash_batch_score_coordinator_webhook,
+    methods=["POST"],
+    dependencies=[Depends(verify_qstash_signature)],
+)
+
+app.add_api_route(
+    "/api/v1/webhooks/qstash/scores/batch/worker",
+    endpoint=qstash_batch_score_worker_webhook,
+    methods=["POST"],
+    dependencies=[Depends(verify_qstash_signature)],
+)
