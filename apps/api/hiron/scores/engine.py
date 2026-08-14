@@ -30,7 +30,7 @@ class AIScoringEngine:
         self,
         prompt_name: str = DEFAULT_PROMPT_NAME,
         prompt_version: str = DEFAULT_PROMPT_VERSION,
-        model_version: str = "models/gemini-flash-latest",
+        model_version: str = "models/gemini-3.7-flash",
     ) -> None:
         self.prompt_name = prompt_name
         self.prompt_version = prompt_version
