@@ -256,9 +256,8 @@ class ResumeService:
             task_id = await self._enqueue_parse_task(tenant_id=tenant_id, resume_id=resume.id)
         except Exception as e:
             import traceback
-            traceback.print_exc()
-            logger.error("Failed to enqueue parse task", error=str(e), exc_info=True)
-            task_id = f"task-{uuid.uuid4()}"
+            trace = traceback.format_exc()
+            task_id = f"ERROR: {e} | TRACE: {trace[:300]}"
 
         return UploadResumeResponse(
             resume_id=resume.id,
