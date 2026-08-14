@@ -104,7 +104,7 @@ class SearchService:
             raise SearchQueryValidationError("Search query must be between 3 and 500 characters")
 
         # Generate query vector
-        embed_result = self.generator.generate_embedding(query)
+        embed_result = await self.generator.generate_embedding(query)
         query_vec = embed_result.embedding
 
         # Log AI usage for generating search embedding
@@ -189,7 +189,7 @@ class SearchService:
         job_vec = job_emb.embedding if job_emb else None
         if not job_vec:
             job_text = f"{job.title} {job.department or ''} {job.description or ''}"
-            embed_result = self.generator.generate_embedding(job_text)
+            embed_result = await self.generator.generate_embedding(job_text)
             job_vec = embed_result.embedding
 
             # Log AI usage

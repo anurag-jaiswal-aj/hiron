@@ -1,4 +1,4 @@
-"""Embedding Generator service producing 1536-dim vectors per Engineering Guidelines §6."""
+"""Embedding Generator service producing 768-dim vectors per Engineering Guidelines §6."""
 
 import hashlib
 import math
@@ -7,14 +7,13 @@ import time
 from dataclasses import dataclass
 
 import structlog
-import tiktoken
 
 from hiron.core.config import get_settings
 
 logger = structlog.get_logger("hiron.embeddings.generator")
 
-DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small"
-EMBEDDING_DIMENSION = 1536
+DEFAULT_EMBEDDING_MODEL = "gemini-embedding-2"
+EMBEDDING_DIMENSION = 768
 
 
 @dataclass
@@ -31,11 +30,11 @@ class EmbeddingGenerationResult:
 
 
 class EmbeddingGenerator:
-    """Generates 1536-dimensional text vector embeddings and source text SHA-256 hashes."""
+    """Generates 768-dimensional text vector embeddings and source text SHA-256 hashes."""
 
     def __init__(self, model_version: str = DEFAULT_EMBEDDING_MODEL) -> None:
         self.model_version = model_version
-        self.openai_api_key = os.getenv("OPENAI_API_KEY")
+        self.gemini_api_key = os.getenv("GEMINI_API_KEY")
 
     def compute_source_text_hash(self, text: str) -> str:
         """Compute SHA-256 hash of source text for staleness tracking."""
@@ -43,7 +42,7 @@ class EmbeddingGenerator:
         return hashlib.sha256(cleaned_text.encode("utf-8")).hexdigest()
 
     def generate_mock_vector(self, text: str) -> list[float]:
-        """Generate deterministic L2-normalized 1536-dim vector for testing/offline use."""
+        """Generate deterministic L2-normalized 768-dim vector for testing/offline use."""
         text_hash = self.compute_source_text_hash(text)
         seed_bytes = text_hash.encode("utf-8")
 
@@ -59,25 +58,15 @@ class EmbeddingGenerator:
         magnitude = math.sqrt(squared_sum) if squared_sum > 0 else 1.0
         return [round(v / magnitude, 6) for v in raw_values]
 
-    def generate_embedding(self, text: str) -> EmbeddingGenerationResult:
-        """Generate 1536-dim float vector and SHA-256 hash for given text input."""
-        # Enforce exact token limit to respect OpenAI's 8192 token limit precisely
-        # We use cl100k_base (the tokenizer for text-embedding-3-small)
-        # We also enforce disallowed_special="all" which hard-errors on token injection like <|endoftext|>
-        max_tokens = 8190 # Leave a small buffer
-        try:
-            encoding = tiktoken.get_encoding("cl100k_base")
-            tokens = encoding.encode(text if text else "", disallowed_special="all")
-            if len(tokens) > max_tokens:
-                logger.warning(
-                    "embedding_input_truncated",
-                    extra={"original_tokens": len(tokens), "max_tokens": max_tokens}
-                )
-                text = encoding.decode(tokens[:max_tokens])
-        except Exception as exc:
-            # Fallback to a very safe character limit if tokenization fails for any unexpected reason
-            logger.error("tokenization_failed", error=str(exc))
-            text = text[:8000] if text else ""
+    async def generate_embedding(self, text: str) -> EmbeddingGenerationResult:
+        """Generate 768-dim float vector and SHA-256 hash for given text input."""
+        max_chars = 30000
+        if text and len(text) > max_chars:
+            logger.warning(
+                "embedding_input_truncated_by_chars",
+                extra={"original_chars": len(text), "max_chars": max_chars}
+            )
+            text = text[:max_chars]
 
         source_hash = self.compute_source_text_hash(text)
 
@@ -85,21 +74,30 @@ class EmbeddingGenerator:
             logger.warning("Empty source text provided for embedding generation")
 
         start_time = time.time()
+        settings = get_settings()
 
-        if self.openai_api_key:
+        if settings.is_production and not self.gemini_api_key:
+            raise ValueError("GEMINI_API_KEY is required in production environment.")
+
+        if self.gemini_api_key:
             try:
-                import openai
+                from google import genai
+                from google.genai import types
 
-                client = openai.OpenAI(
-                    api_key=self.openai_api_key,
-                    max_retries=3,
-                )
-                response = client.embeddings.create(
-                    input=text,
+                client = genai.Client(api_key=self.gemini_api_key)
+                response = await client.aio.models.embed_content(
                     model=self.model_version,
+                    contents=text if text else "",
+                    config=types.EmbedContentConfig(
+                        output_dimensionality=EMBEDDING_DIMENSION,
+                        task_type="RETRIEVAL_DOCUMENT"
+                    )
                 )
 
-                vector = response.data[0].embedding
+                if not response.embeddings or not response.embeddings[0].values:
+                    raise ValueError("No embedding returned from Gemini API")
+
+                vector = response.embeddings[0].values
                 if len(vector) != EMBEDDING_DIMENSION:
                     raise ValueError(
                         f"Expected {EMBEDDING_DIMENSION} dimensions, got {len(vector)}"
@@ -110,20 +108,19 @@ class EmbeddingGenerator:
                 return EmbeddingGenerationResult(
                     embedding=vector,
                     source_text_hash=source_hash,
-                    input_tokens=response.usage.prompt_tokens,
-                    total_tokens=response.usage.total_tokens,
+                    input_tokens=0,
+                    total_tokens=0,
                     latency_ms=latency_ms,
                     is_fallback=False,
                     status="success",
                     error_type=None,
                 )
             except Exception as exc:
-                if get_settings().is_production:
-                    # In production, terminal errors must fail the transaction, never mock.
+                if settings.is_production:
                     raise
 
                 logger.warning(
-                    "OpenAI API call failed, falling back to mock generator", error=str(exc)
+                    "Gemini API call failed, falling back to mock generator", error=str(exc)
                 )
                 latency_ms = int((time.time() - start_time) * 1000)
                 error_type = exc.__class__.__name__

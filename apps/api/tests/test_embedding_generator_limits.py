@@ -1,18 +1,14 @@
 import pytest
-import tiktoken
 from hiron.embeddings.generator import EmbeddingGenerator
 
-def test_embedding_generator_token_limits(monkeypatch):
-    # Ensure we use mock vector for the test so we don't hit OpenAI API rate limits
-    monkeypatch.setenv("OPENAI_API_KEY", "")
+async def test_embedding_generator_char_limits(monkeypatch):
+    # Ensure we use mock vector for the test so we don't hit Gemini API rate limits
+    monkeypatch.setenv("GEMINI_API_KEY", "")
     
     generator = EmbeddingGenerator()
-    encoding = tiktoken.get_encoding("cl100k_base")
     
-    # Helper to check if text was truncated to 8190 tokens
-    def assert_truncated_to_max(original_text, max_t=8190):
-        # We need to capture the text that actually gets hashed/embedded
-        # To do this, we can monkeypatch compute_source_text_hash to just return the length of the tokens
+    # Helper to check if text was truncated to 30000 chars
+    async def assert_truncated_to_max(original_text, max_chars=30000):
         original_hash_method = generator.compute_source_text_hash
         
         captured_text = []
@@ -22,33 +18,35 @@ def test_embedding_generator_token_limits(monkeypatch):
             
         monkeypatch.setattr(generator, "compute_source_text_hash", mock_hash)
         
-        generator.generate_embedding(original_text)
+        # We need to mock get_settings as well for non-production error suppression
+        from unittest.mock import patch
+        with patch("hiron.embeddings.generator.get_settings") as mock_get_settings:
+            mock_get_settings.return_value.is_production = False
+            await generator.generate_embedding(original_text)
         
-        # Check tokens of the captured text
+        # Check chars of the captured text
         final_text = captured_text[0]
-        final_tokens = encoding.encode(final_text)
-        assert len(final_tokens) <= max_t
+        assert len(final_text) <= max_chars
         
         # Clean up patch
         monkeypatch.setattr(generator, "compute_source_text_hash", original_hash_method)
 
     # 1. Normal English text
     normal_text = "This is a normal English sentence representing a candidate resume."
-    assert_truncated_to_max(normal_text)
+    await assert_truncated_to_max(normal_text)
     
-    # 2. Long text (exceeding 8192 tokens)
-    # "hello " is 1 token. 10000 times = 10000 tokens.
+    # 2. Long text (exceeding 30000 chars)
     long_text = "hello " * 10000
-    assert_truncated_to_max(long_text)
+    await assert_truncated_to_max(long_text)
     
     # 3. Non-Latin text
-    non_latin = "こんにちは世界 " * 4000  # CJK characters, usually >1 token per char
-    assert_truncated_to_max(non_latin)
+    non_latin = "こんにちは世界 " * 8000
+    await assert_truncated_to_max(non_latin)
     
     # 4. Dense/symbolic text
     dense_text = "!@#$%^&*()_+" * 5000
-    assert_truncated_to_max(dense_text)
+    await assert_truncated_to_max(dense_text)
 
-    # 5. Boundary-sized input (exactly 8190 tokens)
-    boundary_text = "word " * 8190
-    assert_truncated_to_max(boundary_text)
+    # 5. Boundary-sized input (exactly 30000 chars)
+    boundary_text = "a" * 30000
+    await assert_truncated_to_max(boundary_text)
