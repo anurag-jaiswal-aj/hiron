@@ -112,6 +112,7 @@ async def create_candidate(
     candidate = await candidate_service.create_candidate(
         session=session,
         tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
         current_user_role=current_user.role,
         full_name=body.full_name,
         email=body.email,
@@ -208,6 +209,7 @@ async def update_candidate(
         session=session,
         candidate_id=candidate_id,
         tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
         current_user_role=current_user.role,
         full_name=body.full_name,
         email=body.email,
@@ -266,6 +268,7 @@ async def archive_candidate(
         session=session,
         candidate_id=candidate_id,
         tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
         current_user_role=current_user.role,
     )
 

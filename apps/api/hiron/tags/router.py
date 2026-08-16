@@ -99,6 +99,7 @@ async def remove_tag_endpoint(
     await service.remove_tag(
         session=session,
         tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
         user_role=current_user.role,
         candidate_id=candidate_id,
         tag_id=tag_id,

@@ -97,6 +97,7 @@ async def create_user(
     user = await user_service.create_user(
         session=db,
         tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
         email=request_data.email,
         full_name=request_data.full_name,
         role=request_data.role,

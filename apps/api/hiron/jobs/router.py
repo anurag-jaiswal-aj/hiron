@@ -192,6 +192,7 @@ async def update_job(
         session=session,
         job_id=job_id,
         tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
         current_user_role=current_user.role,
         title=payload.title,
         description=payload.description,
@@ -219,6 +220,7 @@ async def open_job(
         session=session,
         job_id=job_id,
         tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
         current_user_role=current_user.role,
     )
     job = await job_service.get_job_by_id(session, updated.id, current_user.tenant_id)
@@ -237,6 +239,7 @@ async def pause_job(
         session=session,
         job_id=job_id,
         tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
         current_user_role=current_user.role,
     )
     job = await job_service.get_job_by_id(session, updated.id, current_user.tenant_id)
@@ -256,6 +259,7 @@ async def close_job(
         session=session,
         job_id=job_id,
         tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
         current_user_role=current_user.role,
     )
     job = await job_service.get_job_by_id(session, updated.id, current_user.tenant_id)
@@ -274,6 +278,7 @@ async def archive_job(
         session=session,
         job_id=job_id,
         tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
         current_user_role=current_user.role,
     )
     job = await job_service.get_job_by_id(session, updated.id, current_user.tenant_id)
@@ -344,6 +349,7 @@ async def create_job_pipeline_stage(
         session=session,
         job_id=job_id,
         tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
         current_user_role=current_user.role,
         name=payload.name,
         position=payload.position,
@@ -377,6 +383,7 @@ async def update_job_pipeline_stage(
         job_id=job_id,
         stage_id=stage_id,
         tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
         current_user_role=current_user.role,
         name=payload.name,
         position=payload.position,
@@ -409,6 +416,7 @@ async def delete_job_pipeline_stage(
         job_id=job_id,
         stage_id=stage_id,
         tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
         current_user_role=current_user.role,
     )
 
@@ -431,6 +439,7 @@ async def reorder_job_pipeline_stages(
         session=session,
         job_id=job_id,
         tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
         current_user_role=current_user.role,
         stage_orders=stage_orders,
     )

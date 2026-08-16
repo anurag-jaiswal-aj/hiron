@@ -63,6 +63,7 @@ async def upload_resume(
     result = await resume_service.upload_resume(
         session=session,
         tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
         user_role=current_user.role,
         filename=filename,
         content_type=content_type,
@@ -99,6 +100,7 @@ async def bulk_upload_resumes(
     result = await resume_service.bulk_upload_resumes(
         session=session,
         tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
         user_role=current_user.role,
         files=file_tuples,
         job_id=parsed_job_id,
@@ -142,6 +144,7 @@ async def retry_resume_parse(
     result = await resume_service.retry_parse(
         session=session,
         tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
         user_role=current_user.role,
         resume_id=resume_id,
     )

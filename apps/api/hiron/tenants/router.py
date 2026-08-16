@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from hiron.auth.dependencies import get_current_user, require_role
 from hiron.common.schemas import ResponseEnvelope
+from hiron.users.models import User
 from hiron.core.database import get_db_session
 from hiron.tenants.schemas import TenantCreateRequest, TenantResponse, TenantUpdateRequest
 from hiron.tenants.service import TenantService
@@ -29,12 +30,14 @@ def get_tenant_service() -> TenantService:
 )
 async def create_tenant(
     request_data: TenantCreateRequest,
+    current_user: Annotated[User, Depends(require_role("org_admin"))],
     db: Annotated[AsyncSession, Depends(get_db_session)],
     tenant_service: Annotated[TenantService, Depends(get_tenant_service)],
 ) -> ResponseEnvelope[TenantResponse]:
     """Create a new tenant organization. Requires org_admin role."""
     tenant = await tenant_service.create_tenant(
         session=db,
+        user_id=current_user.id,
         name=request_data.name,
         slug=request_data.slug,
         plan=request_data.plan,
@@ -88,6 +91,7 @@ async def get_tenant(
 async def update_tenant(
     tenant_id: uuid.UUID,
     request_data: TenantUpdateRequest,
+    current_user: Annotated[User, Depends(require_role("org_admin"))],
     db: Annotated[AsyncSession, Depends(get_db_session)],
     tenant_service: Annotated[TenantService, Depends(get_tenant_service)],
 ) -> ResponseEnvelope[TenantResponse]:
@@ -95,6 +99,7 @@ async def update_tenant(
     tenant = await tenant_service.update_tenant(
         session=db,
         tenant_id=tenant_id,
+        user_id=current_user.id,
         name=request_data.name,
         slug=request_data.slug,
         plan=request_data.plan,
@@ -112,9 +117,10 @@ async def update_tenant(
 )
 async def delete_tenant(
     tenant_id: uuid.UUID,
+    current_user: Annotated[User, Depends(require_role("org_admin"))],
     db: Annotated[AsyncSession, Depends(get_db_session)],
     tenant_service: Annotated[TenantService, Depends(get_tenant_service)],
 ) -> None:
     """Hard-delete tenant organization. Requires org_admin role."""
-    await tenant_service.delete_tenant(session=db, tenant_id=tenant_id)
+    await tenant_service.delete_tenant(session=db, tenant_id=tenant_id, user_id=current_user.id)
     return

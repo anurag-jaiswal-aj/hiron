@@ -90,6 +90,7 @@ async def shortlist_candidate_endpoint(
     return await service.shortlist_candidate(
         session=session,
         tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
         user_role=current_user.role,
         job_id=job_id,
         candidate_id=candidate_id,
