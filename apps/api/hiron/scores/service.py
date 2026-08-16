@@ -8,6 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from hiron.candidates.models import JobCandidate
 from hiron.ai_usage.service import AIUsageService
+from hiron.audit.service import AuditService
+from hiron.audit.utils import extract_model_changes, sanitize_audit_payload
 from hiron.candidates.repository import CandidateRepository
 from hiron.common.exceptions import ResourceNotFoundException
 from hiron.embeddings.generator import DEFAULT_EMBEDDING_MODEL
@@ -52,6 +54,7 @@ class ScoreService:
         self.embedding_repo = embedding_repository or EmbeddingRepository()
         self.engine = scoring_engine or AIScoringEngine()
         self.ai_usage_service = ai_usage_service or AIUsageService()
+        self.audit_service = AuditService()
 
     def _validate_role_permissions(self, role: str) -> None:
         """Validate user role authorization for scoring operations."""
@@ -199,6 +202,19 @@ class ScoreService:
             status="success",
             is_cache_hit=False,
         )
+
+        changes = extract_model_changes(new_score, "create")
+        if changes:
+            changes = sanitize_audit_payload(changes)
+            await self.audit_service.record_audit_log(
+                session=session,
+                tenant_id=tenant_id,
+                action="candidate_scored",
+                entity_type="score",
+                entity_id=new_score.id,
+                actor_id=None,
+                changes=changes,
+            )
 
         await session.commit()
 

@@ -48,26 +48,31 @@ class SearchRepository:
     ) -> list[tuple[Candidate, float]]:
         """Query candidates with pgvector similarity search and hybrid metadata filter clauses."""
 
-        # Determine sorting/similarity behavior
         if query_vector is not None:
             similarity = (1 - CandidateEmbedding.embedding.cosine_distance(query_vector)).label("similarity")
             order_clause = CandidateEmbedding.embedding.cosine_distance(query_vector)
+
+            stmt = (
+                select(Candidate, similarity)
+                .select_from(CandidateEmbedding)
+                .join(Candidate, Candidate.id == CandidateEmbedding.candidate_id)
+                .where(
+                    CandidateEmbedding.model_version == DEFAULT_EMBEDDING_MODEL,
+                    Candidate.tenant_id == tenant_id,
+                    Candidate.is_archived.is_(False),
+                )
+            )
         else:
             similarity = text("0.5 AS similarity")
             order_clause = Candidate.created_at.desc()
 
-        stmt = (
-            select(Candidate, similarity)
-            .outerjoin(
-                CandidateEmbedding,
-                (Candidate.id == CandidateEmbedding.candidate_id)
-                & (CandidateEmbedding.model_version == DEFAULT_EMBEDDING_MODEL),
+            stmt = (
+                select(Candidate, similarity)
+                .where(
+                    Candidate.tenant_id == tenant_id,
+                    Candidate.is_archived.is_(False),
+                )
             )
-            .where(
-                Candidate.tenant_id == tenant_id,
-                Candidate.is_archived.is_(False),
-            )
-        )
 
         if filters:
             if filters.experience_min is not None:

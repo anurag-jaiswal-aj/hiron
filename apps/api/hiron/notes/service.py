@@ -7,6 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from hiron.candidates.repository import CandidateRepository
 from hiron.common.exceptions import ResourceNotFoundException
+from hiron.audit.service import AuditService
+from hiron.audit.utils import extract_model_changes, sanitize_audit_payload
 from hiron.notes.exceptions import InsufficientNotePermissionsError, NoteValidationError
 from hiron.notes.models import CandidateNote
 from hiron.notes.repository import NoteRepository
@@ -22,9 +24,11 @@ class NoteService:
         self,
         note_repository: NoteRepository | None = None,
         candidate_repository: CandidateRepository | None = None,
+        audit_service: AuditService | None = None,
     ) -> None:
         self.note_repo = note_repository or NoteRepository()
         self.candidate_repo = candidate_repository or CandidateRepository()
+        self.audit_service = audit_service or AuditService()
 
     def _build_note_data(self, note: CandidateNote) -> NoteData:
         """Convert CandidateNote ORM model to Pydantic NoteData schema."""
@@ -87,6 +91,21 @@ class NoteService:
             note_id=str(note.id),
             is_private=is_private,
         )
+        
+        changes = extract_model_changes(note, "create")
+        if changes:
+            changes = sanitize_audit_payload(changes)
+            await self.audit_service.record_audit_log(
+                session=session,
+                tenant_id=tenant_id,
+                action="note_created",
+                entity_type="candidate_note",
+                entity_id=note.id,
+                actor_id=user_id,
+                changes=changes,
+            )
+            
+        await session.commit()
         return NoteResponse(data=self._build_note_data(target_note))
 
     async def list_candidate_notes(
@@ -141,6 +160,21 @@ class NoteService:
         updated = await self.note_repo.update_note(
             session=session, note=note, content=content, is_private=is_private
         )
+        
+        changes = extract_model_changes(updated, "update")
+        if changes:
+            changes = sanitize_audit_payload(changes)
+            await self.audit_service.record_audit_log(
+                session=session,
+                tenant_id=tenant_id,
+                action="note_updated",
+                entity_type="candidate_note",
+                entity_id=updated.id,
+                actor_id=user_id,
+                changes=changes,
+            )
+            
+        await session.commit()
         return NoteResponse(data=self._build_note_data(updated))
 
     async def archive_note(
@@ -171,3 +205,18 @@ class NoteService:
             candidate_id=str(candidate_id),
             note_id=str(note_id),
         )
+        
+        changes = extract_model_changes(note, "update")
+        if changes:
+            changes = sanitize_audit_payload(changes)
+            await self.audit_service.record_audit_log(
+                session=session,
+                tenant_id=tenant_id,
+                action="note_archived",
+                entity_type="candidate_note",
+                entity_id=note.id,
+                actor_id=user_id,
+                changes=changes,
+            )
+            
+        await session.commit()

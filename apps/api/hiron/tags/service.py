@@ -7,6 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from hiron.candidates.repository import CandidateRepository
 from hiron.common.exceptions import ResourceNotFoundException
+from hiron.audit.service import AuditService
+from hiron.audit.utils import extract_model_changes, sanitize_audit_payload
 from hiron.tags.exceptions import DuplicateTagError, InsufficientTagPermissionsError
 from hiron.tags.models import CandidateTag
 from hiron.tags.repository import TagRepository
@@ -22,9 +24,11 @@ class TagService:
         self,
         tag_repository: TagRepository | None = None,
         candidate_repository: CandidateRepository | None = None,
+        audit_service: AuditService | None = None,
     ) -> None:
         self.tag_repo = tag_repository or TagRepository()
         self.candidate_repo = candidate_repository or CandidateRepository()
+        self.audit_service = audit_service or AuditService()
 
     def _validate_role_permissions(self, role: str) -> None:
         """Validate that user role is authorized for tag modifications."""
@@ -97,6 +101,21 @@ class TagService:
             candidate_id=str(candidate_id),
             tag_name=normalized,
         )
+        
+        changes = extract_model_changes(tag, "create")
+        if changes:
+            changes = sanitize_audit_payload(changes)
+            await self.audit_service.record_audit_log(
+                session=session,
+                tenant_id=tenant_id,
+                action="tag_added",
+                entity_type="candidate_tag",
+                entity_id=tag.id,
+                actor_id=user_id,
+                changes=changes,
+            )
+
+        await session.commit()
         return TagResponse(data=self._build_tag_data(target_tag))
 
     async def list_candidate_tags(
@@ -131,6 +150,7 @@ class TagService:
         self,
         session: AsyncSession,
         tenant_id: uuid.UUID,
+        user_id: uuid.UUID,
         user_role: str,
         candidate_id: uuid.UUID,
         tag_id: uuid.UUID,
@@ -149,3 +169,18 @@ class TagService:
             candidate_id=str(candidate_id),
             tag_id=str(tag_id),
         )
+        
+        changes = extract_model_changes(tag, "delete")
+        if changes:
+            changes = sanitize_audit_payload(changes)
+            await self.audit_service.record_audit_log(
+                session=session,
+                tenant_id=tenant_id,
+                action="tag_removed",
+                entity_type="candidate_tag",
+                entity_id=tag.id,
+                actor_id=user_id,
+                changes=changes,
+            )
+
+        await session.commit()

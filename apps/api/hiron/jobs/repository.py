@@ -135,7 +135,6 @@ class JobRepository:
             if hasattr(job, key) and value is not None:
                 setattr(job, key, value)
 
-        await session.flush()
         return job
 
     async def archive_job(

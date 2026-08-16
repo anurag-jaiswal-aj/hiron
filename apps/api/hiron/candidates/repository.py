@@ -236,8 +236,6 @@ class CandidateRepository:
             if hasattr(candidate, key):
                 setattr(candidate, key, value)
 
-        await session.flush()
-        await session.refresh(candidate)
         return candidate
 
     async def archive_candidate(

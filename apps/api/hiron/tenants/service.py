@@ -7,6 +7,8 @@ from typing import Any
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from hiron.audit.service import AuditService
+from hiron.audit.utils import extract_model_changes, sanitize_audit_payload
 from hiron.common.exceptions import HironException
 from hiron.tenants.models import Tenant
 from hiron.tenants.repository import TenantRepository
@@ -52,13 +54,19 @@ class InvalidTenantPlanError(HironException):
 class TenantService:
     """Core tenant business logic and repository orchestration service."""
 
-    def __init__(self, tenant_repo: TenantRepository | None = None) -> None:
+    def __init__(
+        self,
+        tenant_repo: TenantRepository | None = None,
+        audit_service: AuditService | None = None,
+    ) -> None:
         """Initialize TenantService with injected TenantRepository."""
         self.tenant_repo = tenant_repo or TenantRepository()
+        self.audit_service = audit_service or AuditService()
 
     async def create_tenant(
         self,
         session: AsyncSession,
+        user_id: uuid.UUID,
         name: str,
         slug: str,
         plan: str = "starter",
@@ -98,6 +106,21 @@ class TenantService:
         )
         created = await self.tenant_repo.create(session, tenant)
         logger.info("Tenant created successfully", tenant_id=str(created.id), slug=created.slug)
+        
+        changes = extract_model_changes(created, "create")
+        if changes:
+            changes = sanitize_audit_payload(changes)
+            await self.audit_service.record_audit_log(
+                session=session,
+                tenant_id=created.id,
+                action="tenant_created",
+                entity_type="tenant",
+                entity_id=created.id,
+                actor_id=user_id,
+                changes=changes,
+            )
+
+        await session.commit()
         return created
 
     async def get_tenant_by_id(self, session: AsyncSession, tenant_id: uuid.UUID) -> Tenant:
@@ -128,6 +151,7 @@ class TenantService:
         self,
         session: AsyncSession,
         tenant_id: uuid.UUID,
+        user_id: uuid.UUID,
         name: str | None = None,
         slug: str | None = None,
         plan: str | None = None,
@@ -153,7 +177,7 @@ class TenantService:
             InvalidTenantPlanError: If plan string is invalid.
             TenantSlugAlreadyExistsError: If updated slug belongs to another tenant.
         """
-        await self.get_tenant_by_id(session, tenant_id)
+        tenant = await self.get_tenant_by_id(session, tenant_id)
 
         updates: dict[str, Any] = {}
         if name is not None:
@@ -174,15 +198,45 @@ class TenantService:
         if is_active is not None:
             updates["is_active"] = is_active
 
-        updated = await self.tenant_repo.update(session, tenant_id, **updates)
-        if not updated:
+        updated_tenant = await self.tenant_repo.update(session, tenant_id, **updates)
+        if not updated_tenant:
             raise TenantNotFoundError()
 
-        logger.info("Tenant updated successfully", tenant_id=str(tenant_id))
-        return updated
+        logger.info("Tenant updated successfully", tenant_id=str(tenant.id))
+        
+        changes = extract_model_changes(updated_tenant, "update")
+        if changes:
+            changes = sanitize_audit_payload(changes)
+            await self.audit_service.record_audit_log(
+                session=session,
+                tenant_id=tenant_id,
+                action="tenant_updated",
+                entity_type="tenant",
+                entity_id=updated_tenant.id,
+                actor_id=user_id,
+                changes=changes,
+            )
 
-    async def delete_tenant(self, session: AsyncSession, tenant_id: uuid.UUID) -> None:
+        await session.commit()
+        return updated_tenant
+
+    async def delete_tenant(self, session: AsyncSession, tenant_id: uuid.UUID, user_id: uuid.UUID) -> None:
         """Hard-delete tenant organization per Database Design §9."""
-        await self.get_tenant_by_id(session, tenant_id)
+        tenant = await self.get_tenant_by_id(session, tenant_id)
+        
+        changes = extract_model_changes(tenant, "delete")
+        if changes:
+            changes = sanitize_audit_payload(changes)
+            await self.audit_service.record_audit_log(
+                session=session,
+                tenant_id=tenant_id,
+                action="tenant_deleted",
+                entity_type="tenant",
+                entity_id=tenant.id,
+                actor_id=user_id,
+                changes=changes,
+            )
+            
         await self.tenant_repo.delete(session, tenant_id)
         logger.info("Tenant deleted successfully", tenant_id=str(tenant_id))
+        await session.commit()

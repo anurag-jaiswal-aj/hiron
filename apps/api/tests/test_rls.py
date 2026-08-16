@@ -20,7 +20,15 @@ async def setup_data() -> dict[str, str]:
 
     conn = await asyncpg.connect(ADMIN_DB_URL)
 
-    # Ensure app role has privileges (in case db was recreated)
+    # Ensure app role exists and has privileges (in case db was recreated)
+    await conn.execute("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'hiron_app') THEN
+                CREATE ROLE hiron_app WITH LOGIN PASSWORD 'app_password';
+            END IF;
+        END $$;
+    """)
     await conn.execute('GRANT USAGE ON SCHEMA public TO hiron_app;')
     await conn.execute('GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO hiron_app;')
     await conn.execute('GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO hiron_app;')

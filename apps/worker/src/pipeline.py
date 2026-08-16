@@ -7,6 +7,8 @@ from typing import Any
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from hiron.audit.service import AuditService
+from hiron.audit.utils import extract_model_changes, sanitize_audit_payload
 from hiron.candidates.models import Candidate
 from hiron.candidates.repository import CandidateRepository
 from hiron.resumes.exceptions import (
@@ -204,6 +206,21 @@ async def parse_resume_pipeline(
                     )
             except Exception as log_exc:
                 logger.warning("Failed to write AI usage telemetry", error=str(log_exc))
+
+        audit_service = AuditService()
+        
+        changes = extract_model_changes(updated_resume, "update")
+        if changes:
+            changes = sanitize_audit_payload(changes)
+            await audit_service.record_audit_log(
+                session=session,
+                tenant_id=tenant_id,
+                action="resume_parsed",
+                entity_type="resume",
+                entity_id=updated_resume.id,
+                actor_id=None,
+                changes=changes,
+            )
 
         await session.commit()
 

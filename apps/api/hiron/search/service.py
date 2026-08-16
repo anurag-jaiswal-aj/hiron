@@ -7,6 +7,8 @@ import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hiron.ai_usage.repository import AIUsageRepository
+from hiron.audit.service import AuditService
+from hiron.audit.utils import extract_model_changes, sanitize_audit_payload
 from hiron.candidates.models import Candidate
 from hiron.candidates.repository import CandidateRepository
 from hiron.common.exceptions import ResourceNotFoundException
@@ -40,6 +42,7 @@ class SearchService:
         job_repository: JobRepository | None = None,
         embedding_repository: EmbeddingRepository | None = None,
         embedding_generator: EmbeddingGenerator | None = None,
+        audit_service: AuditService | None = None,
     ) -> None:
         self.search_repo = search_repository or SearchRepository()
         self.candidate_repo = candidate_repository or CandidateRepository()
@@ -47,6 +50,7 @@ class SearchService:
         self.embedding_repo = embedding_repository or EmbeddingRepository()
         self.generator = embedding_generator or EmbeddingGenerator()
         self.ai_usage_repo = AIUsageRepository()
+        self.audit_service = audit_service or AuditService()
 
     def _validate_role_permissions(self, role: str) -> None:
         """Validate user role authorization for search operations."""
@@ -264,6 +268,21 @@ class SearchService:
             filters=filters,
             is_shared=is_shared,
         )
+        
+        changes = extract_model_changes(search, "create")
+        if changes:
+            changes = sanitize_audit_payload(changes)
+            await self.audit_service.record_audit_log(
+                session=session,
+                tenant_id=tenant_id,
+                action="saved_search_created",
+                entity_type="saved_search",
+                entity_id=search.id,
+                actor_id=user_id,
+                changes=changes,
+            )
+            
+        await session.commit()
         return SavedSearchResponse(data=self._build_saved_search_data(search))
 
     async def list_saved_searches(
@@ -315,6 +334,21 @@ class SearchService:
             filters=filters,
             is_shared=is_shared,
         )
+        
+        changes = extract_model_changes(updated, "update")
+        if changes:
+            changes = sanitize_audit_payload(changes)
+            await self.audit_service.record_audit_log(
+                session=session,
+                tenant_id=tenant_id,
+                action="saved_search_updated",
+                entity_type="saved_search",
+                entity_id=updated.id,
+                actor_id=user_id,
+                changes=changes,
+            )
+            
+        await session.commit()
         return SavedSearchResponse(data=self._build_saved_search_data(updated))
 
     async def delete_saved_search(
@@ -339,4 +373,18 @@ class SearchService:
                 "Only search owner or org_admin can delete saved search"
             )
 
+        changes = extract_model_changes(search, "delete")
+        if changes:
+            changes = sanitize_audit_payload(changes)
+            await self.audit_service.record_audit_log(
+                session=session,
+                tenant_id=tenant_id,
+                action="saved_search_deleted",
+                entity_type="saved_search",
+                entity_id=search.id,
+                actor_id=user_id,
+                changes=changes,
+            )
+
         await self.search_repo.delete_saved_search(session=session, search=search)
+        await session.commit()

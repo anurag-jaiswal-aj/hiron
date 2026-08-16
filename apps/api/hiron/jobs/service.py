@@ -16,6 +16,8 @@ from hiron.jobs.exceptions import (
 )
 from hiron.jobs.models import Job, PipelineStage
 from hiron.jobs.repository import JobRepository
+from hiron.audit.service import AuditService
+from hiron.audit.utils import extract_model_changes, sanitize_audit_payload
 
 logger = structlog.get_logger("hiron.api.jobs.service")
 
@@ -37,9 +39,14 @@ DEFAULT_PIPELINE_STAGES = [
 class JobService:
     """Core domain service for Job business logic and orchestration."""
 
-    def __init__(self, job_repo: JobRepository | None = None) -> None:
+    def __init__(
+        self,
+        job_repo: JobRepository | None = None,
+        audit_service: AuditService | None = None,
+    ) -> None:
         """Initialize JobService with injected repository."""
         self.job_repo = job_repo or JobRepository()
+        self.audit_service = audit_service or AuditService()
 
     def _validate_role_permission(self, current_user_role: str, action: str) -> None:
         """Verify requesting user has appropriate management role."""
@@ -195,6 +202,19 @@ class JobService:
             "Job created with default pipeline stages",
             job_id=str(created_job.id),
             tenant_id=str(tenant_id),
+        )
+
+        changes = extract_model_changes(created_job, "create")
+        if changes:
+            changes = sanitize_audit_payload(changes)
+        await self.audit_service.record_audit_log(
+            session=session,
+            tenant_id=tenant_id,
+            action="job_created",
+            entity_type="job",
+            entity_id=created_job.id,
+            actor_id=created_by,
+            changes=changes,
         )
 
         await session.commit()
@@ -386,6 +406,7 @@ class JobService:
         session: AsyncSession,
         job_id: uuid.UUID,
         tenant_id: uuid.UUID,
+        user_id: uuid.UUID,
         current_user_role: str,
         title: str | None = None,
         description: str | None = None,
@@ -436,6 +457,19 @@ class JobService:
 
         logger.info("Job updated successfully", job_id=str(job_id), tenant_id=str(tenant_id))
 
+        changes = extract_model_changes(updated, "update")
+        if changes:
+            changes = sanitize_audit_payload(changes)
+            await self.audit_service.record_audit_log(
+                session=session,
+                tenant_id=tenant_id,
+                action="job_updated",
+                entity_type="job",
+                entity_id=updated.id,
+                actor_id=user_id,
+                changes=changes,
+            )
+
         await session.commit()
 
         # Auto-trigger job embedding re-generation if source text updated
@@ -474,6 +508,7 @@ class JobService:
         session: AsyncSession,
         job_id: uuid.UUID,
         tenant_id: uuid.UUID,
+        user_id: uuid.UUID,
         current_user_role: str,
     ) -> Job:
         """Transition job to 'open' status per API Contract §JOB-6."""
@@ -500,6 +535,20 @@ class JobService:
             raise JobNotFoundError()
 
         logger.info("Job opened successfully", job_id=str(job_id), tenant_id=str(tenant_id))
+        
+        changes = extract_model_changes(updated, "update")
+        if changes:
+            changes = sanitize_audit_payload(changes)
+            await self.audit_service.record_audit_log(
+                session=session,
+                tenant_id=tenant_id,
+                action="job_opened",
+                entity_type="job",
+                entity_id=updated.id,
+                actor_id=user_id,
+                changes=changes,
+            )
+            
         await session.commit()
         return updated
 
@@ -508,6 +557,7 @@ class JobService:
         session: AsyncSession,
         job_id: uuid.UUID,
         tenant_id: uuid.UUID,
+        user_id: uuid.UUID,
         current_user_role: str,
     ) -> Job:
         """Pause an open job."""
@@ -524,6 +574,20 @@ class JobService:
             raise JobNotFoundError()
 
         logger.info("Job paused successfully", job_id=str(job_id), tenant_id=str(tenant_id))
+        
+        changes = extract_model_changes(updated, "update")
+        if changes:
+            changes = sanitize_audit_payload(changes)
+            await self.audit_service.record_audit_log(
+                session=session,
+                tenant_id=tenant_id,
+                action="job_paused",
+                entity_type="job",
+                entity_id=updated.id,
+                actor_id=user_id,
+                changes=changes,
+            )
+            
         await session.commit()
         return updated
 
@@ -532,6 +596,7 @@ class JobService:
         session: AsyncSession,
         job_id: uuid.UUID,
         tenant_id: uuid.UUID,
+        user_id: uuid.UUID,
         current_user_role: str,
     ) -> Job:
         """Close job per API Contract §JOB-7."""
@@ -552,6 +617,20 @@ class JobService:
             raise JobNotFoundError()
 
         logger.info("Job closed successfully", job_id=str(job_id), tenant_id=str(tenant_id))
+        
+        changes = extract_model_changes(updated, "update")
+        if changes:
+            changes = sanitize_audit_payload(changes)
+            await self.audit_service.record_audit_log(
+                session=session,
+                tenant_id=tenant_id,
+                action="job_closed",
+                entity_type="job",
+                entity_id=updated.id,
+                actor_id=user_id,
+                changes=changes,
+            )
+            
         await session.commit()
         return updated
 
@@ -560,6 +639,7 @@ class JobService:
         session: AsyncSession,
         job_id: uuid.UUID,
         tenant_id: uuid.UUID,
+        user_id: uuid.UUID,
         current_user_role: str,
     ) -> Job:
         """Soft-delete / archive job per API Contract §JOB-5."""
@@ -577,6 +657,20 @@ class JobService:
             raise JobNotFoundError()
 
         logger.info("Job archived successfully", job_id=str(job_id), tenant_id=str(tenant_id))
+        
+        changes = extract_model_changes(updated, "update")
+        if changes:
+            changes = sanitize_audit_payload(changes)
+            await self.audit_service.record_audit_log(
+                session=session,
+                tenant_id=tenant_id,
+                action="job_archived",
+                entity_type="job",
+                entity_id=updated.id,
+                actor_id=user_id,
+                changes=changes,
+            )
+            
         await session.commit()
         return updated
 
@@ -595,6 +689,7 @@ class JobService:
         session: AsyncSession,
         job_id: uuid.UUID,
         tenant_id: uuid.UUID,
+        user_id: uuid.UUID,
         current_user_role: str,
         name: str,
         position: int | None = None,
@@ -651,6 +746,20 @@ class JobService:
             job_id=str(job_id),
             tenant_id=str(tenant_id),
         )
+        
+        changes = extract_model_changes(created, "create")
+        if changes:
+            changes = sanitize_audit_payload(changes)
+            await self.audit_service.record_audit_log(
+                session=session,
+                tenant_id=tenant_id,
+                action="stage_created",
+                entity_type="pipeline_stage",
+                entity_id=created.id,
+                actor_id=user_id,
+                changes=changes,
+            )
+            
         await session.commit()
         return created
 
@@ -712,6 +821,7 @@ class JobService:
         job_id: uuid.UUID,
         stage_id: uuid.UUID,
         tenant_id: uuid.UUID,
+        user_id: uuid.UUID,
         current_user_role: str,
         name: str | None = None,
         position: int | None = None,
@@ -746,6 +856,20 @@ class JobService:
             raise PipelineStageNotFoundError()
 
         logger.info("Pipeline stage updated", stage_id=str(stage_id), job_id=str(job_id))
+        
+        changes = extract_model_changes(updated, "update")
+        if changes:
+            changes = sanitize_audit_payload(changes)
+            await self.audit_service.record_audit_log(
+                session=session,
+                tenant_id=tenant_id,
+                action="stage_updated",
+                entity_type="pipeline_stage",
+                entity_id=updated.id,
+                actor_id=user_id,
+                changes=changes,
+            )
+            
         await session.commit()
         return updated
 
@@ -755,6 +879,7 @@ class JobService:
         job_id: uuid.UUID,
         stage_id: uuid.UUID,
         tenant_id: uuid.UUID,
+        user_id: uuid.UUID,
         current_user_role: str,
     ) -> bool:
         """Delete pipeline stage ensuring minimum 2 stages remain."""
@@ -775,6 +900,19 @@ class JobService:
                 "Cannot delete pipeline stage: minimum 2 stages required"
             )
 
+        changes = extract_model_changes(target_stage, "delete")
+        if changes:
+            changes = sanitize_audit_payload(changes)
+        await self.audit_service.record_audit_log(
+            session=session,
+            tenant_id=tenant_id,
+            action="stage_deleted",
+            entity_type="pipeline_stage",
+            entity_id=stage_id,
+            actor_id=user_id,
+            changes=changes,
+        )
+
         deleted = await self.job_repo.delete_pipeline_stage(session, stage_id, tenant_id)
         logger.info("Pipeline stage deleted", stage_id=str(stage_id), job_id=str(job_id))
         await session.commit()
@@ -785,6 +923,7 @@ class JobService:
         session: AsyncSession,
         job_id: uuid.UUID,
         tenant_id: uuid.UUID,
+        user_id: uuid.UUID,
         current_user_role: str,
         stage_orders: list[dict[str, Any]],
     ) -> Sequence[PipelineStage]:
@@ -796,6 +935,16 @@ class JobService:
             stage_id = item["stage_id"]
             pos = item["position"]
             await self.job_repo.update_pipeline_stage(session, stage_id, tenant_id, position=pos)
+
+        await self.audit_service.record_audit_log(
+            session=session,
+            tenant_id=tenant_id,
+            action="stage_reordered",
+            entity_type="job",
+            entity_id=job_id,
+            actor_id=user_id,
+            changes=sanitize_audit_payload({"after": {"stage_orders": stage_orders}}),
+        )
 
         await session.commit()
         return await self.job_repo.list_pipeline_stages(session, job_id, tenant_id)

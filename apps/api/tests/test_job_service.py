@@ -38,14 +38,30 @@ def mock_job_repo() -> AsyncMock:
     return repo
 
 
+@pytest.fixture
+def admin_user_id() -> uuid.UUID:
+    return uuid.UUID("11111111-1111-1111-1111-111111111111")
+
+
+@pytest.fixture
+def recruiter_user_id() -> uuid.UUID:
+    return uuid.UUID("22222222-2222-2222-2222-222222222222")
+
+
+@pytest.fixture
+def hm_user_id() -> uuid.UUID:
+    return uuid.UUID("33333333-3333-3333-3333-333333333333")
+
+
 @pytest.mark.asyncio
 async def test_create_job_success_generates_default_pipeline_stages(
     mock_session: AsyncMock,
     mock_job_repo: AsyncMock,
+    recruiter_user_id: uuid.UUID,
 ) -> None:
     """Verify create_job persists job and auto-generates 6 default pipeline stages."""
     tenant_id = uuid.uuid4()
-    created_by = uuid.uuid4()
+    created_by = recruiter_user_id
 
     mock_job_repo.create_job.side_effect = lambda _session, job: job
     mock_job_repo.create_pipeline_stages.side_effect = lambda _session, stages: stages
@@ -98,6 +114,7 @@ async def test_create_job_success_generates_default_pipeline_stages(
 async def test_create_job_insufficient_permissions_raises(
     mock_session: AsyncMock,
     mock_job_repo: AsyncMock,
+    hm_user_id: uuid.UUID,
 ) -> None:
     """Verify non-recruiter/non-admin cannot create jobs."""
     service = JobService(job_repo=mock_job_repo)
@@ -105,7 +122,7 @@ async def test_create_job_insufficient_permissions_raises(
         await service.create_job(
             session=mock_session,
             tenant_id=uuid.uuid4(),
-            created_by=uuid.uuid4(),
+            created_by=hm_user_id,
             current_user_role="hiring_manager",
             title="Title",
             description="Desc",
@@ -116,6 +133,7 @@ async def test_create_job_insufficient_permissions_raises(
 async def test_create_job_invalid_title_length_raises(
     mock_session: AsyncMock,
     mock_job_repo: AsyncMock,
+    admin_user_id: uuid.UUID,
 ) -> None:
     """Verify title exceeding 200 characters raises InvalidJobDataError."""
     service = JobService(job_repo=mock_job_repo)
@@ -123,7 +141,7 @@ async def test_create_job_invalid_title_length_raises(
         await service.create_job(
             session=mock_session,
             tenant_id=uuid.uuid4(),
-            created_by=uuid.uuid4(),
+            created_by=admin_user_id,
             current_user_role="org_admin",
             title="A" * 201,
             description="Desc",
@@ -134,6 +152,7 @@ async def test_create_job_invalid_title_length_raises(
 async def test_create_job_invalid_experience_range_raises(
     mock_session: AsyncMock,
     mock_job_repo: AsyncMock,
+    recruiter_user_id: uuid.UUID,
 ) -> None:
     """Verify max experience < min experience raises InvalidJobDataError."""
     service = JobService(job_repo=mock_job_repo)
@@ -141,7 +160,7 @@ async def test_create_job_invalid_experience_range_raises(
         await service.create_job(
             session=mock_session,
             tenant_id=uuid.uuid4(),
-            created_by=uuid.uuid4(),
+            created_by=recruiter_user_id,
             current_user_role="recruiter",
             title="Title",
             description="Desc",
@@ -167,6 +186,7 @@ async def test_get_job_by_id_not_found_raises(
 async def test_open_job_success(
     mock_session: AsyncMock,
     mock_job_repo: AsyncMock,
+    recruiter_user_id: uuid.UUID,
 ) -> None:
     """Verify open_job transitions status from draft to open and sets opened_at."""
     job_id = uuid.uuid4()
@@ -185,6 +205,7 @@ async def test_open_job_success(
         session=mock_session,
         job_id=job_id,
         tenant_id=tenant_id,
+        user_id=recruiter_user_id,
         current_user_role="recruiter",
     )
 
@@ -196,6 +217,7 @@ async def test_open_job_success(
 async def test_open_job_invalid_status_transition_raises(
     mock_session: AsyncMock,
     mock_job_repo: AsyncMock,
+    admin_user_id: uuid.UUID,
 ) -> None:
     """Verify opening an already closed job raises InvalidJobStatusTransitionError."""
     job_id = uuid.uuid4()
@@ -212,6 +234,7 @@ async def test_open_job_invalid_status_transition_raises(
             session=mock_session,
             job_id=job_id,
             tenant_id=tenant_id,
+            user_id=admin_user_id,
             current_user_role="org_admin",
         )
 
@@ -220,6 +243,7 @@ async def test_open_job_invalid_status_transition_raises(
 async def test_pause_job_success(
     mock_session: AsyncMock,
     mock_job_repo: AsyncMock,
+    recruiter_user_id: uuid.UUID,
 ) -> None:
     """Verify pause_job transitions status from open to paused."""
     job_id = uuid.uuid4()
@@ -238,6 +262,7 @@ async def test_pause_job_success(
         session=mock_session,
         job_id=job_id,
         tenant_id=tenant_id,
+        user_id=recruiter_user_id,
         current_user_role="recruiter",
     )
 
@@ -248,6 +273,7 @@ async def test_pause_job_success(
 async def test_close_job_success(
     mock_session: AsyncMock,
     mock_job_repo: AsyncMock,
+    admin_user_id: uuid.UUID,
 ) -> None:
     """Verify close_job transitions status to closed."""
     job_id = uuid.uuid4()
@@ -266,6 +292,7 @@ async def test_close_job_success(
         session=mock_session,
         job_id=job_id,
         tenant_id=tenant_id,
+        user_id=admin_user_id,
         current_user_role="org_admin",
     )
 
@@ -276,6 +303,7 @@ async def test_close_job_success(
 async def test_archive_job_success(
     mock_session: AsyncMock,
     mock_job_repo: AsyncMock,
+    recruiter_user_id: uuid.UUID,
 ) -> None:
     """Verify archive_job sets status to archived and is_archived to True."""
     job_id = uuid.uuid4()
@@ -292,6 +320,7 @@ async def test_archive_job_success(
         session=mock_session,
         job_id=job_id,
         tenant_id=tenant_id,
+        user_id=recruiter_user_id,
         current_user_role="recruiter",
     )
 
@@ -303,6 +332,7 @@ async def test_archive_job_success(
 async def test_create_pipeline_stage_success(
     mock_session: AsyncMock,
     mock_job_repo: AsyncMock,
+    recruiter_user_id: uuid.UUID,
 ) -> None:
     """Verify custom pipeline stage creation."""
     tenant_id = uuid.uuid4()
@@ -318,6 +348,7 @@ async def test_create_pipeline_stage_success(
         session=mock_session,
         job_id=job_id,
         tenant_id=tenant_id,
+        user_id=recruiter_user_id,
         current_user_role="recruiter",
         name="Technical Challenge",
         position=3,
@@ -330,6 +361,7 @@ async def test_create_pipeline_stage_success(
 async def test_delete_pipeline_stage_below_minimum_raises_conflict(
     mock_session: AsyncMock,
     mock_job_repo: AsyncMock,
+    recruiter_user_id: uuid.UUID,
 ) -> None:
     """Verify deleting pipeline stage raises conflict if <= 2 stages remain."""
     from hiron.jobs.exceptions import PipelineStageConflictError
@@ -352,8 +384,10 @@ async def test_delete_pipeline_stage_below_minimum_raises_conflict(
             job_id=job_id,
             stage_id=stage_id,
             tenant_id=tenant_id,
+            user_id=recruiter_user_id,
             current_user_role="recruiter",
         )
+
 
 @pytest.mark.asyncio
 @patch("hiron.core.qstash_client.QStashPublisher.publish", new_callable=AsyncMock)
@@ -361,6 +395,7 @@ async def test_update_job_relevant_fields_enqueues_embedding_after_commit(
     mock_publish_call: MagicMock,
     mock_session: AsyncMock,
     mock_job_repo: AsyncMock,
+    recruiter_user_id: uuid.UUID,
 ) -> None:
     """Verify relevant job updates enqueue embedding task strictly AFTER commit."""
     tenant_id = uuid.uuid4()
@@ -390,6 +425,7 @@ async def test_update_job_relevant_fields_enqueues_embedding_after_commit(
         session=mock_session,
         job_id=job_id,
         tenant_id=tenant_id,
+        user_id=recruiter_user_id,
         current_user_role="recruiter",
         description="New Description",  # Relevant field
     )
@@ -406,6 +442,7 @@ async def test_update_job_irrelevant_fields_does_not_enqueue_embedding(
     mock_publish_call: MagicMock,
     mock_session: AsyncMock,
     mock_job_repo: AsyncMock,
+    recruiter_user_id: uuid.UUID,
 ) -> None:
     """Verify irrelevant job updates do NOT enqueue embedding task."""
     tenant_id = uuid.uuid4()
@@ -422,8 +459,9 @@ async def test_update_job_irrelevant_fields_does_not_enqueue_embedding(
         session=mock_session,
         job_id=job_id,
         tenant_id=tenant_id,
+        user_id=recruiter_user_id,
         current_user_role="recruiter",
-        title="New Title",  # Irrelevant field
+        department="New Department",  # Irrelevant field
     )
 
     mock_session.commit.assert_awaited_once()

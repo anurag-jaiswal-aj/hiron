@@ -18,10 +18,25 @@ from hiron.resumes.models import Resume, ResumeFile
 from hiron.resumes.service import ResumeService
 
 
+@pytest.fixture
+def admin_user_id() -> uuid.UUID:
+    return uuid.UUID("11111111-1111-1111-1111-111111111111")
+
+
+@pytest.fixture
+def recruiter_user_id() -> uuid.UUID:
+    return uuid.UUID("22222222-2222-2222-2222-222222222222")
+
+
+@pytest.fixture
+def member_user_id() -> uuid.UUID:
+    return uuid.UUID("44444444-4444-4444-4444-444444444444")
+
+
 @pytest.mark.asyncio
-async def test_upload_resume_unauthorized_role_raises_403() -> None:
+async def test_upload_resume_unauthorized_role_raises_403(member_user_id: uuid.UUID) -> None:
     """Verify member role raises InsufficientResumePermissionsError."""
-    service = ResumeService()
+    service = ResumeService(storage_provider=AsyncMock())
     session = AsyncMock()
     tenant_id = uuid.uuid4()
 
@@ -29,6 +44,7 @@ async def test_upload_resume_unauthorized_role_raises_403() -> None:
         await service.upload_resume(
             session=session,
             tenant_id=tenant_id,
+            user_id=member_user_id,
             user_role="member",
             filename="resume.pdf",
             content_type="application/pdf",
@@ -37,9 +53,9 @@ async def test_upload_resume_unauthorized_role_raises_403() -> None:
 
 
 @pytest.mark.asyncio
-async def test_upload_resume_file_too_large_raises_413() -> None:
+async def test_upload_resume_file_too_large_raises_413(recruiter_user_id: uuid.UUID) -> None:
     """Verify file > 10 MB raises FileTooLargeError."""
-    service = ResumeService()
+    service = ResumeService(storage_provider=AsyncMock())
     session = AsyncMock()
     tenant_id = uuid.uuid4()
     large_bytes = b"x" * (10 * 1024 * 1024 + 1)
@@ -48,6 +64,7 @@ async def test_upload_resume_file_too_large_raises_413() -> None:
         await service.upload_resume(
             session=session,
             tenant_id=tenant_id,
+            user_id=recruiter_user_id,
             user_role="recruiter",
             filename="resume.pdf",
             content_type="application/pdf",
@@ -56,9 +73,9 @@ async def test_upload_resume_file_too_large_raises_413() -> None:
 
 
 @pytest.mark.asyncio
-async def test_upload_resume_unsupported_type_raises_415() -> None:
+async def test_upload_resume_unsupported_type_raises_415(recruiter_user_id: uuid.UUID) -> None:
     """Verify unsupported type raises UnsupportedFileTypeError."""
-    service = ResumeService()
+    service = ResumeService(storage_provider=AsyncMock())
     session = AsyncMock()
     tenant_id = uuid.uuid4()
 
@@ -66,6 +83,7 @@ async def test_upload_resume_unsupported_type_raises_415() -> None:
         await service.upload_resume(
             session=session,
             tenant_id=tenant_id,
+            user_id=recruiter_user_id,
             user_role="recruiter",
             filename="photo.jpg",
             content_type="image/jpeg",
@@ -74,7 +92,7 @@ async def test_upload_resume_unsupported_type_raises_415() -> None:
 
 
 @pytest.mark.asyncio
-async def test_upload_resume_placeholder_candidate_creation() -> None:
+async def test_upload_resume_placeholder_candidate_creation(recruiter_user_id: uuid.UUID) -> None:
     """Verify upload creates a placeholder candidate when candidate_id is omitted."""
     resume_repo = AsyncMock()
     candidate_repo = AsyncMock()
@@ -126,6 +144,7 @@ async def test_upload_resume_placeholder_candidate_creation() -> None:
     response = await service.upload_resume(
         session=session,
         tenant_id=tenant_id,
+        user_id=recruiter_user_id,
         user_role="recruiter",
         filename="john_doe_resume.pdf",
         content_type="application/pdf",
@@ -142,7 +161,7 @@ async def test_upload_resume_placeholder_candidate_creation() -> None:
 
 
 @pytest.mark.asyncio
-async def test_upload_resume_existing_candidate_and_job_assignment() -> None:
+async def test_upload_resume_existing_candidate_and_job_assignment(admin_user_id: uuid.UUID) -> None:
     """Verify upload binds to existing candidate and associates with job when provided."""
     resume_repo = AsyncMock()
     candidate_repo = AsyncMock()
@@ -179,6 +198,7 @@ async def test_upload_resume_existing_candidate_and_job_assignment() -> None:
     response = await service.upload_resume(
         session=session,
         tenant_id=tenant_id,
+        user_id=admin_user_id,
         user_role="org_admin",
         filename="sarah_resume.pdf",
         content_type="application/pdf",
@@ -193,10 +213,10 @@ async def test_upload_resume_existing_candidate_and_job_assignment() -> None:
 
 
 @pytest.mark.asyncio
-async def test_upload_resume_idempotent_duplicate() -> None:
+async def test_upload_resume_idempotent_duplicate(recruiter_user_id: uuid.UUID) -> None:
     """Verify duplicate file content upload returns existing upload response."""
     resume_repo = AsyncMock()
-    service = ResumeService(resume_repository=resume_repo)
+    service = ResumeService(resume_repository=resume_repo, storage_provider=AsyncMock())
 
     session = AsyncMock()
     tenant_id = uuid.uuid4()
@@ -214,6 +234,7 @@ async def test_upload_resume_idempotent_duplicate() -> None:
     response = await service.upload_resume(
         session=session,
         tenant_id=tenant_id,
+        user_id=recruiter_user_id,
         user_role="recruiter",
         filename="duplicate.pdf",
         content_type="application/pdf",
@@ -225,11 +246,11 @@ async def test_upload_resume_idempotent_duplicate() -> None:
 
 
 @pytest.mark.asyncio
-async def test_bulk_upload_resumes_rejections() -> None:
+async def test_bulk_upload_resumes_rejections(recruiter_user_id: uuid.UUID) -> None:
     """Verify bulk upload filters out files > 10 MB or unsupported file types into rejections."""
     resume_repo = AsyncMock()
     candidate_repo = AsyncMock()
-    service = ResumeService(resume_repository=resume_repo, candidate_repository=candidate_repo)
+    service = ResumeService(resume_repository=resume_repo, candidate_repository=candidate_repo, storage_provider=AsyncMock())
 
     session = AsyncMock()
     tenant_id = uuid.uuid4()
@@ -251,6 +272,7 @@ async def test_bulk_upload_resumes_rejections() -> None:
     response = await service.bulk_upload_resumes(
         session=session,
         tenant_id=tenant_id,
+        user_id=recruiter_user_id,
         user_role="recruiter",
         files=files,
     )
@@ -265,7 +287,7 @@ async def test_bulk_upload_resumes_rejections() -> None:
 async def test_get_resume_status_not_found_raises_404() -> None:
     """Verify non-existent resume ID raises ResumeNotFoundError."""
     resume_repo = AsyncMock()
-    service = ResumeService(resume_repository=resume_repo)
+    service = ResumeService(resume_repository=resume_repo, storage_provider=AsyncMock())
 
     session = AsyncMock()
     tenant_id = uuid.uuid4()
@@ -278,11 +300,11 @@ async def test_get_resume_status_not_found_raises_404() -> None:
 
 
 @pytest.mark.asyncio
-async def test_retry_parse_success() -> None:
+async def test_retry_parse_success(recruiter_user_id: uuid.UUID) -> None:
     """Verify retrying a failed resume resets status to pending."""
     resume_repo = AsyncMock()
     candidate_repo = AsyncMock()
-    service = ResumeService(resume_repository=resume_repo, candidate_repository=candidate_repo)
+    service = ResumeService(resume_repository=resume_repo, candidate_repository=candidate_repo, storage_provider=AsyncMock())
 
     session = AsyncMock()
     tenant_id = uuid.uuid4()
@@ -323,6 +345,7 @@ async def test_retry_parse_success() -> None:
             response = await service.retry_parse(
                 session=session,
                 tenant_id=tenant_id,
+                user_id=recruiter_user_id,
                 user_role="recruiter",
                 resume_id=resume_id,
             )
@@ -333,10 +356,10 @@ async def test_retry_parse_success() -> None:
 
 
 @pytest.mark.asyncio
-async def test_retry_parse_not_failed_status_raises_validation_exception() -> None:
+async def test_retry_parse_not_failed_status_raises_validation_exception(recruiter_user_id: uuid.UUID) -> None:
     """Verify retrying a non-failed resume raises ValidationException."""
     resume_repo = AsyncMock()
-    service = ResumeService(resume_repository=resume_repo)
+    service = ResumeService(resume_repository=resume_repo, storage_provider=AsyncMock())
 
     session = AsyncMock()
     tenant_id = uuid.uuid4()
@@ -351,20 +374,14 @@ async def test_retry_parse_not_failed_status_raises_validation_exception() -> No
         await service.retry_parse(
             session=session,
             tenant_id=tenant_id,
+            user_id=recruiter_user_id,
             user_role="recruiter",
             resume_id=resume_id,
         )
-import uuid
-import pytest
-from unittest.mock import AsyncMock, patch
 
-from hiron.candidates.models import Candidate
-from hiron.resumes.models import Resume
-from hiron.resumes.service import ResumeService
-from hiron.common.exceptions import HironException
 
 @pytest.mark.asyncio
-async def test_upload_resume_qstash_publish_failure_raises_503() -> None:
+async def test_upload_resume_qstash_publish_failure_raises_503(recruiter_user_id: uuid.UUID) -> None:
     """Verify that a QStash publish exception results in a failed resume status and raises a 503 error."""
     resume_repo = AsyncMock()
     candidate_repo = AsyncMock()
@@ -395,20 +412,21 @@ async def test_upload_resume_qstash_publish_failure_raises_503() -> None:
         with patch("hiron.core.qstash_client.QStashPublisher.publish") as mock_publish:
             mock_publish.side_effect = Exception("Simulated QStash network failure")
 
+            from hiron.common.exceptions import HironException
             with pytest.raises(HironException) as exc_info:
                 await service.upload_resume(
-                session=session,
-                tenant_id=tenant_id,
-                user_role="recruiter",
-                filename="resume.pdf",
-                content_type="application/pdf",
-                file_bytes=b"sample",
-            )
+                    session=session,
+                    tenant_id=tenant_id,
+                    user_id=recruiter_user_id,
+                    user_role="recruiter",
+                    filename="resume.pdf",
+                    content_type="application/pdf",
+                    file_bytes=b"sample",
+                )
 
         assert exc_info.value.status_code == 503
         assert exc_info.value.code == "QUEUE_ERROR"
 
-        # Verify the database state update was called
         resume_repo.update_resume_status.assert_called_once_with(
             session=session,
             resume=mock_resume,

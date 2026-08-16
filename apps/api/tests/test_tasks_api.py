@@ -1,11 +1,12 @@
 import uuid
 from collections.abc import Generator
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
 from hiron.auth.dependencies import get_current_user
+from hiron.core.database import get_db_session
 from hiron.main import create_app
 from hiron.users.models import User
 
@@ -24,7 +25,11 @@ def client() -> Generator[TestClient, None, None]:
         is_active=True,
     )
 
+    async def mock_get_db():
+        yield AsyncMock()
+
     app.dependency_overrides[get_current_user] = lambda: mock_user
+    app.dependency_overrides[get_db_session] = mock_get_db
 
     with TestClient(app) as test_client:
         yield test_client
@@ -41,7 +46,7 @@ def test_get_task_status_success(client: TestClient) -> None:
     mock_batch_job.completed_count = 1
     mock_batch_job.failed_count = 1
 
-    with patch("hiron.tasks.router.ScoreRepository.get_batch_score_job", return_value=mock_batch_job):
+    with patch("hiron.tasks.router.ScoreRepository.get_batch_score_job", new_callable=AsyncMock, return_value=mock_batch_job):
         resp = client.get(f"/api/v1/tasks/{task_id}")
 
     assert resp.status_code == 200
@@ -65,7 +70,7 @@ def test_get_task_status_pending(client: TestClient) -> None:
     mock_batch_job = MagicMock()
     mock_batch_job.status = "pending"
 
-    with patch("hiron.tasks.router.ScoreRepository.get_batch_score_job", return_value=mock_batch_job):
+    with patch("hiron.tasks.router.ScoreRepository.get_batch_score_job", new_callable=AsyncMock, return_value=mock_batch_job):
         resp = client.get(f"/api/v1/tasks/{task_id}")
 
     assert resp.status_code == 200

@@ -7,6 +7,8 @@ import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hiron.candidates.repository import CandidateRepository
+from hiron.audit.service import AuditService
+from hiron.audit.utils import extract_model_changes, sanitize_audit_payload
 from hiron.common.exceptions import ResourceNotFoundException
 from hiron.jobs.repository import JobRepository
 from hiron.pipeline.exceptions import (
@@ -43,11 +45,13 @@ class PipelineService:
         candidate_repository: CandidateRepository | None = None,
         job_repository: JobRepository | None = None,
         user_repository: UserRepository | None = None,
+        audit_service: AuditService | None = None,
     ) -> None:
         self.pipeline_repo = pipeline_repository or PipelineRepository()
         self.candidate_repo = candidate_repository or CandidateRepository()
         self.job_repo = job_repository or JobRepository()
         self.user_repo = user_repository or UserRepository()
+        self.audit_service = audit_service or AuditService()
 
     def _validate_move_permissions(self, role: str) -> None:
         """Validate that user role has stage movement rights (hiring managers are read-only)."""
@@ -133,6 +137,21 @@ class PipelineService:
             id=target_stage.id, name=target_stage.name, position=target_stage.position
         )
 
+        changes = extract_model_changes(updated_jc, "update")
+        if changes:
+            changes = sanitize_audit_payload(changes)
+            await self.audit_service.record_audit_log(
+                session=session,
+                tenant_id=tenant_id,
+                action="stage_changed",
+                entity_type="job_candidate",
+                entity_id=updated_jc.id,
+                actor_id=user_id,
+                changes=changes,
+            )
+
+        await session.commit()
+
         return MoveCandidateStageResponse(
             data=MoveCandidateStageData(
                 job_candidate_id=updated_jc.id,
@@ -195,6 +214,7 @@ class PipelineService:
         self,
         session: AsyncSession,
         tenant_id: uuid.UUID,
+        user_id: uuid.UUID,
         user_role: str,
         job_id: uuid.UUID,
         candidate_id: uuid.UUID,
@@ -219,11 +239,26 @@ class PipelineService:
             job_candidate_id=str(job_candidate.id),
         )
 
+        changes = extract_model_changes(updated_jc, "update")
+        if changes:
+            changes = sanitize_audit_payload(changes)
+            await self.audit_service.record_audit_log(
+                session=session,
+                tenant_id=tenant_id,
+                action="candidate_shortlisted",
+                entity_type="job_candidate",
+                entity_id=updated_jc.id,
+                actor_id=user_id,
+                changes=changes,
+            )
+
+        await session.commit()
+
         return ShortlistCandidateResponse(
             data=ShortlistCandidateData(
                 job_candidate_id=updated_jc.id,
-                is_shortlisted=True,
-                shortlisted_at=now,
+                is_shortlisted=updated_jc.is_shortlisted,
+                shortlisted_at=datetime.datetime.now(datetime.UTC),
             )
         )
 
@@ -277,7 +312,6 @@ class PipelineService:
             rejection_reason=reason,
         )
 
-        now = datetime.datetime.now(datetime.UTC)
         logger.info(
             "Rejected candidate",
             tenant_id=str(tenant_id),
@@ -285,12 +319,27 @@ class PipelineService:
             reason=reason,
         )
 
+        changes = extract_model_changes(updated_jc, "update")
+        if changes:
+            changes = sanitize_audit_payload(changes)
+            await self.audit_service.record_audit_log(
+                session=session,
+                tenant_id=tenant_id,
+                action="candidate_rejected",
+                entity_type="job_candidate",
+                entity_id=updated_jc.id,
+                actor_id=user_id,
+                changes=changes,
+            )
+
+        await session.commit()
+
         return RejectCandidateResponse(
             data=RejectCandidateData(
                 job_candidate_id=updated_jc.id,
                 status="rejected",
-                rejection_reason=reason,
-                rejected_at=now,
+                rejection_reason=updated_jc.rejection_reason,
+                rejected_at=datetime.datetime.now(datetime.UTC),
             )
         )
 

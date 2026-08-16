@@ -22,8 +22,21 @@ def mock_session() -> AsyncMock:
     return AsyncMock()
 
 
+@pytest.fixture
+def recruiter_user_id() -> uuid.UUID:
+    return uuid.UUID("22222222-2222-2222-2222-222222222222")
+
+
+@pytest.fixture
+def hm_user_id() -> uuid.UUID:
+    return uuid.UUID("33333333-3333-3333-3333-333333333333")
+
+
 @pytest.mark.asyncio
-async def test_create_candidate_duplicate_email_raises_409(mock_session: AsyncMock) -> None:
+async def test_create_candidate_duplicate_email_raises_409(
+    mock_session: AsyncMock,
+    recruiter_user_id: uuid.UUID,
+) -> None:
     """Verify creating candidate with existing email in tenant raises DuplicateCandidateEmailError."""
     tenant_id = uuid.uuid4()
     existing_candidate = Candidate(id=uuid.uuid4(), tenant_id=tenant_id, email="dup@example.com")
@@ -37,6 +50,7 @@ async def test_create_candidate_duplicate_email_raises_409(mock_session: AsyncMo
         await service.create_candidate(
             session=mock_session,
             tenant_id=tenant_id,
+            user_id=recruiter_user_id,
             current_user_role="recruiter",
             full_name="Duplicate User",
             email="dup@example.com",
@@ -44,7 +58,10 @@ async def test_create_candidate_duplicate_email_raises_409(mock_session: AsyncMo
 
 
 @pytest.mark.asyncio
-async def test_create_candidate_invalid_experience_raises_422(mock_session: AsyncMock) -> None:
+async def test_create_candidate_invalid_experience_raises_422(
+    mock_session: AsyncMock,
+    recruiter_user_id: uuid.UUID,
+) -> None:
     """Verify total experience years > 70 raises InvalidCandidateDataError."""
     tenant_id = uuid.uuid4()
     mock_repo = AsyncMock()
@@ -54,6 +71,7 @@ async def test_create_candidate_invalid_experience_raises_422(mock_session: Asyn
         await service.create_candidate(
             session=mock_session,
             tenant_id=tenant_id,
+            user_id=recruiter_user_id,
             current_user_role="recruiter",
             full_name="Invalid User",
             total_experience_years=85,
@@ -61,7 +79,10 @@ async def test_create_candidate_invalid_experience_raises_422(mock_session: Asyn
 
 
 @pytest.mark.asyncio
-async def test_create_candidate_forbidden_role_raises_403(mock_session: AsyncMock) -> None:
+async def test_create_candidate_forbidden_role_raises_403(
+    mock_session: AsyncMock,
+    hm_user_id: uuid.UUID,
+) -> None:
     """Verify hiring manager role attempting to create candidate raises InsufficientCandidatePermissionsError."""
     tenant_id = uuid.uuid4()
     mock_repo = AsyncMock()
@@ -71,18 +92,22 @@ async def test_create_candidate_forbidden_role_raises_403(mock_session: AsyncMoc
         await service.create_candidate(
             session=mock_session,
             tenant_id=tenant_id,
+            user_id=hm_user_id,
             current_user_role="hiring_manager",
             full_name="HM User",
         )
 
 
 @pytest.mark.asyncio
-async def test_add_candidate_to_job_places_in_initial_stage(mock_session: AsyncMock) -> None:
+async def test_add_candidate_to_job_places_in_initial_stage(
+    mock_session: AsyncMock,
+    recruiter_user_id: uuid.UUID,
+) -> None:
     """Verify candidate added to job is automatically assigned to initial pipeline stage (position 1)."""
     tenant_id = uuid.uuid4()
     job_id = uuid.uuid4()
     candidate_id = uuid.uuid4()
-    user_id = uuid.uuid4()
+    user_id = recruiter_user_id
 
     candidate = Candidate(id=candidate_id, tenant_id=tenant_id, full_name="John Candidate")
     job = Job(id=job_id, tenant_id=tenant_id, title="Backend Engineer", status="open")
@@ -128,7 +153,10 @@ async def test_add_candidate_to_job_places_in_initial_stage(mock_session: AsyncM
 
 
 @pytest.mark.asyncio
-async def test_add_candidate_to_job_conflict_raises_409(mock_session: AsyncMock) -> None:
+async def test_add_candidate_to_job_conflict_raises_409(
+    mock_session: AsyncMock,
+    recruiter_user_id: uuid.UUID,
+) -> None:
     """Verify adding an already associated candidate to a job raises JobCandidateConflictError."""
     tenant_id = uuid.uuid4()
     job_id = uuid.uuid4()
@@ -159,6 +187,6 @@ async def test_add_candidate_to_job_conflict_raises_409(mock_session: AsyncMock)
             job_id=job_id,
             candidate_id=candidate_id,
             tenant_id=tenant_id,
-            added_by_user_id=uuid.uuid4(),
+            added_by_user_id=recruiter_user_id,
             current_user_role="recruiter",
         )

@@ -101,7 +101,6 @@ async def test_update_job_success(mock_session: AsyncMock) -> None:
     )
     assert updated is not None
     assert updated.title == "New Title"
-    mock_session.flush.assert_awaited()
 
 
 @pytest.mark.asyncio

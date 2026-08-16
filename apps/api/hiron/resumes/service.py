@@ -7,6 +7,8 @@ from typing import Any
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from hiron.audit.service import AuditService
+from hiron.audit.utils import extract_model_changes, sanitize_audit_payload
 from hiron.candidates.models import Candidate
 from hiron.candidates.repository import CandidateRepository
 from hiron.candidates.service import CandidateService
@@ -27,7 +29,7 @@ from hiron.resumes.schemas import (
     ResumeStatusResponse,
     UploadResumeResponse,
 )
-from hiron.storage.provider import StorageProvider
+from hiron.storage.provider import LocalStorageProvider, StorageProvider
 
 logger = structlog.get_logger("hiron.resumes.service")
 
@@ -50,12 +52,14 @@ class ResumeService:
         job_repository: JobRepository | None = None,
         candidate_service: CandidateService | None = None,
         storage_provider: StorageProvider | None = None,
+        audit_service: AuditService | None = None,
     ) -> None:
         self.resume_repo = resume_repository or ResumeRepository()
         self.candidate_repo = candidate_repository or CandidateRepository()
         self.job_repo = job_repository or JobRepository()
         self.candidate_service = candidate_service or CandidateService()
-        self.storage_provider = storage_provider
+        self.storage_provider = storage_provider or LocalStorageProvider()
+        self.audit_service = audit_service or AuditService()
 
     def _validate_role_permissions(self, role: str) -> None:
         """Validate that user has recruiter or org_admin permissions."""
@@ -138,6 +142,7 @@ class ResumeService:
         self,
         session: AsyncSession,
         tenant_id: uuid.UUID,
+        user_id: uuid.UUID,
         user_role: str,
         filename: str,
         content_type: str,
@@ -210,6 +215,7 @@ class ResumeService:
                 job_id=job_id,
                 candidate_id=candidate.id,
                 tenant_id=tenant_id,
+                added_by_user_id=user_id,
                 current_user_role=user_role,
             )
 
@@ -249,6 +255,20 @@ class ResumeService:
         )
 
         # 6. Commit transaction before enqueueing background task so worker can read metadata
+        
+        changes = extract_model_changes(resume, "create")
+        if changes:
+            changes = sanitize_audit_payload(changes)
+            await self.audit_service.record_audit_log(
+                session=session,
+                tenant_id=tenant_id,
+                action="resume_uploaded",
+                entity_type="resume",
+                entity_id=resume.id,
+                actor_id=user_id,
+                changes=changes,
+            )
+
         await session.commit()
 
         # 7. Enqueue background QStash task
@@ -280,6 +300,7 @@ class ResumeService:
         self,
         session: AsyncSession,
         tenant_id: uuid.UUID,
+        user_id: uuid.UUID,
         user_role: str,
         files: list[tuple[str, str, bytes]],
         job_id: uuid.UUID | None = None,
@@ -321,6 +342,7 @@ class ResumeService:
                 await self.upload_resume(
                     session=session,
                     tenant_id=tenant_id,
+                    user_id=user_id,
                     user_role=user_role,
                     filename=filename,
                     content_type=content_type,
@@ -378,6 +400,7 @@ class ResumeService:
         self,
         session: AsyncSession,
         tenant_id: uuid.UUID,
+        user_id: uuid.UUID,
         user_role: str,
         resume_id: uuid.UUID,
     ) -> UploadResumeResponse:
@@ -398,12 +421,26 @@ class ResumeService:
             )
 
         # Set status back to pending and clear error
-        await self.resume_repo.update_resume_status(
+        updated = await self.resume_repo.update_resume_status(
             session=session,
             resume=resume,
             status="pending",
             parse_error="",
         )
+        
+        changes = extract_model_changes(updated, "update")
+        if changes:
+            changes = sanitize_audit_payload(changes)
+            await self.audit_service.record_audit_log(
+                session=session,
+                tenant_id=tenant_id,
+                action="resume_parse_retried",
+                entity_type="resume",
+                entity_id=updated.id,
+                actor_id=user_id,
+                changes=changes,
+            )
+
         await session.commit()
 
         # Enqueue background QStash task

@@ -16,8 +16,13 @@ def mock_settings(monkeypatch):
     get_settings.cache_clear()
 
 
+@pytest.fixture
+def admin_user_id() -> uuid.UUID:
+    return uuid.UUID("11111111-1111-1111-1111-111111111111")
+
+
 @pytest.mark.asyncio
-async def test_job_service_create_job_uses_qstash():
+async def test_job_service_create_job_uses_qstash(admin_user_id: uuid.UUID):
     get_settings.cache_clear()
     
     tenant_id = uuid.uuid4()
@@ -31,7 +36,7 @@ async def test_job_service_create_job_uses_qstash():
         await service.create_job(
             session=AsyncMock(),
             tenant_id=tenant_id,
-            created_by=uuid.uuid4(),
+            created_by=admin_user_id,
             current_user_role="org_admin",
             title="Software Engineer",
             description="Great job"
@@ -44,28 +49,30 @@ async def test_job_service_create_job_uses_qstash():
 
 
 @pytest.mark.asyncio
-async def test_job_service_update_job_uses_qstash():
+async def test_job_service_update_job_uses_qstash(admin_user_id: uuid.UUID):
     get_settings.cache_clear()
     
     tenant_id = uuid.uuid4()
     job_id = uuid.uuid4()
     
     service = JobService(job_repo=MagicMock())
-    service.job_repo.get_job_by_id = AsyncMock(return_value=Job(
+    existing_job = Job(
         id=job_id,
         tenant_id=tenant_id,
         title="Old",
         description="Old",
         experience_years_min=0,
         experience_years_max=5
-    ))
-    service.job_repo.update_job = AsyncMock(return_value=True)
+    )
+    service.job_repo.get_job_by_id = AsyncMock(return_value=existing_job)
+    service.job_repo.update_job = AsyncMock(return_value=existing_job)
     
     with patch("hiron.core.qstash_client.qstash_publisher.publish", new_callable=AsyncMock) as mock_publish:
         await service.update_job(
             session=AsyncMock(),
             job_id=job_id,
             tenant_id=tenant_id,
+            user_id=admin_user_id,
             current_user_role="org_admin",
             description="New description"
         )
@@ -77,28 +84,30 @@ async def test_job_service_update_job_uses_qstash():
 
 
 @pytest.mark.asyncio
-async def test_job_service_update_job_no_source_change_skips_qstash():
+async def test_job_service_update_job_no_source_change_skips_qstash(admin_user_id: uuid.UUID):
     get_settings.cache_clear()
     
     tenant_id = uuid.uuid4()
     job_id = uuid.uuid4()
     
     service = JobService(job_repo=MagicMock())
-    service.job_repo.get_job_by_id = AsyncMock(return_value=Job(
+    existing_job = Job(
         id=job_id,
         tenant_id=tenant_id,
         title="Old",
         description="Old",
         experience_years_min=0,
         experience_years_max=5
-    ))
-    service.job_repo.update_job = AsyncMock(return_value=True)
+    )
+    service.job_repo.get_job_by_id = AsyncMock(return_value=existing_job)
+    service.job_repo.update_job = AsyncMock(return_value=existing_job)
     
     with patch("hiron.core.qstash_client.qstash_publisher.publish", new_callable=AsyncMock) as mock_publish:
         await service.update_job(
             session=AsyncMock(),
             job_id=job_id,
             tenant_id=tenant_id,
+            user_id=admin_user_id,
             current_user_role="org_admin",
             location="New Location",
             employment_type="part_time"
@@ -107,7 +116,7 @@ async def test_job_service_update_job_no_source_change_skips_qstash():
 
 
 @pytest.mark.asyncio
-async def test_job_service_create_job_qstash_failure_swallowed():
+async def test_job_service_create_job_qstash_failure_swallowed(admin_user_id: uuid.UUID):
     get_settings.cache_clear()
     
     tenant_id = uuid.uuid4()
@@ -123,7 +132,7 @@ async def test_job_service_create_job_qstash_failure_swallowed():
         job = await service.create_job(
             session=AsyncMock(),
             tenant_id=tenant_id,
-            created_by=uuid.uuid4(),
+            created_by=admin_user_id,
             current_user_role="org_admin",
             title="Software Engineer",
             description="Great job"
@@ -133,22 +142,23 @@ async def test_job_service_create_job_qstash_failure_swallowed():
 
 
 @pytest.mark.asyncio
-async def test_job_service_update_job_qstash_failure_swallowed():
+async def test_job_service_update_job_qstash_failure_swallowed(admin_user_id: uuid.UUID):
     get_settings.cache_clear()
     
     tenant_id = uuid.uuid4()
     job_id = uuid.uuid4()
     
     service = JobService(job_repo=MagicMock())
-    service.job_repo.get_job_by_id = AsyncMock(return_value=Job(
+    existing_job = Job(
         id=job_id,
         tenant_id=tenant_id,
         title="Old",
         description="Old",
         experience_years_min=0,
         experience_years_max=5
-    ))
-    service.job_repo.update_job = AsyncMock(return_value=True)
+    )
+    service.job_repo.get_job_by_id = AsyncMock(return_value=existing_job)
+    service.job_repo.update_job = AsyncMock(return_value=existing_job)
     
     with patch("hiron.core.qstash_client.qstash_publisher.publish", new_callable=AsyncMock) as mock_publish:
         mock_publish.side_effect = Exception("QStash network error")
@@ -157,8 +167,9 @@ async def test_job_service_update_job_qstash_failure_swallowed():
             session=AsyncMock(),
             job_id=job_id,
             tenant_id=tenant_id,
+            user_id=admin_user_id,
             current_user_role="org_admin",
             title="New Title"
         )
-        assert updated is True
+        assert updated == existing_job
         mock_publish.assert_called_once()

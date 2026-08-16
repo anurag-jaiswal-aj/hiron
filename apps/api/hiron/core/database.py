@@ -25,7 +25,8 @@ _engine_kwargs = {
     "pool_size": settings.db_pool_size,
     "max_overflow": settings.db_max_overflow,
     "pool_timeout": settings.db_pool_timeout,
-    "pool_pre_ping": True,
+    "pool_pre_ping": False,  # Disabled for cross-region performance
+    "pool_recycle": 300,  # Recycle connections after 5 minutes
 }
 engine: AsyncEngine = create_async_engine(
     settings.database_url,
@@ -50,7 +51,6 @@ def set_tenant_context_on_checkout(dbapi_connection, connection_record, connecti
         if tenant_id:
             cursor.execute(f"SET app.current_tenant_id = '{tenant_id}'")
         else:
-            # Clear tenant context to prevent data leakage from previous pooled connections
             cursor.execute("RESET app.current_tenant_id")
     except Exception as exc:
         logger.error("Failed to set RLS context on checkout", error=str(exc))

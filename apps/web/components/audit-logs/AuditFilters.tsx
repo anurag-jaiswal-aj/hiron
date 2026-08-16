@@ -11,6 +11,8 @@ interface AuditFiltersProps {
   onFiltersChange: (filters: AuditListParams) => void;
 }
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 const ACTION_OPTIONS = [
   { value: "", label: "All Actions" },
   { value: "created", label: "Created" },
@@ -42,11 +44,30 @@ const ENTITY_TYPE_OPTIONS = [
 export function AuditFilters({ initialFilters, onFiltersChange }: AuditFiltersProps): React.ReactElement {
   const [filters, setFilters] = useState<AuditListParams>({ ...initialFilters, cursor: undefined });
   const [debouncedFilters, setDebouncedFilters] = useState<AuditListParams>(filters);
+  const [errors, setErrors] = useState<{ entityId?: string; actorId?: string }>({});
 
   // Debounce typed text fields (actorId, entityId)
   useEffect(() => {
     const handler = setTimeout(() => {
-      setDebouncedFilters(filters);
+      const newErrors: { entityId?: string; actorId?: string } = {};
+      const sanitized: AuditListParams = { ...filters };
+
+      if (filters.entityId) {
+        if (!UUID_REGEX.test(filters.entityId)) {
+          newErrors.entityId = "Invalid UUID format";
+          sanitized.entityId = undefined;
+        }
+      }
+
+      if (filters.actorId) {
+        if (!UUID_REGEX.test(filters.actorId)) {
+          newErrors.actorId = "Invalid UUID format";
+          sanitized.actorId = undefined;
+        }
+      }
+
+      setErrors(newErrors);
+      setDebouncedFilters(sanitized);
     }, 400);
     return () => clearTimeout(handler);
   }, [filters]);
@@ -103,6 +124,7 @@ export function AuditFilters({ initialFilters, onFiltersChange }: AuditFiltersPr
         placeholder="UUID..."
         value={filters.entityId || ""}
         onChange={(e) => handleChange("entityId", e.target.value)}
+        error={errors.entityId}
       />
 
       <Input
@@ -111,6 +133,7 @@ export function AuditFilters({ initialFilters, onFiltersChange }: AuditFiltersPr
         placeholder="UUID..."
         value={filters.actorId || ""}
         onChange={(e) => handleChange("actorId", e.target.value)}
+        error={errors.actorId}
       />
 
       <Input

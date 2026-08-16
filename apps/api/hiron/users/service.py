@@ -13,6 +13,8 @@ from hiron.core.security import hash_password
 from hiron.tokens.repository import RefreshTokenRepository
 from hiron.users.models import User
 from hiron.users.repository import UserRepository
+from hiron.audit.service import AuditService
+from hiron.audit.utils import extract_model_changes, sanitize_audit_payload
 
 logger = structlog.get_logger("hiron.api.users.service")
 
@@ -83,10 +85,12 @@ class UserService:
         self,
         user_repo: UserRepository | None = None,
         token_repo: RefreshTokenRepository | None = None,
+        audit_service: AuditService | None = None,
     ) -> None:
         """Initialize UserService with injected repositories."""
         self.user_repo = user_repo or UserRepository()
         self.token_repo = token_repo or RefreshTokenRepository()
+        self.audit_service = audit_service or AuditService()
 
     async def list_users(
         self,
@@ -130,6 +134,7 @@ class UserService:
         full_name: str,
         role: str,
         password: str | None = None,
+        user_id: uuid.UUID | None = None,
     ) -> User:
         """Create/invite a new user in the tenant per API Contract §USER-3."""
         if role not in ALLOWED_USER_ROLES:
@@ -153,6 +158,20 @@ class UserService:
             is_email_verified=False,
         )
         created = await self.user_repo.create(session, user)
+        
+        changes = extract_model_changes(created, "create")
+        if changes:
+            changes = sanitize_audit_payload(changes)
+        await self.audit_service.record_audit_log(
+            session=session,
+            tenant_id=tenant_id,
+            action="user_created",
+            entity_type="user",
+            entity_id=created.id,
+            actor_id=user_id,
+            changes=changes,
+        )
+        
         await session.commit()
         await session.refresh(created)
         logger.info(
@@ -263,6 +282,19 @@ class UserService:
         if not updated:
             raise UserNotFoundError()
 
+        changes = extract_model_changes(updated, "update")
+        if changes:
+            changes = sanitize_audit_payload(changes)
+            await self.audit_service.record_audit_log(
+                session=session,
+                tenant_id=tenant_id,
+                action="user_updated",
+                entity_type="user",
+                entity_id=updated.id,
+                actor_id=current_user_id,
+                changes=changes,
+            )
+
         await session.commit()
         await session.refresh(updated)
 
@@ -327,6 +359,20 @@ class UserService:
             await self._check_last_admin_protection(session, tenant_id, "deletion")
 
         await self.token_repo.revoke_all_for_user(session, user_id)
+        
+        changes = extract_model_changes(target_user, "delete")
+        if changes:
+            changes = sanitize_audit_payload(changes)
+        await self.audit_service.record_audit_log(
+            session=session,
+            tenant_id=tenant_id,
+            action="user_deleted",
+            entity_type="user",
+            entity_id=user_id,
+            actor_id=current_user_id,
+            changes=changes,
+        )
+        
         await self.user_repo.delete(session, user_id, tenant_id)
         await session.commit()
         logger.info(

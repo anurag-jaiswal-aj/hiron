@@ -34,8 +34,8 @@ from hiron.users.models import User
 async def test_full_recruitment_workflow_e2e_journey() -> None:
     """Execute end-to-end hiring journey: Job Creation -> Candidate Creation -> AI Scoring -> Stage Move -> Notes/Tags -> Audit & Dashboard updates."""
     session = AsyncMock()
-    tenant_id = uuid.uuid4()
-    user_id = uuid.uuid4()
+    tenant_id = uuid.UUID("550e8400-e29b-41d4-a716-446655440000")
+    user_id = uuid.UUID("11111111-1111-1111-1111-111111111111")
 
     # 1. Job Creation
     job_service = JobService()
@@ -78,6 +78,7 @@ async def test_full_recruitment_workflow_e2e_journey() -> None:
     candidate = await candidate_service.create_candidate(
         session=session,
         tenant_id=tenant_id,
+        user_id=user_id,
         current_user_role="org_admin",
         full_name="Alice Engineer",
         email="alice@example.com",
@@ -99,7 +100,27 @@ async def test_full_recruitment_workflow_e2e_journey() -> None:
     score_service.candidate_repo.get_job_candidate.return_value = AsyncMock(id=job_candidate_id)
     score_service.embedding_repo.get_candidate_embedding.return_value = None
     score_service.embedding_repo.get_job_embedding.return_value = None
-    score_service.engine = AIScoringEngine()
+    score_service.engine = AsyncMock()
+    score_service.engine.evaluate.return_value = {
+        "fit_score": 92,
+        "confidence": 0.90,
+        "explanation": "Exceptional technical alignment.",
+        "skills_matched": ["Python"],
+        "skills_missing": [],
+        "breakdown": {
+            "skills": {"score": 95, "details": "Matched skills"},
+            "experience": {"score": 90, "details": "5 years"},
+            "education": {"score": 88, "details": "BS CS"},
+        },
+        "prompt_name": "candidate_fit_scoring",
+        "prompt_version": "2.0.0",
+        "model_version": "gpt-4o-2024-08-06",
+        "input_tokens": 1000,
+        "output_tokens": 500,
+        "total_tokens": 1500,
+        "latency_ms": 1200,
+        "warnings": []
+    }
 
     score_service.score_repo.create_score.return_value = Score(
         id=uuid.uuid4(),
@@ -291,6 +312,7 @@ async def test_full_recruitment_workflow_e2e_journey() -> None:
     dashboard_service.dashboard_repo.get_scored_candidates_count.return_value = 1
     dashboard_service.dashboard_repo.get_shortlisted_candidates_count.return_value = 1
     dashboard_service.dashboard_repo.get_hired_candidates_count.return_value = 0
+    dashboard_service.dashboard_repo.get_dashboard_metrics_consolidated.return_value = (1, 1, 1, 1, 0)
     dashboard_service.dashboard_repo.get_top_jobs_pipeline_overviews.return_value = []
     dashboard_service.dashboard_repo.get_score_distribution_stats.return_value = (1, 0, 0, 1, 92.0)
     dashboard_service.dashboard_repo.get_recent_activity_feed.return_value = []

@@ -27,10 +27,17 @@ def mock_tenant_repo() -> AsyncMock:
     return AsyncMock(spec=TenantRepository)
 
 
+@pytest.fixture
+def admin_user_id() -> uuid.UUID:
+    """Fixture providing a deterministic org_admin user ID for tenant administrative operations."""
+    return uuid.UUID("11111111-1111-1111-1111-111111111111")
+
+
 @pytest.mark.asyncio
 async def test_create_tenant_normalizes_slug_before_checking_uniqueness(
     mock_session: AsyncMock,
     mock_tenant_repo: AsyncMock,
+    admin_user_id: uuid.UUID,
 ) -> None:
     """Verify create_tenant normalizes (lowercases/strips) slug before checking uniqueness."""
     mock_tenant_repo.get_by_slug.return_value = None
@@ -39,7 +46,7 @@ async def test_create_tenant_normalizes_slug_before_checking_uniqueness(
 
     service = TenantService(tenant_repo=mock_tenant_repo)
     result = await service.create_tenant(
-        mock_session, name="Acme Corp", slug="  ACME-CORP  ", plan="starter"
+        mock_session, user_id=admin_user_id, name="Acme Corp", slug="  ACME-CORP  ", plan="starter"
     )
 
     assert result == created_tenant
@@ -51,6 +58,7 @@ async def test_create_tenant_normalizes_slug_before_checking_uniqueness(
 async def test_create_tenant_duplicate_slug_raises_error(
     mock_session: AsyncMock,
     mock_tenant_repo: AsyncMock,
+    admin_user_id: uuid.UUID,
 ) -> None:
     """Verify create_tenant raises TenantSlugAlreadyExistsError when normalized slug exists."""
     existing_tenant = Tenant(
@@ -60,7 +68,7 @@ async def test_create_tenant_duplicate_slug_raises_error(
 
     service = TenantService(tenant_repo=mock_tenant_repo)
     with pytest.raises(TenantSlugAlreadyExistsError, match="duplicate-slug"):
-        await service.create_tenant(mock_session, name="New", slug="DUPLICATE-SLUG", plan="starter")
+        await service.create_tenant(mock_session, user_id=admin_user_id, name="New", slug="DUPLICATE-SLUG", plan="starter")
 
     mock_tenant_repo.create.assert_not_called()
 
@@ -69,11 +77,12 @@ async def test_create_tenant_duplicate_slug_raises_error(
 async def test_create_tenant_invalid_plan_raises_error(
     mock_session: AsyncMock,
     mock_tenant_repo: AsyncMock,
+    admin_user_id: uuid.UUID,
 ) -> None:
     """Verify create_tenant raises InvalidTenantPlanError when plan is invalid."""
     service = TenantService(tenant_repo=mock_tenant_repo)
     with pytest.raises(InvalidTenantPlanError, match="invalid_plan"):
-        await service.create_tenant(mock_session, name="New", slug="new-slug", plan="invalid_plan")
+        await service.create_tenant(mock_session, user_id=admin_user_id, name="New", slug="new-slug", plan="invalid_plan")
 
     mock_tenant_repo.get_by_slug.assert_not_called()
     mock_tenant_repo.create.assert_not_called()
@@ -127,6 +136,7 @@ async def test_get_tenant_by_slug_normalizes_slug(
 async def test_update_tenant_slug_duplicate_raises_error(
     mock_session: AsyncMock,
     mock_tenant_repo: AsyncMock,
+    admin_user_id: uuid.UUID,
 ) -> None:
     """Verify update_tenant raises TenantSlugAlreadyExistsError if updated slug belongs to another tenant."""
     tenant_id = uuid.uuid4()
@@ -139,11 +149,15 @@ async def test_update_tenant_slug_duplicate_raises_error(
 
     service = TenantService(tenant_repo=mock_tenant_repo)
     with pytest.raises(TenantSlugAlreadyExistsError, match="taken-slug"):
-        await service.update_tenant(mock_session, tenant_id=tenant_id, slug="TAKEN-SLUG")
+        await service.update_tenant(mock_session, user_id=admin_user_id, tenant_id=tenant_id, slug="TAKEN-SLUG")
 
 
 @pytest.mark.asyncio
-async def test_update_tenant_success(mock_session: AsyncMock, mock_tenant_repo: AsyncMock) -> None:
+async def test_update_tenant_success(
+    mock_session: AsyncMock,
+    mock_tenant_repo: AsyncMock,
+    admin_user_id: uuid.UUID,
+) -> None:
     """Verify update_tenant validates existence and delegates updates to repository."""
     tenant_id = uuid.uuid4()
     existing = Tenant(id=tenant_id, name="Old Name", slug="acme", plan="starter")
@@ -155,6 +169,7 @@ async def test_update_tenant_success(mock_session: AsyncMock, mock_tenant_repo: 
     service = TenantService(tenant_repo=mock_tenant_repo)
     result = await service.update_tenant(
         mock_session,
+        user_id=admin_user_id,
         tenant_id=tenant_id,
         name="New Name",
         slug="new-acme",
@@ -172,7 +187,11 @@ async def test_update_tenant_success(mock_session: AsyncMock, mock_tenant_repo: 
 
 
 @pytest.mark.asyncio
-async def test_delete_tenant_success(mock_session: AsyncMock, mock_tenant_repo: AsyncMock) -> None:
+async def test_delete_tenant_success(
+    mock_session: AsyncMock,
+    mock_tenant_repo: AsyncMock,
+    admin_user_id: uuid.UUID,
+) -> None:
     """Verify delete_tenant verifies existence and deletes tenant."""
     tenant_id = uuid.uuid4()
     existing = Tenant(id=tenant_id, name="Acme", slug="acme", plan="starter")
@@ -180,6 +199,6 @@ async def test_delete_tenant_success(mock_session: AsyncMock, mock_tenant_repo: 
     mock_tenant_repo.delete.return_value = True
 
     service = TenantService(tenant_repo=mock_tenant_repo)
-    await service.delete_tenant(mock_session, tenant_id)
+    await service.delete_tenant(mock_session, user_id=admin_user_id, tenant_id=tenant_id)
 
     mock_tenant_repo.delete.assert_awaited_once_with(mock_session, tenant_id)

@@ -29,9 +29,19 @@ export async function loginAs(
 ): Promise<string | null> {
   const effectiveTenantId = tenantId || (await getTenantId());
 
-
-
+  await page.context().clearCookies();
   await page.goto("/login");
+  try {
+    await page.evaluate(() => {
+      localStorage.clear();
+      sessionStorage.clear();
+    });
+  } catch {
+    // Ignore if not on an active page
+  }
+  await page.goto("/login");
+  page.on("console", msg => console.log("PAGE LOG:", msg.text()));
+  page.on("pageerror", err => console.log("PAGE ERROR:", err.message));
   await page.waitForLoadState("domcontentloaded");
 
   // Wait for the login form to actually render (AuthContext loading resolved)

@@ -18,6 +18,8 @@ from hiron.candidates.models import Candidate, JobCandidate
 from hiron.candidates.repository import CandidateRepository
 from hiron.jobs.exceptions import JobNotFoundError
 from hiron.jobs.repository import JobRepository
+from hiron.audit.service import AuditService
+from hiron.audit.utils import extract_model_changes, sanitize_audit_payload
 
 logger = structlog.get_logger(__name__)
 
@@ -33,9 +35,11 @@ class CandidateService:
         self,
         candidate_repo: CandidateRepository | None = None,
         job_repo: JobRepository | None = None,
+        audit_service: AuditService | None = None,
     ) -> None:
         self.candidate_repo = candidate_repo or CandidateRepository()
         self.job_repo = job_repo or JobRepository()
+        self.audit_service = audit_service or AuditService()
 
     def _validate_role_permission(self, current_user_role: str, action: str) -> None:
         """Verify requesting user has appropriate management role."""
@@ -124,6 +128,7 @@ class CandidateService:
         self,
         session: AsyncSession,
         tenant_id: uuid.UUID,
+        user_id: uuid.UUID,
         current_user_role: str,
         full_name: str,
         email: str | None = None,
@@ -178,6 +183,20 @@ class CandidateService:
             tenant_id=str(tenant_id),
             action="candidate_created",
         )
+        
+        changes = extract_model_changes(created_candidate, "create")
+        if changes:
+            changes = sanitize_audit_payload(changes)
+            await self.audit_service.record_audit_log(
+                session=session,
+                tenant_id=tenant_id,
+                action="candidate_created",
+                entity_type="candidate",
+                entity_id=created_candidate.id,
+                actor_id=user_id,
+                changes=changes,
+            )
+            
         await session.commit()
         return created_candidate
 
@@ -294,6 +313,7 @@ class CandidateService:
         session: AsyncSession,
         candidate_id: uuid.UUID,
         tenant_id: uuid.UUID,
+        user_id: uuid.UUID,
         current_user_role: str,
         full_name: str | None = None,
         email: str | None = None,
@@ -353,6 +373,20 @@ class CandidateService:
             tenant_id=str(tenant_id),
             action="candidate_updated",
         )
+        
+        changes = extract_model_changes(updated_candidate, "update")
+        if changes:
+            changes = sanitize_audit_payload(changes)
+            await self.audit_service.record_audit_log(
+                session=session,
+                tenant_id=tenant_id,
+                action="candidate_updated",
+                entity_type="candidate",
+                entity_id=updated_candidate.id,
+                actor_id=user_id,
+                changes=changes,
+            )
+            
         await session.commit()
         return updated_candidate
 
@@ -361,6 +395,7 @@ class CandidateService:
         session: AsyncSession,
         candidate_id: uuid.UUID,
         tenant_id: uuid.UUID,
+        user_id: uuid.UUID,
         current_user_role: str,
     ) -> Candidate:
         """Soft delete candidate per API Contract §CAND-5."""
@@ -377,6 +412,20 @@ class CandidateService:
             tenant_id=str(tenant_id),
             action="candidate_archived",
         )
+        
+        changes = extract_model_changes(archived, "update")
+        if changes:
+            changes = sanitize_audit_payload(changes)
+            await self.audit_service.record_audit_log(
+                session=session,
+                tenant_id=tenant_id,
+                action="candidate_archived",
+                entity_type="candidate",
+                entity_id=archived.id,
+                actor_id=user_id,
+                changes=changes,
+            )
+            
         await session.commit()
         return archived
 
@@ -432,5 +481,19 @@ class CandidateService:
             tenant_id=str(tenant_id),
             action="candidate_added_to_job",
         )
+        
+        changes = extract_model_changes(result, "create")
+        if changes:
+            changes = sanitize_audit_payload(changes)
+            await self.audit_service.record_audit_log(
+                session=session,
+                tenant_id=tenant_id,
+                action="candidate_added_to_job",
+                entity_type="job_candidate",
+                entity_id=result.id,
+                actor_id=added_by_user_id,
+                changes=changes,
+            )
+            
         await session.commit()
         return result
