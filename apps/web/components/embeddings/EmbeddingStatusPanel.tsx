@@ -47,7 +47,6 @@ export function EmbeddingStatusPanel(): React.ReactElement {
 
   const renderMetric = (label: string, coverage: number, total: number, stale: number, missing: number): React.ReactElement => {
     const percentage = total > 0 ? Math.round((coverage / total) * 100) : 0;
-    const isComplete = coverage === total && total > 0;
     
     return (
       <div style={{ display: "flex", flexDirection: "column", padding: "1.25rem", backgroundColor: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)" }}>
