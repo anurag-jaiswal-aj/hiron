@@ -131,3 +131,7 @@ celerybeat.pid
 .env*.local
 .env.vercel
 .phase13_prod_data.json
+
+# Local synthetic test-data artifacts
+*_data.json
+.phase*_prod_data.json
