@@ -103,13 +103,20 @@ class EmbeddingGenerator:
                         f"Expected {EMBEDDING_DIMENSION} dimensions, got {len(vector)}"
                     )
 
+                # B. Use provider's official tokenizer API to get accurate token counts
+                count_resp = await client.aio.models.count_tokens(
+                    model=self.model_version,
+                    contents=text if text else "",
+                )
+                input_tokens = count_resp.total_tokens
+
                 latency_ms = int((time.time() - start_time) * 1000)
 
                 return EmbeddingGenerationResult(
                     embedding=vector,
                     source_text_hash=source_hash,
-                    input_tokens=0,
-                    total_tokens=0,
+                    input_tokens=input_tokens,
+                    total_tokens=input_tokens,
                     latency_ms=latency_ms,
                     is_fallback=False,
                     status="success",

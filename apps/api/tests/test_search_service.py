@@ -92,3 +92,158 @@ async def test_search_candidates_success() -> None:
     assert response.data[0].candidate.full_name == "Jane Smith"
     assert response.data[0].relevance_score == 0.92
     assert response.pagination.total_count == 1
+
+@pytest.mark.asyncio
+async def test_search_candidates_fallback() -> None:
+    """Verify semantic_search fallback does not log a cache hit."""
+    search_repo = AsyncMock()
+    cand_repo = AsyncMock()
+    job_repo = AsyncMock()
+    emb_repo = AsyncMock()
+    generator = MagicMock()
+
+    service = SearchService(
+        search_repository=search_repo,
+        candidate_repository=cand_repo,
+        job_repository=job_repo,
+        embedding_repository=emb_repo,
+        embedding_generator=generator,
+    )
+    # Inject AI Usage repo mock
+    mock_ai_repo = AsyncMock()
+    service.ai_usage_repo = mock_ai_repo
+
+    session = AsyncMock()
+    tenant_id = uuid.uuid4()
+    candidate_id = uuid.uuid4()
+
+    generator.generate_embedding = AsyncMock(return_value=EmbeddingGenerationResult(
+        embedding=[0.1] * EMBEDDING_DIMENSION,
+        source_text_hash="hash123",
+        input_tokens=0,
+        total_tokens=0,
+        latency_ms=10,
+        is_fallback=True,
+        status="error",
+        error_type="NetworkError",
+    ))
+    cand = Candidate(
+        id=candidate_id, tenant_id=tenant_id, full_name="Jane Smith"
+    )
+    search_repo.search_candidates_by_vector_and_filters.return_value = [(cand, 0.92)]
+
+    await service.search_candidates(
+        session=session,
+        tenant_id=tenant_id,
+        user_role="recruiter",
+        query="Senior Python Developer",
+    )
+
+    mock_ai_repo.create_usage_log.assert_called_once()
+    ai_args = mock_ai_repo.create_usage_log.call_args.kwargs
+    assert ai_args["is_cache_hit"] is False
+    assert ai_args["error_type"] == "NetworkError"
+
+@pytest.mark.asyncio
+async def test_search_candidates_by_job_cache_hit() -> None:
+    """Verify semantic_search_by_job reuses job embedding and logs one cache hit telemetry."""
+    search_repo = AsyncMock()
+    cand_repo = AsyncMock()
+    job_repo = AsyncMock()
+    emb_repo = AsyncMock()
+    generator = MagicMock()
+
+    service = SearchService(
+        search_repository=search_repo,
+        candidate_repository=cand_repo,
+        job_repository=job_repo,
+        embedding_repository=emb_repo,
+        embedding_generator=generator,
+    )
+    mock_ai_repo = AsyncMock()
+    service.ai_usage_repo = mock_ai_repo
+
+    session = AsyncMock()
+    tenant_id = uuid.uuid4()
+    job_id = uuid.uuid4()
+
+    from hiron.jobs.models import Job
+    job = Job(id=job_id, tenant_id=tenant_id, title="Dev")
+    job_repo.get_job_by_id.return_value = job
+
+    from hiron.embeddings.models import JobEmbedding
+    emb_repo.get_job_embedding.return_value = JobEmbedding(
+        job_id=job_id, tenant_id=tenant_id, embedding=[0.1] * EMBEDDING_DIMENSION
+    )
+
+    search_repo.search_candidates_by_vector_and_filters.return_value = []
+
+    await service.search_candidates_by_job(
+        session=session,
+        tenant_id=tenant_id,
+        user_role="recruiter",
+        job_id=job_id,
+    )
+
+    generator.generate_embedding.assert_not_called()
+    mock_ai_repo.create_usage_log.assert_called_once()
+    ai_args = mock_ai_repo.create_usage_log.call_args.kwargs
+    assert ai_args["is_cache_hit"] is True
+    assert ai_args["cost_usd"] == 0.0
+    assert ai_args["input_tokens"] == 0
+
+@pytest.mark.asyncio
+async def test_search_candidates_by_job_cache_miss() -> None:
+    """Verify semantic_search_by_job generates embedding on cache miss and logs accurate usage."""
+    search_repo = AsyncMock()
+    cand_repo = AsyncMock()
+    job_repo = AsyncMock()
+    emb_repo = AsyncMock()
+    generator = MagicMock()
+
+    service = SearchService(
+        search_repository=search_repo,
+        candidate_repository=cand_repo,
+        job_repository=job_repo,
+        embedding_repository=emb_repo,
+        embedding_generator=generator,
+    )
+    mock_ai_repo = AsyncMock()
+    service.ai_usage_repo = mock_ai_repo
+
+    session = AsyncMock()
+    tenant_id = uuid.uuid4()
+    job_id = uuid.uuid4()
+
+    from hiron.jobs.models import Job
+    job = Job(id=job_id, tenant_id=tenant_id, title="Dev")
+    job_repo.get_job_by_id.return_value = job
+
+    # Cache miss
+    emb_repo.get_job_embedding.return_value = None
+
+    generator.generate_embedding = AsyncMock(return_value=EmbeddingGenerationResult(
+        embedding=[0.1] * EMBEDDING_DIMENSION,
+        source_text_hash="hash123",
+        input_tokens=100,
+        total_tokens=100,
+        latency_ms=10,
+        is_fallback=False,
+        status="success",
+        error_type=None,
+    ))
+    search_repo.search_candidates_by_vector_and_filters.return_value = []
+
+    await service.search_candidates_by_job(
+        session=session,
+        tenant_id=tenant_id,
+        user_role="recruiter",
+        job_id=job_id,
+    )
+
+    generator.generate_embedding.assert_called_once()
+    mock_ai_repo.create_usage_log.assert_called_once()
+    ai_args = mock_ai_repo.create_usage_log.call_args.kwargs
+    assert ai_args["is_cache_hit"] is False
+    assert ai_args["cost_usd"] == 100 * 0.00000002
+    assert ai_args["input_tokens"] == 100

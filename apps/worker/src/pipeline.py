@@ -5,6 +5,8 @@ import uuid
 from typing import Any
 
 import structlog
+from apps.worker.src.extractor import extract_text_from_file
+from apps.worker.src.parser import ResumeParser
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hiron.audit.service import AuditService
@@ -17,10 +19,6 @@ from hiron.resumes.exceptions import (
 )
 from hiron.resumes.models import Resume
 from hiron.resumes.repository import ResumeRepository
-
-
-from apps.worker.src.extractor import extract_text_from_file
-from apps.worker.src.parser import ResumeParser
 
 logger = structlog.get_logger("hiron.worker.pipeline")
 
@@ -92,8 +90,8 @@ async def parse_resume_pipeline(
 ) -> Resume:
     """Execute resume parsing pipeline: text extraction -> NER parsing -> DB update -> candidate auto-enrichment."""
     resume_repo = ResumeRepository()
-    from hiron.storage.provider import SupabaseStorageProvider, LocalStorageProvider
     from hiron.core.config import get_settings
+    from hiron.storage.provider import LocalStorageProvider, SupabaseStorageProvider
     settings = get_settings()
 
     if settings.supabase_url and settings.supabase_service_role_key:
@@ -104,7 +102,7 @@ async def parse_resume_pipeline(
         )
     else:
         storage_provider = LocalStorageProvider()
-    
+
     resume = await resume_repo.get_resume_by_id(
         session=session,
         tenant_id=tenant_id,
@@ -203,12 +201,13 @@ async def parse_resume_pipeline(
                         latency_ms=telemetry["latency_ms"],
                         status=telemetry["status"],
                         error_type=telemetry["error_type"],
+                        is_cache_hit=False,
                     )
             except Exception as log_exc:
                 logger.warning("Failed to write AI usage telemetry", error=str(log_exc))
 
         audit_service = AuditService()
-        
+
         changes = extract_model_changes(updated_resume, "update")
         if changes:
             changes = sanitize_audit_payload(changes)
@@ -227,7 +226,7 @@ async def parse_resume_pipeline(
         # Trigger candidate embedding generation
         try:
             from hiron.core.qstash_client import qstash_publisher
-            
+
             worker_base_url = settings.worker_url or settings.qstash_webhook_url
             if worker_base_url:
                 base = worker_base_url.rstrip("/")
@@ -238,7 +237,7 @@ async def parse_resume_pipeline(
                     "model_version": "gemini-embedding-2",
                 }
                 dedup_id = f"embed-cand-{resume.candidate_id}-gemini-embedding-2"
-                
+
                 await qstash_publisher.publish(
                     url=webhook_url,
                     payload=payload,

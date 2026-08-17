@@ -2,14 +2,14 @@ import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from hiron.candidates.models import Candidate
-from hiron.embeddings.generator import EMBEDDING_DIMENSION, EmbeddingGenerationResult
 from apps.worker.src.embeddings import (
     generate_candidate_embedding_worker_pipeline,
     generate_job_embedding_worker_pipeline,
 )
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from hiron.candidates.models import Candidate
+from hiron.embeddings.generator import EMBEDDING_DIMENSION, EmbeddingGenerationResult
 
 
 @pytest.fixture
@@ -93,7 +93,7 @@ async def test_generate_candidate_embedding_worker_pipeline_success(
         model_version="gemini-embedding-2",
         input_tokens=100,
         output_tokens=0,
-        cost_usd=0.0,
+        cost_usd=2e-06,
         latency_ms=250,
         status="success",
         error_type=None,
@@ -340,7 +340,7 @@ async def test_generate_job_embedding_worker_pipeline_success(
         model_version="gemini-embedding-2",
         input_tokens=50,
         output_tokens=0,
-        cost_usd=0.0,
+        cost_usd=1e-06,
         latency_ms=150,
         status="success",
         error_type=None,
@@ -348,3 +348,31 @@ async def test_generate_job_embedding_worker_pipeline_success(
     )
 
     mock_session.commit.assert_called_once()
+
+@pytest.mark.asyncio
+@patch("hiron.embeddings.generator.get_settings")
+@patch("google.genai.Client")
+async def test_embedding_token_accounting_failure(mock_genai_client, mock_get_settings):
+    """Test that a failure in count_tokens does not produce a fake $0 successful usage record."""
+    mock_settings = MagicMock()
+    mock_settings.is_production = True
+    mock_get_settings.return_value = mock_settings
+
+    mock_client_instance = MagicMock()
+    mock_genai_client.return_value = mock_client_instance
+    mock_client_instance.aio.models.embed_content = AsyncMock(return_value=MagicMock(
+        embeddings=[MagicMock(values=[0.1] * EMBEDDING_DIMENSION)]
+    ))
+
+    # Simulate token counting failure
+    class TokenCountingError(Exception):
+        pass
+    mock_client_instance.aio.models.count_tokens = AsyncMock(side_effect=TokenCountingError("Network error"))
+
+    from hiron.embeddings.generator import EmbeddingGenerator
+    generator = EmbeddingGenerator()
+    generator.gemini_api_key = "dummy"
+
+    # In production, the exception bubbles up, failing the entire operation.
+    with pytest.raises(TokenCountingError):
+        await generator.generate_embedding("Test text")

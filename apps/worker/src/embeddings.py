@@ -19,7 +19,7 @@ async def generate_candidate_embedding_worker_pipeline(
 ) -> None:
     """Execute candidate embedding generation and log telemetry."""
     service = EmbeddingService()
-    
+
     result = await service.generate_candidate_embedding_pipeline(
         session=session,
         tenant_id=tenant_id,
@@ -37,7 +37,7 @@ async def generate_candidate_embedding_worker_pipeline(
                 model_version=result.model_version,
                 input_tokens=result.input_tokens,
                 output_tokens=max(0, result.total_tokens - result.input_tokens),
-                cost_usd=0.0,
+                cost_usd=0.0 if result.cache_hit else 0.00000002 * result.total_tokens,
                 latency_ms=result.latency_ms,
                 status=result.status,
                 error_type=result.error_type,
@@ -60,7 +60,7 @@ async def generate_job_embedding_worker_pipeline(
 ) -> None:
     """Execute job embedding generation and log telemetry."""
     service = EmbeddingService()
-    
+
     result = await service.generate_job_embedding_pipeline(
         session=session,
         tenant_id=tenant_id,
@@ -78,7 +78,7 @@ async def generate_job_embedding_worker_pipeline(
                 model_version=result.model_version,
                 input_tokens=result.input_tokens,
                 output_tokens=max(0, result.total_tokens - result.input_tokens),
-                cost_usd=0.0,
+                cost_usd=0.0 if result.cache_hit else 0.00000002 * result.total_tokens,
                 latency_ms=result.latency_ms,
                 status=result.status,
                 error_type=result.error_type,

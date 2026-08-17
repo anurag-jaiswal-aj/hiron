@@ -12,6 +12,7 @@ from hiron.scores.exceptions import InsufficientScorePermissionsError
 from hiron.scores.models import Score
 from hiron.scores.service import ScoreService
 
+
 @pytest.fixture(autouse=True)
 def force_qstash_engine(monkeypatch):
     monkeypatch.setenv("QSTASH_WEBHOOK_URL", "http://localhost:8000")
@@ -173,7 +174,20 @@ async def test_score_candidate_sync_idempotent_cached_response() -> None:
 
     assert response.data.fit_score == 90
     score_repo.create_score.assert_not_called()
-    ai_usage_service.record_ai_usage.assert_not_called()
+    ai_usage_service.record_ai_usage.assert_called_once_with(
+        session=session,
+        tenant_id=tenant_id,
+        operation="generate_candidate_score",
+        model_version="gpt-4o-2024-08-06",
+        prompt_name="candidate_fit_scoring",
+        prompt_version="2.0.0",
+        input_tokens=0,
+        output_tokens=0,
+        latency_ms=0,
+        cost_usd=0.0,
+        status="success",
+        is_cache_hit=True,
+    )
 
 
 @pytest.mark.asyncio

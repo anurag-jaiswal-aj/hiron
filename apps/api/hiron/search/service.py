@@ -124,7 +124,7 @@ class SearchService:
             latency_ms=embed_result.latency_ms,
             status=embed_result.status,
             error_type=embed_result.error_type,
-            is_cache_hit=embed_result.is_fallback,
+            is_cache_hit=False,
         )
 
         scored_candidates = await self.search_repo.search_candidates_by_vector_and_filters(
@@ -191,26 +191,40 @@ class SearchService:
         )
 
         job_vec = job_emb.embedding if job_emb else None
+
+        is_cache_hit = False
+        input_tokens = 0
+        cost_usd = 0.0
+        latency_ms = 0
+        status = "success"
+        error_type = None
+
         if not job_vec:
             job_text = f"{job.title} {job.department or ''} {job.description or ''}"
             embed_result = await self.generator.generate_embedding(job_text)
             job_vec = embed_result.embedding
-
-            # Log AI usage
+            input_tokens = embed_result.input_tokens
             cost_usd = 0.00000002 * embed_result.total_tokens
-            await self.ai_usage_repo.create_usage_log(
-                session=session,
-                tenant_id=tenant_id,
-                operation="semantic_search_by_job",
-                model_version=self.generator.model_version,
-                input_tokens=embed_result.input_tokens,
-                output_tokens=0,
-                cost_usd=cost_usd,
-                latency_ms=embed_result.latency_ms,
-                status=embed_result.status,
-                error_type=embed_result.error_type,
-                is_cache_hit=embed_result.is_fallback,
-            )
+            latency_ms = embed_result.latency_ms
+            status = embed_result.status
+            error_type = embed_result.error_type
+        else:
+            is_cache_hit = True
+
+        # Log AI usage for both cache hits and misses
+        await self.ai_usage_repo.create_usage_log(
+            session=session,
+            tenant_id=tenant_id,
+            operation="semantic_search_by_job",
+            model_version=self.generator.model_version,
+            input_tokens=input_tokens,
+            output_tokens=0,
+            cost_usd=cost_usd,
+            latency_ms=latency_ms,
+            status=status,
+            error_type=error_type,
+            is_cache_hit=is_cache_hit,
+        )
 
         scored_candidates = await self.search_repo.search_candidates_by_vector_and_filters(
             session=session,
@@ -268,7 +282,7 @@ class SearchService:
             filters=filters,
             is_shared=is_shared,
         )
-        
+
         changes = extract_model_changes(search, "create")
         if changes:
             changes = sanitize_audit_payload(changes)
@@ -281,7 +295,7 @@ class SearchService:
                 actor_id=user_id,
                 changes=changes,
             )
-            
+
         await session.commit()
         return SavedSearchResponse(data=self._build_saved_search_data(search))
 
@@ -334,7 +348,7 @@ class SearchService:
             filters=filters,
             is_shared=is_shared,
         )
-        
+
         changes = extract_model_changes(updated, "update")
         if changes:
             changes = sanitize_audit_payload(changes)
@@ -347,7 +361,7 @@ class SearchService:
                 actor_id=user_id,
                 changes=changes,
             )
-            
+
         await session.commit()
         return SavedSearchResponse(data=self._build_saved_search_data(updated))
 

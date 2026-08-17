@@ -6,10 +6,10 @@ import uuid
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from hiron.candidates.models import JobCandidate
 from hiron.ai_usage.service import AIUsageService
 from hiron.audit.service import AuditService
 from hiron.audit.utils import extract_model_changes, sanitize_audit_payload
+from hiron.candidates.models import JobCandidate
 from hiron.candidates.repository import CandidateRepository
 from hiron.common.exceptions import ResourceNotFoundException
 from hiron.embeddings.generator import DEFAULT_EMBEDDING_MODEL
@@ -139,6 +139,25 @@ class ScoreService:
                     candidate_id=str(candidate_id),
                     job_id=str(job_id),
                 )
+
+                try:
+                    await self.ai_usage_service.record_ai_usage(
+                        session=session,
+                        tenant_id=tenant_id,
+                        operation="generate_candidate_score",
+                        model_version=existing_score.model_version or "gemini-1.5-flash",
+                        prompt_name=existing_score.prompt_name or "score_candidate",
+                        prompt_version=existing_score.prompt_version or "1.0",
+                        input_tokens=0,
+                        output_tokens=0,
+                        latency_ms=0,
+                        cost_usd=0.0,
+                        status="success",
+                        is_cache_hit=True,
+                    )
+                except Exception as log_exc:
+                    logger.warning("Failed to write AI usage telemetry for scoring cache hit", error=str(log_exc))
+
                 return ScoreResponse(data=self._build_score_data(existing_score))
 
         # Retrieve vectors if present

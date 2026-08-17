@@ -1271,11 +1271,11 @@ The highest-risk items are tackled early:
 
 **Acceptance Criteria**:
 
-- [ ] Dashboard shows total cost, tokens, operations for selected period
-- [ ] Daily trend chart renders correctly
-- [ ] Per-operation breakdown shows cost and latency
-- [ ] Cache hit rate calculated correctly
-- [ ] Only org_admin can access
+- [x] Dashboard shows total cost, tokens, operations for selected period (Backend API Validated in Production)
+- [x] Daily trend chart renders correctly (Backend API Validated in Production)
+- [x] Per-operation breakdown shows cost and latency (Backend API Validated in Production)
+- [x] Cache hit rate calculated correctly (Backend API Validated in Production)
+- [x] Only org_admin can access (Backend API Validated in Production)
 
 **Risks**: None significant
 
