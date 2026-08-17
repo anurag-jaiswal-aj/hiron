@@ -70,6 +70,23 @@ class DashboardRepository:
         result = await session.execute(stmt)
         return result.scalar_one() or 0
 
+    async def get_dashboard_metrics_consolidated(self, session: AsyncSession, tenant_id: uuid.UUID) -> tuple[int, int, int, int, int]:
+        """Fetch all 5 dashboard metrics in a single consolidated SQL query to reduce latency."""
+        from sqlalchemy import text
+        stmt = text("""
+            SELECT
+                (SELECT COUNT(*) FROM jobs WHERE tenant_id = :tid AND status = 'open' AND is_archived = false) as open_jobs,
+                (SELECT COUNT(*) FROM candidates WHERE tenant_id = :tid AND is_archived = false) as total_cands,
+                (SELECT COUNT(DISTINCT job_candidate_id) FROM scores WHERE tenant_id = :tid AND is_current = true) as scored,
+                (SELECT COUNT(*) FROM job_candidates WHERE tenant_id = :tid AND is_shortlisted = true AND is_archived = false) as shortlisted,
+                (SELECT COUNT(*) FROM job_candidates jc JOIN pipeline_stages ps ON jc.current_stage_id = ps.id WHERE jc.tenant_id = :tid AND jc.is_archived = false AND lower(ps.name) = 'hired') as hired
+        """)
+        result = await session.execute(stmt, {"tid": str(tenant_id)})
+        row = result.fetchone()
+        if row:
+            return row[0], row[1], row[2], row[3], row[4]
+        return 0, 0, 0, 0, 0
+
     async def get_top_jobs_pipeline_overviews(
         self,
         session: AsyncSession,
@@ -131,7 +148,7 @@ class DashboardRepository:
         tenant_id: uuid.UUID,
     ) -> tuple[int, int, int, int, float | None]:
         """Compute high (>=80), medium (60-79), low (<60) score counts and average fit score."""
-        from sqlalchemy import case, cast, Float
+        from sqlalchemy import case
         scores_stmt = select(
             func.count(case((Score.fit_score >= 80, 1))).label("high"),
             func.count(case((Score.fit_score.between(60, 79), 1))).label("medium"),

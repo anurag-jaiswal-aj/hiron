@@ -129,3 +129,5 @@ celerybeat.pid
 .env.migration
 .env.migration
 .env*.local
+.env.vercel
+.phase13_prod_data.json

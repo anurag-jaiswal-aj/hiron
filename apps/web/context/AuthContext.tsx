@@ -54,6 +54,7 @@ export function AuthProvider({
   children: React.ReactNode;
 }): React.ReactElement {
   const [user, setUser] = useState<User | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
@@ -63,6 +64,7 @@ export function AuthProvider({
       if (isMounted) {
         setUser(null);
         setAccessToken(null);
+        setIsAuthenticated(false);
       }
     });
 
@@ -77,18 +79,33 @@ export function AuthProvider({
         if (refreshResponse && refreshResponse.data && refreshResponse.data.accessToken) {
           setAccessToken(refreshResponse.data.accessToken);
 
-          const meResponse = await httpClient.get<ResponseEnvelope<User>>("/api/v1/auth/me");
-          if (isMounted && meResponse && meResponse.data) {
-            setUser(meResponse.data);
+          if (isMounted) {
+            setIsAuthenticated(true);
+            setIsLoading(false);
+          }
+
+          // Fetch user profile in the background
+          httpClient.get<ResponseEnvelope<User>>("/api/v1/auth/me")
+            .then(meResponse => {
+              if (isMounted && meResponse && meResponse.data) {
+                setUser(meResponse.data);
+              }
+            })
+            .catch(err => {
+              console.error("Failed to fetch user profile in background:", err);
+              // Profile fetch failed, but authentication (refresh) succeeded.
+              // We intentionally do NOT log out here.
+            });
+        } else {
+          if (isMounted) {
+            setIsLoading(false);
           }
         }
       } catch {
         if (isMounted) {
           setAccessToken(null);
           setUser(null);
-        }
-      } finally {
-        if (isMounted) {
+          setIsAuthenticated(false);
           setIsLoading(false);
         }
       }
@@ -112,6 +129,7 @@ export function AuthProvider({
     const loginData = loginResponse.data;
     setAccessToken(loginData.accessToken);
     setUser(loginData.user);
+    setIsAuthenticated(true);
     return loginData.user;
   };
 
@@ -123,6 +141,7 @@ export function AuthProvider({
     } finally {
       setAccessToken(null);
       setUser(null);
+      setIsAuthenticated(false);
     }
   };
 
@@ -136,6 +155,7 @@ export function AuthProvider({
 
       if (refreshResponse && refreshResponse.data && refreshResponse.data.accessToken) {
         setAccessToken(refreshResponse.data.accessToken);
+        setIsAuthenticated(true);
 
         const meResponse = await httpClient.get<ResponseEnvelope<User>>("/api/v1/auth/me");
         setUser(meResponse.data);
@@ -143,6 +163,7 @@ export function AuthProvider({
     } catch (err) {
       setAccessToken(null);
       setUser(null);
+      setIsAuthenticated(false);
       throw err;
     }
   };
@@ -150,7 +171,7 @@ export function AuthProvider({
   const value: AuthContextType = {
     user,
     isLoading,
-    isAuthenticated: Boolean(user),
+    isAuthenticated,
     login,
     logout,
     refreshSession,

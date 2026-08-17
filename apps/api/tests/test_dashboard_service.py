@@ -22,6 +22,7 @@ async def test_get_dashboard_summary_compiles_data() -> None:
     session = AsyncMock()
     tenant_id = uuid.uuid4()
 
+    repo.get_dashboard_metrics_consolidated.return_value = (4, 50, 30, 10, 2)
     repo.get_open_jobs_count.return_value = 4
     repo.get_total_candidates_count.return_value = 50
     repo.get_scored_candidates_count.return_value = 30

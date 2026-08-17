@@ -34,21 +34,14 @@ class DashboardService:
         tenant_id: uuid.UUID,
     ) -> DashboardSummaryResponse:
         """Fetch complete dashboard summary payload."""
-        # 1. Metrics
-        open_jobs = await self.dashboard_repo.get_open_jobs_count(session, tenant_id)
-        total_candidates = await self.dashboard_repo.get_total_candidates_count(session, tenant_id)
-        scored_candidates = await self.dashboard_repo.get_scored_candidates_count(
-            session, tenant_id
-        )
-        shortlisted = await self.dashboard_repo.get_shortlisted_candidates_count(session, tenant_id)
-        hired = await self.dashboard_repo.get_hired_candidates_count(session, tenant_id)
-
+        # 1. Metrics (Consolidated query for Phase 12 latency improvement)
+        op, tot, sc, sh, hi = await self.dashboard_repo.get_dashboard_metrics_consolidated(session, tenant_id)
         metrics = DashboardMetrics(
-            open_jobs_count=open_jobs,
-            total_candidates_count=total_candidates,
-            scored_candidates_count=scored_candidates,
-            shortlisted_candidates_count=shortlisted,
-            hired_candidates_count=hired,
+            open_jobs_count=op,
+            total_candidates_count=tot,
+            scored_candidates_count=sc,
+            shortlisted_candidates_count=sh,
+            hired_candidates_count=hi,
         )
 
         # 2. Pipeline Overviews
@@ -75,7 +68,7 @@ class DashboardService:
                 )
             )
 
-        logger.info("Retrieved dashboard summary", tenant_id=str(tenant_id))
+        logger.info("Retrieved dashboard summary sequentially", tenant_id=str(tenant_id))
 
         return DashboardSummaryResponse(
             data=DashboardSummaryData(

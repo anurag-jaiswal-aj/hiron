@@ -105,6 +105,7 @@ export function CandidateActionModal({
                   style={{ flex: 1 }} 
                   onClick={handleShortlist}
                   disabled={isShortlisting}
+                  data-testid="shortlist-btn"
                 >
                   {isShortlisting ? "Shortlisting..." : "Shortlist"}
                 </Button>
@@ -113,6 +114,7 @@ export function CandidateActionModal({
                 variant="destructive" 
                 style={{ flex: 1 }} 
                 onClick={() => setIsRejecting(true)}
+                data-testid="reject-btn"
               >
                 Reject
               </Button>

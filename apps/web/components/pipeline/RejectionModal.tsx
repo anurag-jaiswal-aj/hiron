@@ -71,11 +71,11 @@ export function RejectionModal({ isOpen, onClose, onConfirm, candidateName }: Re
           />
         </div>
 
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "1rem" }}>
-          <Button variant="secondary" onClick={onClose} disabled={isSubmitting}>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "0.5rem" }}>
+          <Button variant="ghost" onClick={onClose} disabled={isSubmitting} type="button">
             Cancel
           </Button>
-          <Button variant="destructive" type="submit" disabled={isSubmitting}>
+          <Button variant="destructive" type="submit" disabled={isSubmitting} data-testid="confirm-reject-btn">
             {isSubmitting ? "Rejecting..." : "Reject Candidate"}
           </Button>
         </div>
