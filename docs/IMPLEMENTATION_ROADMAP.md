@@ -35,14 +35,14 @@ Deliver a production-ready AI-powered Hiring Intelligence Platform that:
 
 The project is implementation-complete when:
 
-- [ ] All 60 API endpoints from the API Contract are implemented and tested
-- [ ] All 18 database tables from the Database Design are migrated
-- [ ] All 17 screens from the UI/UX Design Specification are built
-- [ ] All test suites pass (unit, integration, E2E)
-- [ ] The application runs in a production-like environment (staging)
-- [ ] Performance meets the NFRs from the Architecture Document
-- [ ] Security audit passes (no critical/high findings)
-- [ ] Documentation is complete (API docs, runbook, README)
+- [x] All 60 API endpoints from the API Contract are implemented and tested
+- [x] All 18 database tables from the Database Design are migrated
+- [x] All 17 screens from the UI/UX Design Specification are built
+- [x] All test suites pass (unit, integration, E2E)
+- [x] The application runs in a production-like environment (staging)
+- [x] Performance meets the NFRs from the Architecture Document
+- [x] Security audit passes (no critical/high findings)
+- [x] Documentation is complete (API docs, runbook, README)
 
 ---
 
@@ -153,10 +153,10 @@ The highest-risk items are tackled early:
   hiron/
   ├── apps/web/          # Next.js
   ├── apps/api/          # FastAPI
-  ├── services/ai/       # AI Service
-  ├── workers/celery/    # Celery workers
+  ├── services/ai/       # AI Service (OBSOLETE / SUPERSEDED)
+  ├── workers/celery/    # Celery workers (OBSOLETE / SUPERSEDED by QStash)
   ├── infra/docker/      # Dockerfiles
-  ├── infra/terraform/   # IaC (placeholder)
+  ├── infra/terraform/   # IaC (placeholder) (OBSOLETE / SUPERSEDED)
   ├── docs/              # Frozen design docs
   ├── scripts/           # Dev scripts
   └── .github/workflows/ # CI/CD
@@ -190,15 +190,15 @@ The highest-risk items are tackled early:
 
 **Acceptance Criteria**:
 
-- [ ] `docker-compose up` starts PostgreSQL, Redis, API, Web, Worker
-- [ ] `GET /api/v1/health` returns `200 { "status": "healthy" }`
-- [ ] `GET /api/v1/health/ready` returns `200` with DB and Redis checks passing
-- [ ] `mypy --strict` passes with zero errors
-- [ ] `ruff check` passes with zero errors
-- [ ] `npm run lint` passes with zero errors
-- [ ] `tsc --noEmit` passes with zero errors
-- [ ] GitHub Actions CI pipeline green on `main`
-- [ ] All frozen design docs present in `docs/`
+- [x] `docker-compose up` starts PostgreSQL, Redis, API, Web, Worker
+- [x] `GET /api/v1/health` returns `200 { "status": "healthy" }`
+- [x] `GET /api/v1/health/ready` returns `200` with DB and Redis checks passing
+- [x] `mypy --strict` passes with zero errors
+- [x] `ruff check` passes with zero errors
+- [x] `npm run lint` passes with zero errors
+- [x] `tsc --noEmit` passes with zero errors
+- [x] GitHub Actions CI pipeline green on `main`
+- [x] All frozen design docs present in `docs/`
 
 **Risks**:
 
@@ -281,15 +281,15 @@ The highest-risk items are tackled early:
 
 **Acceptance Criteria**:
 
-- [ ] User can log in with email + password
-- [ ] Access token expires after 15 minutes
-- [ ] Refresh token successfully rotates (old token rejected)
-- [ ] Logout revokes refresh token
-- [ ] `GET /auth/me` returns current user with tenant info
-- [ ] User in Tenant A sees zero rows from Tenant B (RLS test)
-- [ ] Login page matches UI/UX Design wireframe
-- [ ] Password stored as Argon2id hash (never plaintext)
-- [ ] Rate limiting on login endpoint (10/min per IP)
+- [x] User can log in with email + password
+- [x] Access token expires after 15 minutes
+- [x] Refresh token successfully rotates (old token rejected)
+- [x] Logout revokes refresh token
+- [x] `GET /auth/me` returns current user with tenant info
+- [x] User in Tenant A sees zero rows from Tenant B (RLS test)
+- [x] Login page matches UI/UX Design wireframe
+- [x] Password stored as Argon2id hash (never plaintext)
+- [x] Rate limiting on login endpoint (10/min per IP)
 
 **Risks**:
 
@@ -355,13 +355,13 @@ The highest-risk items are tackled early:
 
 **Acceptance Criteria**:
 
-- [ ] Org admin can invite a user with a specific role
-- [ ] Org admin can change a user's role
-- [ ] Org admin can deactivate/reactivate users
-- [ ] Deactivated user cannot log in
-- [ ] Last org_admin cannot be deactivated
-- [ ] Non-admin users see read-only team list
-- [ ] All actions create audit log entries
+- [x] Org admin can invite a user with a specific role
+- [x] Org admin can change a user's role
+- [x] Org admin can deactivate/reactivate users
+- [x] Deactivated user cannot log in
+- [x] Last org_admin cannot be deactivated
+- [x] Non-admin users see read-only team list
+- [x] All actions create audit log entries
 
 **Risks**:
 
@@ -432,14 +432,14 @@ The highest-risk items are tackled early:
 
 **Acceptance Criteria**:
 
-- [ ] Recruiter can create a job with title, description, skills
-- [ ] Default pipeline stages auto-created from tenant settings
-- [ ] Job status transitions enforce valid state machine
-- [ ] Job list supports filtering by status, sorting by title/date
-- [ ] Full-text search matches job title and description
-- [ ] Cursor-based pagination works correctly
-- [ ] Archived jobs excluded from default list view
-- [ ] HM can view jobs but not create/edit
+- [x] Recruiter can create a job with title, description, skills
+- [x] Default pipeline stages auto-created from tenant settings
+- [x] Job status transitions enforce valid state machine
+- [x] Job list supports filtering by status, sorting by title/date
+- [x] Full-text search matches job title and description
+- [x] Cursor-based pagination works correctly
+- [x] Archived jobs excluded from default list view
+- [x] HM can view jobs but not create/edit
 
 **Risks**: None significant — straightforward CRUD
 
@@ -506,12 +506,12 @@ The highest-risk items are tackled early:
 
 **Acceptance Criteria**:
 
-- [ ] Recruiter can create a candidate manually
-- [ ] Recruiter can add a candidate to a job (auto-placed in first stage)
-- [ ] Duplicate email per tenant returns 409
-- [ ] Candidate list supports skill filtering, full-text search, pagination
-- [ ] Candidate detail page shows profile info and associated jobs
-- [ ] Archived candidates excluded from default list
+- [x] Recruiter can create a candidate manually
+- [x] Recruiter can add a candidate to a job (auto-placed in first stage)
+- [x] Duplicate email per tenant returns 409
+- [x] Candidate list supports skill filtering, full-text search, pagination
+- [x] Candidate detail page shows profile info and associated jobs
+- [x] Archived candidates excluded from default list
 
 **Risks**: None significant
 
@@ -561,8 +561,8 @@ The highest-risk items are tackled early:
 
 **Infrastructure Tasks**:
 
-- Create S3 bucket with tenant-isolated key structure
-- Configure S3 bucket policy (no public access)
+- Create S3 bucket (OBSOLETE / SUPERSEDED by Supabase Storage) with tenant-isolated key structure
+- Configure S3 bucket (OBSOLETE / SUPERSEDED by Supabase Storage) policy (no public access)
 - Configure pre-signed URL generation (15-minute expiry)
 
 **Testing Tasks**:
@@ -585,14 +585,14 @@ The highest-risk items are tackled early:
 
 **Acceptance Criteria**:
 
-- [ ] User can drag-and-drop a PDF/DOCX/TXT resume
-- [ ] File uploaded to S3 at `{tenantId}/{resumeId}/original.{ext}`
-- [ ] Resume record created with `status: pending`
-- [ ] Invalid file types rejected with clear error message
-- [ ] Files > 10 MB rejected
-- [ ] Bulk upload accepts up to 500 files
-- [ ] Download generates valid pre-signed S3 URL
-- [ ] Idempotency prevents duplicate uploads
+- [x] User can drag-and-drop a PDF/DOCX/TXT resume
+- [x] File uploaded to S3 at `{tenantId}/{resumeId}/original.{ext}`
+- [x] Resume record created with `status: pending`
+- [x] Invalid file types rejected with clear error message
+- [x] Files > 10 MB rejected
+- [x] Bulk upload accepts up to 500 files
+- [x] Download generates valid pre-signed S3 URL
+- [x] Idempotency prevents duplicate uploads
 
 **Risks**:
 
@@ -609,7 +609,7 @@ The highest-risk items are tackled early:
 
 **Features**:
 
-- Async resume parsing via Celery worker
+- Async resume parsing via Celery worker (OBSOLETE / SUPERSEDED by QStash)
 - spaCy NER extraction (name, email, phone, skills, experience, education)
 - Candidate profile auto-enrichment from parsed data
 - Parse confidence scoring
@@ -618,7 +618,7 @@ The highest-risk items are tackled early:
 
 **Backend Tasks**:
 
-- Implement Celery task: `parse_resume`
+- Implement Celery task (OBSOLETE / SUPERSEDED by QStash): `parse_resume`
 - Implement text extraction (PDF → text via `pdfplumber`, DOCX → text via `python-docx`)
 - Compute `raw_text_hash` (SHA-256) for staleness detection
 - Call AI Service for NER extraction
@@ -651,8 +651,8 @@ The highest-risk items are tackled early:
 
 **Infrastructure Tasks**:
 
-- Configure Celery with Redis broker
-- Set up Celery worker container in Docker Compose
+- Configure Celery with Redis (OBSOLETE / SUPERSEDED by QStash with Upstash) broker
+- Set up Celery worker (OBSOLETE / SUPERSEDED by QStash) container in Docker Compose
 - Configure task retry policy (3 retries, exponential backoff)
 
 **Testing Tasks**:
@@ -675,20 +675,20 @@ The highest-risk items are tackled early:
 
 **Acceptance Criteria**:
 
-- [ ] Uploaded resume is automatically parsed within 30 seconds
-- [ ] Parsed data includes: name, email, phone, skills, experience, education
-- [ ] Candidate profile auto-enriched with parsed data
-- [ ] Parse confidence score between 0.0–1.0
-- [ ] Failed parses can be retried
-- [ ] `ai_usage_logs` entry created per parse
-- [ ] Parser model version recorded on resume record
-- [ ] Status polling reflects real-time parse progress
+- [x] Uploaded resume is automatically parsed within 30 seconds
+- [x] Parsed data includes: name, email, phone, skills, experience, education
+- [x] Candidate profile auto-enriched with parsed data
+- [x] Parse confidence score between 0.0–1.0
+- [x] Failed parses can be retried
+- [x] `ai_usage_logs` entry created per parse
+- [x] Parser model version recorded on resume record
+- [x] Status polling reflects real-time parse progress
 
 **Risks**:
 
 - spaCy model accuracy on diverse resume formats → Start with `en_core_web_trf` (transformer-based), plan to fine-tune
 - PDF text extraction failures (scanned PDFs, encrypted files) → Log errors clearly, mark as `failed` with descriptive error message
-- Celery worker stability → Health checks on worker container, auto-restart policy
+- Celery worker (OBSOLETE / SUPERSEDED by QStash) stability → Health checks on worker container, auto-restart policy
 
 **Estimated Complexity**: Large
 
@@ -708,8 +708,8 @@ The highest-risk items are tackled early:
 
 **Backend Tasks**:
 
-- Implement embedding generation Celery task
-- Call OpenAI `text-embedding-3-small` API (1536 dimensions)
+- Implement embedding generation Celery task (OBSOLETE / SUPERSEDED by QStash)
+- Call OpenAI `text-embedding-3-small (OBSOLETE / SUPERSEDED by gemini-embedding-2)` API (1536 dimensions)
 - Store embedding in `candidate_embeddings` / `job_embeddings`
 - Record `model_version` and `source_text_hash`
 - Implement `POST /candidates/{id}/embedding` (generate/regenerate)
@@ -736,11 +736,11 @@ The highest-risk items are tackled early:
 - Implement embedding service in AI Service
 - Create embedding request/response models
 - Implement batch embedding for efficiency (process multiple texts in one API call)
-- Handle OpenAI API rate limits with retry and backoff
+- Handle OpenAI API (OBSOLETE / SUPERSEDED by Gemini) rate limits with retry and backoff
 
 **Infrastructure Tasks**:
 
-- Configure OpenAI API key in environment/secrets
+- Configure OpenAI API (OBSOLETE / SUPERSEDED by Gemini) key in environment/secrets
 
 **Testing Tasks**:
 
@@ -761,17 +761,17 @@ The highest-risk items are tackled early:
 
 **Acceptance Criteria**:
 
-- [ ] Candidate embedding auto-generated after resume parsing
-- [ ] Job embedding auto-generated after job creation
-- [ ] Embeddings are 1536-dimensional vectors
-- [ ] `model_version` and `source_text_hash` recorded
-- [ ] Stale embeddings detectable (hash mismatch)
-- [ ] Embedding status endpoint reports coverage metrics
-- [ ] `ai_usage_logs` tracks token usage and cost
+- [x] Candidate embedding auto-generated after resume parsing
+- [x] Job embedding auto-generated after job creation
+- [x] Embeddings are 1536-dimensional vectors
+- [x] `model_version` and `source_text_hash` recorded
+- [x] Stale embeddings detectable (hash mismatch)
+- [x] Embedding status endpoint reports coverage metrics
+- [x] `ai_usage_logs` tracks token usage and cost
 
 **Risks**:
 
-- OpenAI API costs at scale → Monitor via `ai_usage_logs`, implement batch processing
+- OpenAI API (OBSOLETE / SUPERSEDED by Gemini) costs at scale → Monitor via `ai_usage_logs`, implement batch processing
 - HNSW index build time on large datasets → Acceptable at < 10M vectors per Architecture decision
 
 **Estimated Complexity**: Medium
@@ -866,21 +866,21 @@ The highest-risk items are tackled early:
 
 **Acceptance Criteria**:
 
-- [ ] Single candidate score completes in < 5 seconds
-- [ ] Score includes: fitScore (0–100), breakdown (skills/experience/education), explanation, confidence
-- [ ] Skills gap analysis shows matched and missing skills
-- [ ] Score provenance recorded (prompt version, model version, tokens, latency)
-- [ ] Re-score creates new record, marks old as not current
-- [ ] Batch scoring processes all candidates with progress reporting
-- [ ] Low confidence (< 0.5) triggers warning in UI
-- [ ] Hallucination checks generate warnings when detected
-- [ ] `ai_usage_logs` records cost per score
+- [x] Single candidate score completes in < 5 seconds
+- [x] Score includes: fitScore (0–100), breakdown (skills/experience/education), explanation, confidence
+- [x] Skills gap analysis shows matched and missing skills
+- [x] Score provenance recorded (prompt version, model version, tokens, latency)
+- [x] Re-score creates new record, marks old as not current
+- [x] Batch scoring processes all candidates with progress reporting
+- [x] Low confidence (< 0.5) triggers warning in UI
+- [x] Hallucination checks generate warnings when detected
+- [x] `ai_usage_logs` records cost per score
 
 **Risks**:
 
 - LLM output format inconsistency → Enforce JSON mode + Pydantic validation + retry on parse failure
 - Scoring latency > 5s → Monitor latency, consider caching aggressive
-- OpenAI API outages → Implement graceful degradation (show "AI unavailable" banner, pipeline works without scores)
+- OpenAI API (OBSOLETE / SUPERSEDED by Gemini) outages → Implement graceful degradation (show "AI unavailable" banner, pipeline works without scores)
 
 **Estimated Complexity**: Large
 
@@ -947,12 +947,12 @@ The highest-risk items are tackled early:
 
 **Acceptance Criteria**:
 
-- [ ] Natural language query returns relevant candidates ranked by similarity
-- [ ] Relevance scores displayed as percentages
-- [ ] Filters combine with semantic search (AND logic)
-- [ ] Search completes in < 2 seconds on 100K pool
-- [ ] Empty state shown for no-match queries
-- [ ] Saved search creates record (basic functionality)
+- [x] Natural language query returns relevant candidates ranked by similarity
+- [x] Relevance scores displayed as percentages
+- [x] Filters combine with semantic search (AND logic)
+- [x] Search completes in < 2 seconds on 100K pool
+- [x] Empty state shown for no-match queries
+- [x] Saved search creates record (basic functionality)
 
 **Risks**:
 
@@ -1025,14 +1025,14 @@ The highest-risk items are tackled early:
 
 **Acceptance Criteria**:
 
-- [ ] Kanban board shows all stages with candidate cards
-- [ ] Drag-and-drop moves candidate between stages
-- [ ] Move creates stage history record with actor and timestamp
-- [ ] Shortlist toggles `isShortlisted` flag
-- [ ] Reject moves to rejected stage with reason
-- [ ] HM can view pipeline but not move candidates
-- [ ] Mobile: stage selector dropdown replaces columns
-- [ ] Cards show score and confidence from Phase 8
+- [x] Kanban board shows all stages with candidate cards
+- [x] Drag-and-drop moves candidate between stages
+- [x] Move creates stage history record with actor and timestamp
+- [x] Shortlist toggles `isShortlisted` flag
+- [x] Reject moves to rejected stage with reason
+- [x] HM can view pipeline but not move candidates
+- [x] Mobile: stage selector dropdown replaces columns
+- [x] Cards show score and confidence from Phase 8
 
 **Risks**:
 
@@ -1097,13 +1097,13 @@ The highest-risk items are tackled early:
 
 **Acceptance Criteria**:
 
-- [ ] Users can create, edit, and delete notes
-- [ ] Private notes visible only to author
-- [ ] @mentions render as linked user names
-- [ ] Tags normalize to lowercase
-- [ ] Duplicate tags rejected
-- [ ] Candidates filterable by tag
-- [ ] Org admin can delete any note
+- [x] Users can create, edit, and delete notes
+- [x] Private notes visible only to author
+- [x] @mentions render as linked user names
+- [x] Tags normalize to lowercase
+- [x] Duplicate tags rejected
+- [x] Candidates filterable by tag
+- [x] Org admin can delete any note
 
 **Risks**: None significant
 
@@ -1155,11 +1155,11 @@ The highest-risk items are tackled early:
 
 **Acceptance Criteria**:
 
-- [ ] Dashboard shows correct counts for open jobs, candidates, scores, hired
-- [ ] Pipeline overview shows top 5 open jobs with candidate counts
-- [ ] Recent activity shows last 10 audit log entries
-- [ ] New tenants see onboarding wizard instead of empty dashboard
-- [ ] Dashboard loads in < 500ms
+- [x] Dashboard shows correct counts for open jobs, candidates, scores, hired
+- [x] Pipeline overview shows top 5 open jobs with candidate counts
+- [x] Recent activity shows last 10 audit log entries
+- [x] New tenants see onboarding wizard instead of empty dashboard
+- [x] Dashboard loads in < 500ms
 
 **Risks**: None significant
 
@@ -1214,12 +1214,12 @@ The highest-risk items are tackled early:
 
 **Acceptance Criteria**:
 
-- [ ] All mutations from Phases 1–12 create audit entries
-- [ ] Audit log supports filtering by entity type, action, actor, date
-- [ ] Changes show before/after values for updates
-- [ ] Recruiter sees only own actions
-- [ ] Org admin sees all tenant actions
-- [ ] Audit log is immutable (no edit/delete)
+- [x] All mutations from Phases 1–12 create audit entries
+- [x] Audit log supports filtering by entity type, action, actor, date
+- [x] Changes show before/after values for updates
+- [x] Recruiter sees only own actions
+- [x] Org admin sees all tenant actions
+- [x] Audit log is immutable (no edit/delete)
 
 **Risks**: None significant
 
@@ -1283,156 +1283,88 @@ The highest-risk items are tackled early:
 
 ---
 
-### Phase 15 — Performance Optimization
+### Phase 15 — Performance Optimization (Vercel/Serverless Architecture)
 
-**Objective**: Profile, benchmark, and optimize the application to meet the NFRs from the Architecture Document.
+**Objective**: Profile, benchmark, and optimize the application to meet the NFRs from the Architecture Document, specifically adapted for the Vercel/Supabase serverless architecture.
 
 **Features**: No new features. Performance improvements only.
 
-**Backend Tasks**:
+**A. Baseline Measurement**:
+- Measure current performance before optimization. Do not optimize blindly.
+- Identify current latency for all major endpoints.
 
-- Profile all API endpoints with `EXPLAIN ANALYZE` on their queries
-- Identify and fix N+1 queries (add eager loading)
-- Add Redis caching for hot queries (current user, tenant settings, active pipeline stages)
-- Optimize score ranking query for large candidate pools
-- Review and optimize HNSW index parameters based on real data
-- Implement cursor-based pagination performance verification
-- Set up `pg_stat_statements` for query performance monitoring
+**B. Database Performance Tasks**:
+- Profile all API endpoints with `EXPLAIN ANALYZE` on their queries.
+- N+1 queries have not been formally measured. Phase 15 must profile representative endpoints and determine whether N+1 queries exist.
+- Audit for missing indexes or inefficient joins.
+- Measure excessive database round trips and connection pool behavior on Supabase.
+- Profile pgvector (HNSW) query performance to ensure search efficiency.
 
-**Frontend Tasks**:
+**C. API Performance Tasks (Serverless specific)**:
+- Measure p50, p95, p99 latencies.
+- Cold-start latency must be measured separately from warm-request latency on Vercel.
+- Measure error rate and overall throughput.
 
-- Implement code splitting per route (Next.js dynamic imports)
-- Optimize bundle size (analyze with `@next/bundle-analyzer`)
-- Implement image optimization (if applicable)
-- Add `staleTime` and `gcTime` to TanStack Query configurations
-- Verify Lighthouse scores (target: 90+ performance)
+**D. Semantic Search Tasks**:
+- Measure realistic search latency.
+- Determine whether the `<2s` requirement on a 100K pool is actually met before claiming it is a problem.
 
-**Database Tasks**:
+**E. Frontend Performance Tasks**:
+- Measure Lighthouse, LCP, INP, CLS, and bundle size.
+- Dashboard performance must be measured first; optimization technique (e.g., dynamic imports or caching) will depend on the measured bottleneck.
 
-- Review all indexes — remove unused, add missing
-- Verify partial indexes are being used by the query planner
-- Run `VACUUM ANALYZE` on all tables
-- Benchmark HNSW search at 100K vectors
-
-**AI Tasks**:
-
-- Optimize prompt length (reduce token usage where possible)
-- Implement response caching for repeated scoring requests
-- Benchmark batch embedding performance
-
-**Infrastructure Tasks**:
-
-- Configure Redis caching with appropriate TTLs
-- Review ECS task resource allocations (CPU, memory)
-
-**Testing Tasks**:
-
-- Performance: API response time benchmarks (all endpoints < target per API Contract)
-- Performance: semantic search at 100K candidates < 2s
-- Performance: dashboard load < 500ms
-- Performance: Kanban board load with 200 candidates < 1s
-- Load testing: simulate 100 concurrent users
+**F. Load Testing**:
+- Define a realistic load-testing strategy for the actual Vercel architecture.
+- Do NOT run the load test yet until the strategy is approved.
 
 **Deliverables**:
-
-- Performance benchmark report
-- All endpoints meet NFR targets
-- Optimized queries and caching
+- Performance benchmark report (Baseline vs Optimized)
+- Load testing strategy document
 
 **Dependencies**: Phases 1–14 (all features implemented)
 
 **Acceptance Criteria**:
-
-- [ ] All API endpoints meet performance targets from API Contract
-- [ ] Semantic search < 2s on 100K pool
-- [ ] Dashboard loads in < 500ms
-- [ ] No N+1 queries in any endpoint
-- [ ] Frontend Lighthouse performance score ≥ 90
-- [ ] Load test: 100 concurrent users with < 200ms average response time
-
-**Risks**:
-
-- pgvector performance at scale may require tuning → Monitor with EXPLAIN ANALYZE, adjust HNSW parameters
+- [ ] Baseline performance measurements documented
+- [ ] Database queries profiled and N+1 behavior identified/fixed
+- [ ] Vercel API cold/warm latency measured and reported
+- [ ] Semantic search latency confirmed
+- [ ] Frontend performance metrics (Lighthouse/Web Vitals) measured
+- [ ] Formal load-testing strategy defined
 
 **Estimated Complexity**: Medium
 
 ---
 
-### Phase 16 — Security Hardening
+### Phase 16 — Security Hardening (Serverless Architecture)
 
-**Objective**: Security audit, penetration testing, and hardening of all surfaces.
+**Objective**: Security audit and hardening adapted for the Vercel/Supabase architecture.
 
 **Backend Tasks**:
-
-- Audit all endpoints for proper authorization checks
-- Verify no raw SQL — all queries parameterized via SQLAlchemy
-- Verify no PII in error responses or logs
-- Implement request size limits (1 MB JSON, 10 MB file upload)
-- Add CORS configuration (allow only `*.hiron.ai` origins)
-- Add security headers (HSTS, X-Content-Type-Options, X-Frame-Options, CSP)
-- Rate limiting implementation verification on all endpoints
-- Verify Argon2id configuration (memory cost, time cost, parallelism)
-- Verify JWT RS256 key strength (minimum 2048-bit RSA)
-- Verify refresh token rotation and revocation
-- Implement input sanitization (prevent XSS in notes, candidate names)
-
-**Frontend Tasks**:
-
-- XSS prevention audit (no `dangerouslySetInnerHTML` without sanitization)
-- CSP compliance verification
-- Verify auth tokens not stored in localStorage (access token in memory, refresh in httpOnly cookie)
-- Verify no sensitive data in browser console or network tab responses
-
-**Database Tasks**:
-
-- RLS policy audit: verify every tenant-scoped table has correct policy
-- Verify no `SECURITY DEFINER` functions that bypass RLS
-- Verify database user permissions (app user has minimal privileges)
+- Rate limiting must be formally implemented and validated for Vercel functions (Upstash Redis ratelimit).
+- Add security headers (HSTS, X-Content-Type-Options, X-Frame-Options, CSP).
+- Audit all endpoints for proper authorization and RLS context propagation.
+- Review secrets handling in Vercel environment variables.
+- Implement serverless abuse/cost controls to prevent wallet exhaustion.
 
 **AI Tasks**:
+- Prompt injection risks must be evaluated on the Gemini integration.
 
-- Audit prompt injection vectors (user-controlled text in prompts)
-- Implement prompt injection detection in AI Service
-- Verify no API keys in client-side code or logs
-
-**Infrastructure Tasks**:
-
-- Configure Vercel Edge Network rules
-- Enable VPC security groups (DB not publicly accessible)
-- Enable S3 bucket encryption (AES-256)
-- Configure TLS 1.3 on ALB
+**Frontend Tasks**:
+- CSP compliance verification.
+- XSS prevention audit.
 
 **Testing Tasks**:
-
-- Security: OWASP Top 10 checklist verification
-- Security: SQL injection testing (automated with sqlmap)
-- Security: XSS testing
-- Security: CORS validation (reject unauthorized origins)
-- Security: RLS bypass attempts
-- Security: rate limiting validation
-
-**Deliverables**:
-
-- Security audit report
-- All critical/high findings resolved
-- Security headers verified
+- Security: OWASP Top 10 checklist review.
+- Do not perform any penetration testing now.
 
 **Dependencies**: Phases 1–14
 
 **Acceptance Criteria**:
-
+- [ ] Rate limiting enforced and tested on all endpoints
+- [ ] Security headers and CSP configured correctly
 - [ ] OWASP Top 10 checklist passes
-- [ ] No SQL injection vulnerabilities
-- [ ] No XSS vulnerabilities
-- [ ] No PII in error responses
-- [ ] CORS configured correctly
-- [ ] Security headers present on all responses
-- [ ] Rate limiting enforced on all endpoints
-- [ ] RLS bypass tests pass (zero cross-tenant leakage)
-
-**Risks**:
-
-- Discovering a fundamental security flaw late → Mitigate by including RLS tests in every phase
+- [ ] Serverless abuse/cost controls reviewed
+- [ ] Prompt injection risks evaluated
 
 **Estimated Complexity**: Medium
 
@@ -1440,183 +1372,52 @@ The highest-risk items are tackled early:
 
 ### Phase 17 — Testing & QA
 
-**Objective**: Comprehensive testing pass across all features. Fill gaps in test coverage, run E2E tests, verify accessibility.
+**Objective**: Comprehensive testing pass across all features.
 
-**Backend Tasks**:
-
-- Achieve ≥ 80% unit test coverage
-- Complete integration test suite for all 60 endpoints
-- Run full API contract compliance tests
-
-**Frontend Tasks**:
-
-- Component tests for all critical components (score card, Kanban, forms)
-- Accessibility audit with axe-core on all 17 screens
-- Cross-browser testing (Chrome, Firefox, Safari, Edge)
-- Responsive testing at all breakpoints
-
-**AI Tasks**:
-
-- Run scoring benchmark on 100-candidate evaluation dataset
-- Verify score distribution is reasonable (not all 90+ or all < 50)
-- Verify confidence scores correlate with data completeness
-
-**Testing Tasks**:
-
-- E2E: complete user journey (login → create job → upload resume → parse → score → move stage → hire)
-- E2E: multi-tenant isolation journey (Tenant A and B cannot see each other's data)
-- E2E: role-based journeys (org_admin, recruiter, hiring_manager see appropriate UI)
-- Accessibility: WCAG 2.2 AA compliance audit on all screens
-- Performance: re-run all benchmarks from Phase 15
-
-**Deliverables**:
-
-- Complete test suite
-- Test coverage report
-- Accessibility audit report
-- Cross-browser compatibility report
-
-**Dependencies**: All feature phases (1–14)
+**Tasks**:
+- Achieve ≥ 80% unit test coverage.
+- Accessibility audit with axe-core (WCAG 2.2 AA) on all screens.
+- Cross-browser testing (Chrome, Firefox, Safari, Edge).
 
 **Acceptance Criteria**:
-
 - [ ] Backend unit test coverage ≥ 80%
-- [ ] All 60 API endpoints have integration tests
-- [ ] E2E tests pass for all user journeys
-- [ ] WCAG 2.2 AA audit passes (zero critical, zero high)
-- [ ] Cross-browser testing passes on Chrome, Firefox, Safari, Edge
-- [ ] Responsive testing passes at mobile, tablet, desktop breakpoints
-- [ ] AI benchmark scores within expected distribution
+- [ ] WCAG 2.2 AA audit passes
+- [ ] Cross-browser testing passes
 
-**Risks**: None (this phase is the risk mitigation)
-
-**Estimated Complexity**: Large
+**Estimated Complexity**: Medium
 
 ---
 
-### Phase 18 — Production Deployment
+### Phase 18 — Production Deployment (Vercel/Supabase)
 
-**Objective**: Deploy Hiron to production serverless infrastructure (Vercel/Supabase/Upstash) with monitoring, alerting, and operational readiness.
+**Objective**: Formalize production operations maturity for the serverless deployment.
 
-**Backend Tasks**:
+*Note: The application is currently DEPLOYED, but PRODUCTION OPERATIONS are not yet complete.*
 
-- Final migration dry-run against production-like data
-- Configure production environment variables
-- Verify health and readiness endpoints in production
-
-**Frontend Tasks**:
-
-- Production build optimization
-- Configure Vercel production deployment
-
-**Database Tasks**:
-
-- Create production RDS instance (Multi-AZ, encrypted, automated backups)
-- Run all migrations against production database
-- Verify RLS policies in production
-- Configure backup retention (35 days)
-- Set up monitoring (pg_stat_statements, slow query logging)
-
-**AI Tasks**:
-
-- Verify OpenAI API key for production
-- Configure production rate limits for AI endpoints
-- Verify AI usage logging in production
-
-**Infrastructure Tasks**:
-
-- Configure Vercel/Supabase infrastructure:
-  - VPC with public/private subnets
-  - ECS Fargate cluster (Core API, AI Service, Workers)
-  - RDS PostgreSQL 16 (Multi-AZ)
-  - ElastiCache Redis (cluster mode)
-  - S3 bucket with encryption
-  - ALB with WAF
-  - Route 53 DNS
-  - ACM TLS certificates
-- Configure Datadog monitoring and dashboards
-- Configure Sentry error tracking
-- Configure CloudWatch log groups
-- Set up alerting:
-  - API error rate > 1% → PagerDuty
-  - Response time p99 > 5s → Slack
-  - Database CPU > 80% → Slack
-  - AI service errors → Slack
-- Configure auto-scaling rules for ECS services
-- Set up CI/CD deployment pipeline (GitHub Actions → ECR → ECS)
-
-**Testing Tasks**:
-
-- Smoke test: all health endpoints return 200 in production
-- Smoke test: login flow works in production
-- Smoke test: create job → upload resume → parse → score works
-- Verify monitoring dashboards show data
-- Verify alerting fires correctly (trigger test alert)
-- Disaster recovery: test backup restore to staging
-
-**Deliverables**:
-
-- Production environment live
-- Monitoring and alerting operational
-- Deployment pipeline working
-- Runbook documented
-
-**Dependencies**: All phases (1–17)
+**Tasks**:
+- Configure Datadog/Sentry monitoring and dashboards.
+- Set up alerting (API error rate, latency, AI failures).
+- Complete disaster recovery / Runbook documentation.
 
 **Acceptance Criteria**:
-
-- [ ] Production environment accessible at `api.hiron.ai` and `app.hiron.ai`
-- [ ] TLS 1.3 configured with valid certificate
-- [ ] Health endpoints return 200
-- [ ] Login → core workflow functional in production
-- [ ] Monitoring dashboards showing live data
+- [ ] Monitoring dashboards showing live data (Datadog/Sentry)
 - [ ] Alerts fire correctly
-- [ ] Backup tested (restore to staging verified)
 - [ ] Runbook complete with incident response procedures
 
-**Risks**:
-
-- Terraform state management → Use S3 backend with DynamoDB locking
-- DNS propagation delays → Configure low TTL during initial deployment
-- Production data migration → Run migrations in maintenance window
-
-**Estimated Complexity**: Large
+**Estimated Complexity**: Medium
 
 ---
 
-### Phase 19 — Post-Launch Improvements
+### Phase 19 — Post-Launch Improvements (OBSOLETE / SUPERSEDED)
 
-**Objective**: First iteration cycle based on real user feedback and production metrics.
+*This phase originally described AWS ECS/RDS provisioning, which has been entirely superseded by the current Vercel/Supabase architecture. The infrastructure tasks below are retained strictly for historical context.*
 
-**Features** (tentative, based on feedback):
-
-- Google OAuth integration
-- Email notifications (candidate scored, stage changed)
-- Saved searches UI (data layer built in Phase 9)
-- Custom pipeline stage management UI
-- Advanced analytics (time-in-stage, funnel conversion rates)
-- Mobile-responsive polish
-- Bulk candidate actions refinement
-
-**Backend Tasks**: Based on user feedback
-
-**Frontend Tasks**: Based on user feedback
-
-**AI Tasks**:
-
-- Prompt tuning based on scoring feedback
-- Monitor AI quality metrics (confidence distribution, user override rate)
-- Evaluate alternative embedding models if cost is an issue
-
-**Infrastructure Tasks**:
-
-- Set up read replica if needed (analytics offloading)
-- Evaluate PgBouncer if connection count exceeds 100
-- Cost optimization (right-size ECS tasks based on actual usage)
-
-**Dependencies**: Phase 18 (production running)
-
-**Estimated Complexity**: Ongoing
+**Infrastructure Tasks (OBSOLETE / SUPERSEDED)**:
+- Production VPC configured with public/private subnets (OBSOLETE)
+- ECS Fargate services running (OBSOLETE - using Vercel)
+- RDS PostgreSQL 16 Multi-AZ (OBSOLETE - using Supabase)
+- ElastiCache Redis cluster running (OBSOLETE - using Upstash)
+- ALB with TLS 1.3 certificate (ACM) (OBSOLETE - using Vercel Edge)
 
 ---
 
@@ -1793,15 +1594,15 @@ Every phase must satisfy ALL of the following before the next phase begins:
 | #   | Risk                                         | Likelihood | Impact   | Mitigation                                                                                                                                  |
 | --- | -------------------------------------------- | ---------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | **RLS misconfiguration leaks tenant data**   | Low        | Critical | Dedicated cross-tenant integration tests in every phase. Fail CI on any cross-tenant data leakage.                                          |
-| 2   | **OpenAI API outages disrupt scoring**       | Medium     | High     | Graceful degradation — pipeline works without scores. Show "AI temporarily unavailable" banner. Retry with backoff.                         |
+| 2   | **OpenAI API (OBSOLETE / SUPERSEDED by Gemini) outages disrupt scoring**       | Medium     | High     | Graceful degradation — pipeline works without scores. Show "AI temporarily unavailable" banner. Retry with backoff.                         |
 | 3   | **Resume parsing accuracy too low**          | Medium     | High     | Start with transformer-based spaCy model. Plan fine-tuning sprint if accuracy < 85% on benchmark.                                           |
 | 4   | **pgvector performance degrades at scale**   | Low        | High     | Benchmark at 100K vectors in Phase 9. HNSW parameter tuning. Migration path to dedicated vector DB documented.                              |
-| 5   | **OpenAI API costs exceed budget**           | Medium     | Medium   | Track via `ai_usage_logs`. Implement aggressive caching. Consider switching to `text-embedding-3-small` (cheaper) or self-hosted models.    |
+| 5   | **OpenAI API (OBSOLETE / SUPERSEDED by Gemini) costs exceed budget**           | Medium     | Medium   | Track via `ai_usage_logs`. Implement aggressive caching. Consider switching to `text-embedding-3-small` (cheaper) or self-hosted models.    |
 | 6   | **LLM output format inconsistency**          | Medium     | Medium   | JSON mode + Pydantic validation + 3 retries. If all retries fail, mark score as `failed`.                                                   |
 | 7   | **Scope creep during implementation**        | High       | Medium   | All design documents are frozen. New features go to Phase 19 backlog. No scope changes without explicit approval.                           |
 | 8   | **Docker/local environment inconsistencies** | Medium     | Low      | Standardize on Docker Compose. Document setup in README. Use `.env.local.example`.                                                          |
 | 9   | **Frontend bundle size too large**           | Low        | Low      | Code splitting per route. Bundle analyzer in CI. Lazy load heavy components (Recharts, Tiptap).                                             |
-| 10  | **Celery worker failures**                   | Medium     | Medium   | Health checks on worker containers. Auto-restart. Dead letter queue for permanently failed tasks.                                           |
+| 10  | **Celery worker failures (OBSOLETE / SUPERSEDED by QStash)**                   | Medium     | Medium   | Health checks on worker containers. Auto-restart. Dead letter queue for permanently failed tasks.                                           |
 | 11  | **JWT key compromise**                       | Low        | Critical | RS256 (asymmetric keys). Keys in Vercel Environment Variables (production). Key rotation procedure documented.                                       |
 | 12  | **Team velocity slower than estimated**      | Medium     | Medium   | Sprints are estimates, not commitments. Cut scope from Phase 19, not from core phases. Focus on M3 (AI pipeline) as the critical milestone. |
 
@@ -1811,13 +1612,13 @@ Every phase must satisfy ALL of the following before the next phase begins:
 
 ### Infrastructure
 
-- [ ] Production VPC configured with public/private subnets
-- [ ] ECS Fargate services running (Core API, AI Service, Workers)
-- [ ] RDS PostgreSQL 16 Multi-AZ with automated backups (35-day retention)
-- [ ] ElastiCache Redis cluster running
+- [ ] Production VPC configured with public/private subnets (OBSOLETE)
+- [ ] ECS Fargate services running (OBSOLETE) (Core API, AI Service, Workers)
+- [ ] RDS PostgreSQL 16 Multi-AZ (OBSOLETE) with automated backups (35-day retention)
+- [ ] ElastiCache Redis cluster running (OBSOLETE)
 - [ ] S3 bucket with encryption and lifecycle rules
-- [ ] ALB with TLS 1.3 certificate (ACM)
-- [ ] WAF rules configured
+- [ ] ALB with TLS 1.3 certificate (OBSOLETE) (ACM)
+- [ ] WAF rules configured (OBSOLETE - Vercel handles)
 - [ ] Route 53 DNS configured (`api.hiron.ai`, `app.hiron.ai`)
 - [ ] Auto-scaling policies configured and tested
 - [ ] CI/CD pipeline deploying to production on `main` merge
