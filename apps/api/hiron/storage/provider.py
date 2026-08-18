@@ -122,10 +122,15 @@ class SupabaseStorageProvider(StorageProvider):
         self.supabase_url = supabase_url.rstrip("/")
         self.bucket_name = bucket_name
         self.base_url = f"{self.supabase_url}/storage/v1/object"
-        self.headers = {
-            "Authorization": f"Bearer {supabase_service_role_key}",
-            "apikey": supabase_service_role_key,
-        }
+        if supabase_service_role_key.startswith("sb_secret_"):
+            self.headers = {
+                "apikey": supabase_service_role_key,
+            }
+        else:
+            self.headers = {
+                "Authorization": f"Bearer {supabase_service_role_key}",
+                "apikey": supabase_service_role_key,
+            }
 
     async def upload_file(
         self,
