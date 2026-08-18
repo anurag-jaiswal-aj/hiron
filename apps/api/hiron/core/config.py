@@ -111,6 +111,17 @@ class Settings(BaseSettings):
         default="postgresql+asyncpg://hiron_user:your_postgres_password_here@localhost:5432/hiron_dev",
         description="Async SQLAlchemy database connection URL",
     )
+
+    @field_validator("database_url", mode="after")
+    @classmethod
+    def ensure_async_dialect(cls, v: str) -> str:
+        """Ensure the database URL uses the asyncpg dialect."""
+        if v.startswith("postgres://"):
+            return v.replace("postgres://", "postgresql+asyncpg://", 1)
+        if v.startswith("postgresql://"):
+            return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return v
+
     db_pool_size: int = Field(default=10, description="SQLAlchemy connection pool size")
     db_max_overflow: int = Field(default=20, description="SQLAlchemy connection max overflow")
     db_pool_timeout: int = Field(default=30, description="SQLAlchemy pool timeout in seconds")

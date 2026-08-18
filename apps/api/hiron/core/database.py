@@ -1,7 +1,9 @@
 """Async SQLAlchemy database engine, session management, and connectivity probes."""
 
+import os
 import time
 from collections.abc import AsyncGenerator
+from typing import Any
 
 import structlog
 from sqlalchemy import event, text
@@ -11,23 +13,33 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
-
-from hiron.security.context import get_tenant_context
+from sqlalchemy.pool import NullPool
 
 from hiron.core.config import get_settings
+from hiron.security.context import get_tenant_context
 
 logger = structlog.get_logger("hiron.api.database")
 settings = get_settings()
 
+
 # 1. Async SQLAlchemy Engine Configuration (§10 & Database Design)
-_engine_kwargs = {
+_engine_kwargs: dict[str, Any] = {
     "echo": (settings.environment == "development" and settings.log_level == "DEBUG"),
-    "pool_size": settings.db_pool_size,
-    "max_overflow": settings.db_max_overflow,
-    "pool_timeout": settings.db_pool_timeout,
     "pool_pre_ping": False,  # Disabled for cross-region performance
-    "pool_recycle": 300,  # Recycle connections after 5 minutes
+    "connect_args": {
+        "statement_cache_size": 0,
+        "prepared_statement_cache_size": 0,
+    },
 }
+
+# Use NullPool in Vercel serverless functions to prevent connection leaks
+if os.environ.get("VERCEL") == "1":
+    _engine_kwargs["poolclass"] = NullPool
+else:
+    _engine_kwargs["pool_size"] = settings.db_pool_size
+    _engine_kwargs["max_overflow"] = settings.db_max_overflow
+    _engine_kwargs["pool_timeout"] = settings.db_pool_timeout
+    _engine_kwargs["pool_recycle"] = 300
 engine: AsyncEngine = create_async_engine(
     settings.database_url,
     **_engine_kwargs,
