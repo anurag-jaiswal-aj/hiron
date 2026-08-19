@@ -5,14 +5,8 @@
 # ------------------------------------------------------------------------------
 # 1. Environment & Secret Configuration
 # ------------------------------------------------------------------------------
-.env
-.env.local
-.env.development
-.env.staging
-.env.production
-.env.temp.*
-.env.test.*
-.env.vercel.*
+.env*
+!.env*.example
 *.pem
 *.key
 *.crt
@@ -126,10 +120,6 @@ scratch/
 celerybeat-schedule
 celerybeat.pid
 
-.env.migration
-.env.migration
-.env*.local
-.env.vercel
 .phase13_prod_data.json
 
 # Local synthetic test-data artifacts
