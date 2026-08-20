@@ -130,7 +130,12 @@ def register_exception_handlers(app: FastAPI) -> None:
                 ),
             )
 
-        logger.info("Request validation failed", details_count=len(details))
+        logger.info(
+            "Request validation failed", 
+            details_count=len(details),
+            errors=str(exc.errors()),
+            body=str(getattr(exc, "body", None))
+        )
         payload = ErrorEnvelope(
             error=ErrorBody(
                 code="VALIDATION_ERROR",
