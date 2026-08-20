@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import httpx
 import pytest
+from fastapi import HTTPException
 
 from hiron.candidates.models import Candidate
 from hiron.jobs.models import Job
@@ -34,6 +35,7 @@ def sample_job() -> Job:
 def setup_gemini_env(monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEY", "test-api-key")
     from hiron.core.config import get_settings
+
     get_settings.cache_clear()
 
 
@@ -62,18 +64,18 @@ def valid_gemini_response() -> dict:
                 }
             }
         ],
-        "usageMetadata": {
-            "promptTokenCount": 150,
-            "candidatesTokenCount": 50
-        }
+        "usageMetadata": {"promptTokenCount": 150, "candidatesTokenCount": 50},
     }
 
 
 @pytest.mark.asyncio
 @patch("hiron.scores.engine.httpx.AsyncClient.post")
-async def test_scoring_engine_success(mock_post, sample_candidate, sample_job, valid_gemini_response) -> None:
+async def test_scoring_engine_success(
+    mock_post, sample_candidate, sample_job, valid_gemini_response
+) -> None:
     """Verify valid Gemini response is correctly parsed into ScoreData structure."""
     from unittest.mock import MagicMock
+
     mock_response = MagicMock()
     mock_response.json.return_value = valid_gemini_response
     mock_response.raise_for_status.return_value = None
@@ -101,7 +103,9 @@ async def test_scoring_engine_success(mock_post, sample_candidate, sample_job, v
 async def test_scoring_engine_429_propagation(mock_post, sample_candidate, sample_job) -> None:
     """Verify HTTP 429 bubbles up as httpx.HTTPStatusError for QStash to retry."""
     mock_response = httpx.Response(429, request=httpx.Request("POST", "url"))
-    mock_post.side_effect = httpx.HTTPStatusError("429 Too Many Requests", request=mock_response.request, response=mock_response)
+    mock_post.side_effect = httpx.HTTPStatusError(
+        "429 Too Many Requests", request=mock_response.request, response=mock_response
+    )
 
     engine = AIScoringEngine()
     with pytest.raises(httpx.HTTPStatusError) as exc_info:
@@ -115,7 +119,9 @@ async def test_scoring_engine_429_propagation(mock_post, sample_candidate, sampl
 async def test_scoring_engine_5xx_propagation(mock_post, sample_candidate, sample_job) -> None:
     """Verify HTTP 500 bubbles up as httpx.HTTPStatusError for QStash to retry."""
     mock_response = httpx.Response(500, request=httpx.Request("POST", "url"))
-    mock_post.side_effect = httpx.HTTPStatusError("500 Internal Server Error", request=mock_response.request, response=mock_response)
+    mock_post.side_effect = httpx.HTTPStatusError(
+        "500 Internal Server Error", request=mock_response.request, response=mock_response
+    )
 
     engine = AIScoringEngine()
     with pytest.raises(httpx.HTTPStatusError) as exc_info:
@@ -127,39 +133,35 @@ async def test_scoring_engine_5xx_propagation(mock_post, sample_candidate, sampl
 @pytest.mark.asyncio
 @patch("hiron.scores.engine.httpx.AsyncClient.post")
 async def test_scoring_engine_timeout_propagation(mock_post, sample_candidate, sample_job) -> None:
-    """Verify httpx.TimeoutException bubbles up for QStash to retry."""
+    """Verify httpx.TimeoutException is converted to HTTPException 504."""
     mock_post.side_effect = httpx.TimeoutException("Read timeout")
 
     engine = AIScoringEngine()
-    with pytest.raises(httpx.TimeoutException):
+    with pytest.raises(HTTPException) as exc_info:
         await engine.evaluate(sample_candidate, sample_job)
+    assert exc_info.value.status_code == 504
+    assert "Gemini API timeout" in exc_info.value.detail
 
 
 @pytest.mark.asyncio
 @patch("hiron.scores.engine.httpx.AsyncClient.post")
-async def test_scoring_engine_malformed_json_terminal(mock_post, sample_candidate, sample_job) -> None:
+async def test_scoring_engine_malformed_json_terminal(
+    mock_post, sample_candidate, sample_job
+) -> None:
     """Verify malformed JSON results in terminal HTTPException 422."""
     malformed_response = {
-        "candidates": [
-            {
-                "content": {
-                    "parts": [
-                        {
-                            "text": '{"fit_score": "not_an_int"}'
-                        }
-                    ]
-                }
-            }
-        ]
+        "candidates": [{"content": {"parts": [{"text": '{"fit_score": "not_an_int"}'}]}}]
     }
 
     from unittest.mock import MagicMock
+
     mock_response = MagicMock()
     mock_response.json.return_value = malformed_response
     mock_response.raise_for_status.return_value = None
     mock_post.return_value = mock_response
 
     from pydantic import ValidationError
+
     engine = AIScoringEngine()
     with pytest.raises(ValidationError):
         await engine.evaluate(sample_candidate, sample_job)

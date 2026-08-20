@@ -81,30 +81,27 @@ class AIScoringEngine:
             "}\n"
         )
         builder = PromptBuilder(system_instructions=system_instructions)
-        _llm_messages = builder.build_messages({
-            "candidate_skills": ", ".join(candidate.skills) if candidate.skills else "",
-            "candidate_summary": candidate.summary or "",
-            "candidate_resume_text": _resume_text or "",
-            "job_description": job.description or "",
-            "job_required_skills": ", ".join(job.required_skills) if job.required_skills else "",
-        })
+        _llm_messages = builder.build_messages(
+            {
+                "candidate_skills": ", ".join(candidate.skills) if candidate.skills else "",
+                "candidate_summary": candidate.summary or "",
+                "candidate_resume_text": _resume_text or "",
+                "job_description": job.description or "",
+                "job_required_skills": ", ".join(job.required_skills)
+                if job.required_skills
+                else "",
+            }
+        )
 
         system_text = next((m["content"] for m in _llm_messages if m["role"] == "system"), "")
         user_text = next((m["content"] for m in _llm_messages if m["role"] == "user"), "")
 
         payload = {
-            "systemInstruction": {
-                "parts": [{"text": system_text}]
-            },
-            "contents": [
-                {
-                    "role": "user",
-                    "parts": [{"text": user_text}]
-                }
-            ],
+            "systemInstruction": {"parts": [{"text": system_text}]},
+            "contents": [{"role": "user", "parts": [{"text": user_text}]}],
             "generationConfig": {
                 "responseMimeType": "application/json",
-            }
+            },
         }
 
         settings = get_settings()
@@ -125,7 +122,10 @@ class AIScoringEngine:
             if e.response.status_code in (429, 503, 500, 502, 504):
                 raise
             # Terminal invalid 4xx
-            raise HTTPException(status_code=e.response.status_code, detail=f"Terminal Gemini error: {e.response.text}") from e
+            raise HTTPException(
+                status_code=e.response.status_code,
+                detail=f"Terminal Gemini error: {e.response.text}",
+            ) from e
         except httpx.TimeoutException as e:
             # Propagate timeout
             raise HTTPException(status_code=504, detail="Gemini API timeout") from e
@@ -149,7 +149,9 @@ class AIScoringEngine:
                 raise ValueError("No text parts in Gemini response")
             raw_json_str = content_parts[0].get("text", "")
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Unexpected Gemini response format: {e!s}") from e
+            raise HTTPException(
+                status_code=500, detail=f"Unexpected Gemini response format: {e!s}"
+            ) from e
 
         # Pydantic validation
         # Let ValidationError propagate natively so the router can catch it and mark the batch failure

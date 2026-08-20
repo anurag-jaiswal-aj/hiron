@@ -35,6 +35,7 @@ async def test_embedding_generator_gemini_success(monkeypatch: pytest.MonkeyPatc
     mock_response.embeddings = [mock_embedding]
 
     from unittest.mock import AsyncMock
+
     mock_client_instance = MagicMock()
     mock_client_instance.aio.models.embed_content = AsyncMock(return_value=mock_response)
 
@@ -46,6 +47,7 @@ async def test_embedding_generator_gemini_success(monkeypatch: pytest.MonkeyPatc
     mock_genai.Client.return_value = mock_client_instance
 
     import sys
+
     monkeypatch.setitem(sys.modules, "google.genai", mock_genai)
     monkeypatch.setitem(sys.modules, "google", MagicMock(genai=mock_genai))
 
@@ -81,10 +83,13 @@ async def test_embedding_generator_fallback_non_production(monkeypatch: pytest.M
 
     mock_genai = MagicMock()
     mock_client = MagicMock()
-    mock_client.aio.models.embed_content = __import__("unittest.mock").mock.AsyncMock(side_effect=Exception("Gemini API Error"))
+    mock_client.aio.models.embed_content = __import__("unittest.mock").mock.AsyncMock(
+        side_effect=Exception("Gemini API Error")
+    )
     mock_genai.Client.return_value = mock_client
 
     import sys
+
     monkeypatch.setitem(sys.modules, "google.genai", mock_genai)
     monkeypatch.setitem(sys.modules, "google", MagicMock(genai=mock_genai))
 
@@ -113,7 +118,9 @@ async def test_embedding_generator_production_failure_no_key() -> None:
             await generator.generate_embedding("Test")
 
 
-async def test_embedding_generator_production_failure_api_error(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_embedding_generator_production_failure_api_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Verify generator propagates exceptions without fallback in production."""
     generator = EmbeddingGenerator()
     generator.gemini_api_key = "test_key"
@@ -123,10 +130,13 @@ async def test_embedding_generator_production_failure_api_error(monkeypatch: pyt
 
     mock_genai = MagicMock()
     mock_client = MagicMock()
-    mock_client.aio.models.embed_content = __import__("unittest.mock").mock.AsyncMock(side_effect=FakeGeminiError("Terminal Production Error"))
+    mock_client.aio.models.embed_content = __import__("unittest.mock").mock.AsyncMock(
+        side_effect=FakeGeminiError("Terminal Production Error")
+    )
     mock_genai.Client.return_value = mock_client
 
     import sys
+
     monkeypatch.setitem(sys.modules, "google.genai", mock_genai)
     monkeypatch.setitem(sys.modules, "google", MagicMock(genai=mock_genai))
 
@@ -149,12 +159,15 @@ async def test_embedding_generator_invalid_dimensions(monkeypatch: pytest.Monkey
     mock_response.embeddings = [mock_embedding]
 
     mock_client_instance = MagicMock()
-    mock_client_instance.aio.models.embed_content = __import__("unittest.mock").mock.AsyncMock(return_value=mock_response)
+    mock_client_instance.aio.models.embed_content = __import__("unittest.mock").mock.AsyncMock(
+        return_value=mock_response
+    )
 
     mock_genai = MagicMock()
     mock_genai.Client.return_value = mock_client_instance
 
     import sys
+
     monkeypatch.setitem(sys.modules, "google.genai", mock_genai)
     monkeypatch.setitem(sys.modules, "google", MagicMock(genai=mock_genai))
 
