@@ -163,6 +163,9 @@ jobs:
 
             if [ $PROJECT_EXIT -ne 0 ]; then
               echo "::error::Project $PROJECT failed!"
+              echo "--- API LOGS ---"
+              docker compose logs api
+              echo "----------------"
               EXIT_CODE=$PROJECT_EXIT
             fi
 
