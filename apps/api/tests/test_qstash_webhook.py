@@ -14,10 +14,11 @@ async def async_client():
 @pytest.fixture(autouse=True)
 def mock_settings(monkeypatch):
     """Ensure verifier uses the test keys."""
-    monkeypatch.setenv("QSTASH_CURRENT_SIGNING_KEY", CURRENT_KEY)
-    monkeypatch.setenv("QSTASH_NEXT_SIGNING_KEY", NEXT_KEY)
-    # Required for the middleware which might parse tokens, though shouldn't affect webhooks
     monkeypatch.setenv("API_URL", "http://testserver")
+    from hiron.core.config import get_settings
+    settings = get_settings()
+    monkeypatch.setattr(settings, "qstash_current_signing_key", CURRENT_KEY)
+    monkeypatch.setattr(settings, "qstash_next_signing_key", NEXT_KEY)
 
 
 @pytest.mark.asyncio

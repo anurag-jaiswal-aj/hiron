@@ -2,7 +2,13 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 
-import { httpClient, ResponseEnvelope, setAccessToken, setOnUnauthorized } from "../lib/api";
+import {
+  getAccessToken,
+  httpClient,
+  ResponseEnvelope,
+  setAccessToken,
+  setOnUnauthorized,
+} from "../lib/api";
 
 export interface User {
   id: string;
@@ -105,9 +111,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
         }
       } catch {
         if (isMounted) {
-          setAccessToken(null);
-          setUser(null);
-          setIsAuthenticated(false);
+          // If a concurrent successful login populated the token, do not wipe the state.
+          if (!getAccessToken()) {
+            setAccessToken(null);
+            setUser(null);
+            setIsAuthenticated(false);
+          }
           setIsLoading(false);
         }
       }

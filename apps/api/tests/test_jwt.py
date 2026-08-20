@@ -21,51 +21,13 @@ from hiron.core.jwt import (
 )
 
 
-@pytest.fixture
-def rsa_key_files(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> Generator[tuple[Path, Path], None, None]:
-    """Generate temporary RSA key files and patch settings to point to them."""
-    private_key_obj = rsa.generate_private_key(public_exponent=65537, key_size=2048)
 
-    priv_pem = private_key_obj.private_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PrivateFormat.PKCS8,
-        encryption_algorithm=serialization.NoEncryption(),
-    )
-    pub_pem = private_key_obj.public_key().public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo,
-    )
-
-    priv_file = tmp_path / "test_rsa_private.pem"
-    pub_file = tmp_path / "test_rsa_public.pem"
-
-    priv_file.write_bytes(priv_pem)
-    pub_file.write_bytes(pub_pem)
-
-    settings = get_settings()
-    monkeypatch.setattr(settings, "jwt_private_key_path", str(priv_file))
-    monkeypatch.setattr(settings, "jwt_public_key_path", str(pub_file))
-
-    # Clear LRU cache before and after test
-    load_private_key.cache_clear()
-    load_public_key.cache_clear()
-
-    yield priv_file, pub_file
-
-    load_private_key.cache_clear()
-    load_public_key.cache_clear()
-
-
-@pytest.mark.usefixtures("rsa_key_files")
 def test_load_private_key_success() -> None:
     """Verify load_private_key reads and caches private key from configured file path."""
     content = load_private_key()
     assert content.startswith("-----BEGIN PRIVATE KEY-----")
 
 
-@pytest.mark.usefixtures("rsa_key_files")
 def test_load_public_key_success() -> None:
     """Verify load_public_key reads and caches public key from configured file path."""
     content = load_public_key()
@@ -73,10 +35,10 @@ def test_load_public_key_success() -> None:
 
 
 def test_load_private_key_env_var_success(
-    monkeypatch: pytest.MonkeyPatch, rsa_key_files: tuple[Path, Path]
+    monkeypatch: pytest.MonkeyPatch, session_rsa_keys: tuple[Path, Path]
 ) -> None:
     """Verify load_private_key prioritizes jwt_private_key_content if provided."""
-    priv_file, _ = rsa_key_files
+    priv_file, _ = session_rsa_keys
     pem_content = priv_file.read_text(encoding="utf-8")
 
     settings = get_settings()
@@ -91,10 +53,10 @@ def test_load_private_key_env_var_success(
 
 
 def test_load_public_key_env_var_success(
-    monkeypatch: pytest.MonkeyPatch, rsa_key_files: tuple[Path, Path]
+    monkeypatch: pytest.MonkeyPatch, session_rsa_keys: tuple[Path, Path]
 ) -> None:
     """Verify load_public_key prioritizes jwt_public_key_content if provided."""
-    _, pub_file = rsa_key_files
+    _, pub_file = session_rsa_keys
     pem_content = pub_file.read_text(encoding="utf-8")
 
     settings = get_settings()
@@ -109,10 +71,10 @@ def test_load_public_key_env_var_success(
 
 
 def test_load_key_from_env_var_with_escaped_newlines(
-    monkeypatch: pytest.MonkeyPatch, rsa_key_files: tuple[Path, Path]
+    monkeypatch: pytest.MonkeyPatch, session_rsa_keys: tuple[Path, Path]
 ) -> None:
     """Verify load_private_key correctly normalizes escaped \\n newlines from env variables."""
-    priv_file, _ = rsa_key_files
+    priv_file, _ = session_rsa_keys
     pem_content = priv_file.read_text(encoding="utf-8")
     escaped_pem = pem_content.replace("\n", "\\n")
 
@@ -207,7 +169,6 @@ def test_invalid_public_pem_content_raises_value_error(
         load_public_key()
 
 
-@pytest.mark.usefixtures("rsa_key_files")
 def test_create_access_token_exact_claims_and_casing() -> None:
     """Verify access token claims match API Contract §4 exactly (sub, tenantId, email, role, type, iat, exp)."""
     user_id = uuid.uuid4()
@@ -227,7 +188,6 @@ def test_create_access_token_exact_claims_and_casing() -> None:
     assert "exp" in payload
 
 
-@pytest.mark.usefixtures("rsa_key_files")
 def test_create_refresh_token_claims_and_casing() -> None:
     """Verify refresh token claims match API Contract §4 & Database Design §5.3."""
     user_id = uuid.uuid4()
@@ -245,7 +205,6 @@ def test_create_refresh_token_claims_and_casing() -> None:
     assert "exp" in payload
 
 
-@pytest.mark.usefixtures("rsa_key_files")
 def test_verify_token_success() -> None:
     """Verify verify_token validates signature and expected type."""
     user_id = uuid.uuid4()
@@ -263,7 +222,6 @@ def test_verify_token_success() -> None:
     assert verified["tenantId"] == str(tenant_id)
 
 
-@pytest.mark.usefixtures("rsa_key_files")
 def test_verify_token_expired_raises_invalid_token_error() -> None:
     """Verify verify_token raises ExpiredSignatureError (subclass of InvalidTokenError) on expired token."""
     token = create_access_token(
@@ -278,7 +236,6 @@ def test_verify_token_expired_raises_invalid_token_error() -> None:
         verify_token(token, expected_type="access")
 
 
-@pytest.mark.usefixtures("rsa_key_files")
 def test_verify_token_wrong_type_raises_invalid_token_error() -> None:
     """Verify verify_token raises InvalidTokenError on wrong token type."""
     token = create_access_token(
