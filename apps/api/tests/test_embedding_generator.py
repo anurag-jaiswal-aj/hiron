@@ -34,8 +34,13 @@ async def test_embedding_generator_gemini_success(monkeypatch: pytest.MonkeyPatc
     mock_embedding.values = [0.1] * EMBEDDING_DIMENSION
     mock_response.embeddings = [mock_embedding]
 
+    from unittest.mock import AsyncMock
     mock_client_instance = MagicMock()
-    mock_client_instance.aio.models.embed_content = __import__('unittest.mock').mock.AsyncMock(return_value=mock_response)
+    mock_client_instance.aio.models.embed_content = AsyncMock(return_value=mock_response)
+
+    mock_count_response = MagicMock()
+    mock_count_response.total_tokens = 42
+    mock_client_instance.aio.models.count_tokens = AsyncMock(return_value=mock_count_response)
 
     mock_genai = MagicMock()
     mock_genai.Client.return_value = mock_client_instance
@@ -76,7 +81,7 @@ async def test_embedding_generator_fallback_non_production(monkeypatch: pytest.M
 
     mock_genai = MagicMock()
     mock_client = MagicMock()
-    mock_client.aio.models.embed_content = __import__('unittest.mock').mock.AsyncMock(side_effect=Exception("Gemini API Error"))
+    mock_client.aio.models.embed_content = __import__("unittest.mock").mock.AsyncMock(side_effect=Exception("Gemini API Error"))
     mock_genai.Client.return_value = mock_client
 
     import sys
@@ -118,7 +123,7 @@ async def test_embedding_generator_production_failure_api_error(monkeypatch: pyt
 
     mock_genai = MagicMock()
     mock_client = MagicMock()
-    mock_client.aio.models.embed_content = __import__('unittest.mock').mock.AsyncMock(side_effect=FakeGeminiError("Terminal Production Error"))
+    mock_client.aio.models.embed_content = __import__("unittest.mock").mock.AsyncMock(side_effect=FakeGeminiError("Terminal Production Error"))
     mock_genai.Client.return_value = mock_client
 
     import sys
@@ -144,7 +149,7 @@ async def test_embedding_generator_invalid_dimensions(monkeypatch: pytest.Monkey
     mock_response.embeddings = [mock_embedding]
 
     mock_client_instance = MagicMock()
-    mock_client_instance.aio.models.embed_content = __import__('unittest.mock').mock.AsyncMock(return_value=mock_response)
+    mock_client_instance.aio.models.embed_content = __import__("unittest.mock").mock.AsyncMock(return_value=mock_response)
 
     mock_genai = MagicMock()
     mock_genai.Client.return_value = mock_client_instance

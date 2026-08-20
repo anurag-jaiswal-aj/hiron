@@ -1,9 +1,9 @@
 """Unit tests for AIScoringEngine Gemini REST integration and validation."""
 
-import pytest
+from unittest.mock import patch
+
 import httpx
-from fastapi import HTTPException
-from unittest.mock import AsyncMock, patch
+import pytest
 
 from hiron.candidates.models import Candidate
 from hiron.jobs.models import Job
@@ -45,7 +45,7 @@ def valid_gemini_response() -> dict:
                 "content": {
                     "parts": [
                         {
-                            "text": '''{
+                            "text": """{
                                 "fit_score": 92,
                                 "confidence": 0.85,
                                 "explanation": "Excellent fit for the role.",
@@ -56,7 +56,7 @@ def valid_gemini_response() -> dict:
                                     "experience": {"score": 95, "details": "Exceeds 5 years."},
                                     "education": {"score": 80, "details": "Adequate."}
                                 }
-                            }'''
+                            }"""
                         }
                     ]
                 }
@@ -159,9 +159,7 @@ async def test_scoring_engine_malformed_json_terminal(mock_post, sample_candidat
     mock_response.raise_for_status.return_value = None
     mock_post.return_value = mock_response
 
+    from pydantic import ValidationError
     engine = AIScoringEngine()
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(ValidationError):
         await engine.evaluate(sample_candidate, sample_job)
-
-    assert exc_info.value.status_code == 422
-    assert "Gemini output validation failed" in exc_info.value.detail

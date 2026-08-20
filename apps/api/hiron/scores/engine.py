@@ -1,14 +1,11 @@
 """AI Candidate-Job Fit Scoring Engine per Engineering Guidelines §6 & Appendix A."""
 
-import json
-import math
 import time
 from typing import Any
 
 import httpx
 import structlog
 from fastapi import HTTPException
-from pydantic import ValidationError
 
 from hiron.candidates.models import Candidate
 from hiron.core.config import get_settings
@@ -62,8 +59,8 @@ class AIScoringEngine:
         candidate: Candidate,
         job: Job,
         _resume_text: str | None = None,
-        candidate_vector: list[float] | None = None,
-        job_vector: list[float] | None = None,
+        candidate_vector: list[float] | None = None,  # noqa: ARG002
+        job_vector: list[float] | None = None,  # noqa: ARG002
     ) -> dict[str, Any]:
         """Perform AI candidate-job evaluation pipeline via Gemini and produce structured score payload."""
         # 1. Structural Security Boundary Construction
@@ -71,15 +68,15 @@ class AIScoringEngine:
             f"You are evaluating {candidate.full_name} for the role of {job.title}. "
             "You must return a valid JSON object matching this schema exactly: \n"
             "{\n"
-            "  \"fit_score\": int (0-100),\n"
-            "  \"confidence\": float (0.0-1.0),\n"
-            "  \"explanation\": str,\n"
-            "  \"skills_matched\": [str],\n"
-            "  \"skills_missing\": [str],\n"
-            "  \"breakdown\": {\n"
-            "    \"skills\": {\"score\": int (0-100), \"details\": str},\n"
-            "    \"experience\": {\"score\": int (0-100), \"details\": str},\n"
-            "    \"education\": {\"score\": int (0-100), \"details\": str}\n"
+            '  "fit_score": int (0-100),\n'
+            '  "confidence": float (0.0-1.0),\n'
+            '  "explanation": str,\n'
+            '  "skills_matched": [str],\n'
+            '  "skills_missing": [str],\n'
+            '  "breakdown": {\n'
+            '    "skills": {"score": int (0-100), "details": str},\n'
+            '    "experience": {"score": int (0-100), "details": str},\n'
+            '    "education": {"score": int (0-100), "details": str}\n'
             "  }\n"
             "}\n"
         )
@@ -128,10 +125,10 @@ class AIScoringEngine:
             if e.response.status_code in (429, 503, 500, 502, 504):
                 raise
             # Terminal invalid 4xx
-            raise HTTPException(status_code=e.response.status_code, detail=f"Terminal Gemini error: {e.response.text}")
-        except httpx.TimeoutException:
+            raise HTTPException(status_code=e.response.status_code, detail=f"Terminal Gemini error: {e.response.text}") from e
+        except httpx.TimeoutException as e:
             # Propagate timeout
-            raise
+            raise HTTPException(status_code=504, detail="Gemini API timeout") from e
 
         latency_ms = int((time.time() - start_time) * 1000)
 
@@ -152,14 +149,11 @@ class AIScoringEngine:
                 raise ValueError("No text parts in Gemini response")
             raw_json_str = content_parts[0].get("text", "")
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Unexpected Gemini response format: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Unexpected Gemini response format: {e!s}") from e
 
         # Pydantic validation
-        try:
-            ai_score = AIGeneratedScore.model_validate_json(raw_json_str)
-        except ValidationError as e:
-            # Terminal validation error
-            raise HTTPException(status_code=422, detail=f"Gemini output validation failed: {str(e)}")
+        # Let ValidationError propagate natively so the router can catch it and mark the batch failure
+        ai_score = AIGeneratedScore.model_validate_json(raw_json_str)
 
         warnings = self.run_hallucination_and_consistency_checks(
             candidate, job, ai_score.skills_matched, ai_score.skills_missing, ai_score.fit_score
