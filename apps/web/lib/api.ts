@@ -86,7 +86,10 @@ export const setOnUnauthorized = (callback: (() => void) | null): void => {
 };
 
 const getApiBaseUrl = (): string => {
-  return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+  if (process.env.NEXT_PUBLIC_API_URL !== undefined) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  return isBrowser ? "" : "http://localhost:8000";
 };
 
 function onTokenRefreshed(newToken: string | null): void {

@@ -48,6 +48,8 @@ export interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+let globalRefreshPromise: Promise<ResponseEnvelope<RefreshTokenData>> | null = null;
+
 export function AuthProvider({
   children,
 }: {
@@ -70,11 +72,19 @@ export function AuthProvider({
 
     async function restoreSession(): Promise<void> {
       try {
-        const refreshResponse = await httpClient.post<ResponseEnvelope<RefreshTokenData>>(
-          "/api/v1/auth/refresh",
-          {},
-          { skipAuth: true }
-        );
+        if (!globalRefreshPromise) {
+          globalRefreshPromise = httpClient
+            .post<ResponseEnvelope<RefreshTokenData>>(
+              "/api/v1/auth/refresh",
+              {},
+              { skipAuth: true }
+            )
+            .finally(() => {
+              globalRefreshPromise = null;
+            });
+        }
+
+        const refreshResponse = await globalRefreshPromise;
 
         if (refreshResponse && refreshResponse.data && refreshResponse.data.accessToken) {
           setAccessToken(refreshResponse.data.accessToken);
@@ -146,12 +156,20 @@ export function AuthProvider({
   };
 
   const refreshSession = async (): Promise<void> => {
-    try {
-      const refreshResponse = await httpClient.post<ResponseEnvelope<RefreshTokenData>>(
-        "/api/v1/auth/refresh",
-        {},
-        { skipAuth: true }
-      );
+      try {
+        if (!globalRefreshPromise) {
+          globalRefreshPromise = httpClient
+            .post<ResponseEnvelope<RefreshTokenData>>(
+              "/api/v1/auth/refresh",
+              {},
+              { skipAuth: true }
+            )
+            .finally(() => {
+              globalRefreshPromise = null;
+            });
+        }
+
+        const refreshResponse = await globalRefreshPromise;
 
       if (refreshResponse && refreshResponse.data && refreshResponse.data.accessToken) {
         setAccessToken(refreshResponse.data.accessToken);
