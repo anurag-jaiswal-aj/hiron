@@ -45,14 +45,20 @@ async def seed_database() -> None:
                 tenant = existing_tenants[0]
             else:
                 # Atomic provisioning of initial tenant
-                tenant = await tenant_service.create_tenant(
-                    session=session,
+                from hiron.tenants.models import Tenant
+                from hiron.tenants.repository import TenantRepository
+
+                new_tenant = Tenant(
                     name=tenant_name,
                     slug=tenant_slug,
                     plan="enterprise",
+                    is_active=True,
+                    settings={},
                 )
+                tenant = await TenantRepository().create(session, new_tenant)
 
             from hiron.users.repository import UserRepository
+
             user_repo = UserRepository()
 
             # Ensure org_admin
@@ -68,7 +74,9 @@ async def seed_database() -> None:
                 )
 
             # Ensure recruiter
-            recruiter_user = await user_repo.get_by_email_and_tenant(session, "recruiter@acme.com", tenant.id)
+            recruiter_user = await user_repo.get_by_email_and_tenant(
+                session, "recruiter@acme.com", tenant.id
+            )
             if not recruiter_user:
                 recruiter_user = await user_service.create_user(
                     session=session,
@@ -80,7 +88,9 @@ async def seed_database() -> None:
                 )
 
             # Ensure hiring_manager
-            manager_user = await user_repo.get_by_email_and_tenant(session, "manager@acme.com", tenant.id)
+            manager_user = await user_repo.get_by_email_and_tenant(
+                session, "manager@acme.com", tenant.id
+            )
             if not manager_user:
                 manager_user = await user_service.create_user(
                     session=session,

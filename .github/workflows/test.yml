@@ -30,6 +30,7 @@ jobs:
     env:
       DATABASE_URL: postgresql+asyncpg://hiron_user:hiron_secure_password@localhost:5432/hiron_dev
       POSTGRES_PASSWORD: hiron_secure_password
+      PYTHONPATH: .
 
     steps:
       - name: Checkout repository
