@@ -16,6 +16,7 @@ def mock_settings(monkeypatch):
     """Ensure verifier uses the test keys."""
     monkeypatch.setenv("API_URL", "http://testserver")
     from hiron.core.config import get_settings
+
     settings = get_settings()
     monkeypatch.setattr(settings, "qstash_current_signing_key", CURRENT_KEY)
     monkeypatch.setattr(settings, "qstash_next_signing_key", NEXT_KEY)

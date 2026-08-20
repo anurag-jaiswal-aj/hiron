@@ -1,13 +1,10 @@
 """Unit test suite for RS256 JWT creation, verification, decoding, and RSA key file management."""
 
 import uuid
-from collections.abc import Generator
 from datetime import timedelta
 from pathlib import Path
 
 import pytest
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
 from jwt.exceptions import InvalidTokenError
 
 from hiron.core.config import get_settings
@@ -19,7 +16,6 @@ from hiron.core.jwt import (
     load_public_key,
     verify_token,
 )
-
 
 
 def test_load_private_key_success() -> None:
