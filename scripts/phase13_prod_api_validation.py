@@ -2,6 +2,7 @@ import asyncio
 import json
 import httpx
 import uuid
+from pathlib import Path
 
 API_BASE = "https://hiron-api.vercel.app/api/v1"
 
@@ -15,7 +16,7 @@ async def login(client: httpx.AsyncClient, email: str, password: str, tenant_id:
     return data["accessToken"], data["user"]
 
 async def main():
-    with open(".phase13_prod_data.json", "r") as f:
+    with Path(".phase13_prod_data.json").open("r") as f:  # noqa: ASYNC230
         data = json.load(f)
 
     tenant_a_id = data["tenant_a_id"]
@@ -150,7 +151,7 @@ async def main():
         # Save data for DB verification script
         data["job_id"] = job_id
         data["cand_id"] = cand_id
-        with open(".phase13_prod_data.json", "w") as f:
+        with Path(".phase13_prod_data.json").open("w") as f:  # noqa: ASYNC230
             json.dump(data, f, indent=2)
 
     print("\nAPI VALIDATION COMPLETE.")
