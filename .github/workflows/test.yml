@@ -120,12 +120,14 @@ jobs:
 
       - name: Create CI environment file
         run: |
+          mkdir -p keys
+          openssl genrsa -out keys/jwt_private.pem 2048
+          openssl rsa -in keys/jwt_private.pem -outform PEM -pubout -out keys/jwt_public.pem
           touch .env.local
           echo "DATABASE_URL=postgresql+asyncpg://hiron_user:hiron_secure_password@postgres:5432/hiron_dev" >> .env.local
           echo "POSTGRES_USER=hiron_user" >> .env.local
           echo "POSTGRES_PASSWORD=hiron_secure_password" >> .env.local
           echo "POSTGRES_DB=hiron_dev" >> .env.local
-          echo "JWT_SECRET=ci_test_secret_key" >> .env.local
 
       - name: Start backend infrastructure
         run: docker compose up -d postgres redis api
