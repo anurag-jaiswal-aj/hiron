@@ -70,9 +70,12 @@ class DashboardRepository:
         result = await session.execute(stmt)
         return result.scalar_one() or 0
 
-    async def get_dashboard_metrics_consolidated(self, session: AsyncSession, tenant_id: uuid.UUID) -> tuple[int, int, int, int, int]:
+    async def get_dashboard_metrics_consolidated(
+        self, session: AsyncSession, tenant_id: uuid.UUID
+    ) -> tuple[int, int, int, int, int]:
         """Fetch all 5 dashboard metrics in a single consolidated SQL query to reduce latency."""
         from sqlalchemy import text
+
         stmt = text("""
             SELECT
                 (SELECT COUNT(*) FROM jobs WHERE tenant_id = :tid AND status = 'open' AND is_archived = false) as open_jobs,
@@ -149,6 +152,7 @@ class DashboardRepository:
     ) -> tuple[int, int, int, int, float | None]:
         """Compute high (>=80), medium (60-79), low (<60) score counts and average fit score."""
         from sqlalchemy import case
+
         scores_stmt = select(
             func.count(case((Score.fit_score >= 80, 1))).label("high"),
             func.count(case((Score.fit_score.between(60, 79), 1))).label("medium"),

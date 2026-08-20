@@ -12,6 +12,7 @@ from hiron.users.models import User
 
 router = APIRouter(tags=["Tasks"])
 
+
 @router.get(
     "/{task_id}",
     response_model=TaskStatusResponse,
@@ -35,7 +36,9 @@ async def get_task_status(
     try:
         task_uuid = uuid.UUID(task_id)
         repo = ScoreRepository()
-        batch_job = await repo.get_batch_score_job(session=session, tenant_id=tenant_id, batch_job_id=task_id)
+        batch_job = await repo.get_batch_score_job(
+            session=session, tenant_id=tenant_id, batch_job_id=task_id
+        )
 
         if batch_job:
             # Map BatchScoreJob states to TASK-1 states
@@ -49,7 +52,9 @@ async def get_task_status(
                 progress = TaskProgress(current=current, total=total, percent=percent)
             elif batch_job.status == "completed":
                 api_status = "completed"
-                progress = TaskProgress(current=batch_job.queued_count, total=batch_job.queued_count, percent=100.0)
+                progress = TaskProgress(
+                    current=batch_job.queued_count, total=batch_job.queued_count, percent=100.0
+                )
             elif batch_job.status == "failed":
                 api_status = "failed"
         else:

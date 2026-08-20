@@ -94,6 +94,7 @@ def test_extract_model_changes_delete():
     assert changes["before"]["id"] == 1
     assert changes["before"]["name"] == "Test"
 
+
 def test_extract_model_changes_update():
     from sqlalchemy import create_engine
     from sqlalchemy.orm import Session
@@ -106,7 +107,7 @@ def test_extract_model_changes_update():
         session.add(instance)
         session.commit()
 
-        _ = instance.status # Trigger load
+        _ = instance.status  # Trigger load
         instance.status = "closed"
         changes = extract_model_changes(instance, "update")
 

@@ -20,6 +20,7 @@ from hiron.jobs.service import JobService
 def force_qstash_engine(monkeypatch):
     monkeypatch.setenv("QSTASH_WEBHOOK_URL", "http://localhost:8000")
     from hiron.core.config import get_settings
+
     get_settings.cache_clear()
 
 
@@ -77,21 +78,25 @@ async def test_create_job_success_generates_default_pipeline_stages(
         return "mock-task-id"
 
     service = JobService(job_repo=mock_job_repo)
-    with patch("hiron.core.qstash_client.QStashPublisher.publish", new_callable=AsyncMock, side_effect=mock_publish) as mock_publish_call:
+    with patch(
+        "hiron.core.qstash_client.QStashPublisher.publish",
+        new_callable=AsyncMock,
+        side_effect=mock_publish,
+    ) as mock_publish_call:
         job = await service.create_job(
-        session=mock_session,
-        tenant_id=tenant_id,
-        created_by=created_by,
-        current_user_role="recruiter",
-        title="Senior Frontend Engineer",
-        description="Full stack TypeScript and React role",
-        department="Engineering",
-        location="Remote",
-        employment_type="full_time",
-        experience_years_min=3,
-        experience_years_max=7,
-        required_skills=["TypeScript", "React"],
-    )
+            session=mock_session,
+            tenant_id=tenant_id,
+            created_by=created_by,
+            current_user_role="recruiter",
+            title="Senior Frontend Engineer",
+            description="Full stack TypeScript and React role",
+            department="Engineering",
+            location="Remote",
+            employment_type="full_time",
+            experience_years_min=3,
+            experience_years_max=7,
+            required_skills=["TypeScript", "React"],
+        )
 
     assert job.title == "Senior Frontend Engineer"
     assert job.status == "draft"
@@ -103,7 +108,9 @@ async def test_create_job_success_generates_default_pipeline_stages(
     assert stages[4].name == "Hired"
     assert stages[5].name == "Rejected"
 
-    assert call_order == ["commit", "publish"], "Job embedding task must be enqueued strictly AFTER commit"
+    assert call_order == ["commit", "publish"], (
+        "Job embedding task must be enqueued strictly AFTER commit"
+    )
     mock_publish_call.assert_called_once()
     kwargs = mock_publish_call.call_args.kwargs
     assert kwargs["payload"]["job_id"] == str(job.id)
@@ -429,7 +436,9 @@ async def test_update_job_relevant_fields_enqueues_embedding_after_commit(
         description="New Description",  # Relevant field
     )
 
-    assert call_order == ["commit", "publish"], "Job embedding task must be enqueued strictly AFTER commit"
+    assert call_order == ["commit", "publish"], (
+        "Job embedding task must be enqueued strictly AFTER commit"
+    )
     mock_publish_call.assert_called_once()
     kwargs = mock_publish_call.call_args.kwargs
     assert kwargs["payload"]["job_id"] == str(job_id)

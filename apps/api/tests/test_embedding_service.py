@@ -16,6 +16,7 @@ from hiron.embeddings.service import EmbeddingService
 def force_qstash_engine(monkeypatch):
     monkeypatch.setenv("QSTASH_WEBHOOK_URL", "http://localhost:8000")
     from hiron.core.config import get_settings
+
     get_settings.cache_clear()
 
 
@@ -310,16 +311,18 @@ async def test_generate_candidate_embedding_pipeline_changed_hash_regenerates() 
     existing.embedding = [0.1] * EMBEDDING_DIMENSION
     emb_repo.get_candidate_embedding.return_value = existing
 
-    generator.generate_embedding = AsyncMock(return_value=EmbeddingGenerationResult(
-        embedding=[0.2] * EMBEDDING_DIMENSION,
-        source_text_hash="hash-new",
-        input_tokens=10,
-        total_tokens=10,
-        latency_ms=100,
-        is_fallback=False,
-        status="success",
-        error_type=None,
-    ))
+    generator.generate_embedding = AsyncMock(
+        return_value=EmbeddingGenerationResult(
+            embedding=[0.2] * EMBEDDING_DIMENSION,
+            source_text_hash="hash-new",
+            input_tokens=10,
+            total_tokens=10,
+            latency_ms=100,
+            is_fallback=False,
+            status="success",
+            error_type=None,
+        )
+    )
 
     session = AsyncMock()
     result = await service.generate_candidate_embedding_pipeline(
@@ -364,16 +367,18 @@ async def test_generate_job_embedding_pipeline_model_mismatch_regenerates() -> N
     existing.embedding = [0.1] * EMBEDDING_DIMENSION
     emb_repo.get_job_embedding.return_value = existing
 
-    generator.generate_embedding = AsyncMock(return_value=EmbeddingGenerationResult(
-        embedding=[0.2] * EMBEDDING_DIMENSION,
-        source_text_hash="hash-same",
-        input_tokens=5,
-        total_tokens=5,
-        latency_ms=50,
-        is_fallback=False,
-        status="success",
-        error_type=None,
-    ))
+    generator.generate_embedding = AsyncMock(
+        return_value=EmbeddingGenerationResult(
+            embedding=[0.2] * EMBEDDING_DIMENSION,
+            source_text_hash="hash-same",
+            input_tokens=5,
+            total_tokens=5,
+            latency_ms=50,
+            is_fallback=False,
+            status="success",
+            error_type=None,
+        )
+    )
 
     session = AsyncMock()
     result = await service.generate_job_embedding_pipeline(
@@ -417,16 +422,18 @@ async def test_generate_candidate_embedding_pipeline_missing_or_invalid_regenera
     existing.embedding = [0.1] * 10
     emb_repo.get_candidate_embedding.return_value = existing
 
-    generator.generate_embedding = AsyncMock(return_value=EmbeddingGenerationResult(
-        embedding=[0.2] * EMBEDDING_DIMENSION,
-        source_text_hash="hash123",
-        input_tokens=2,
-        total_tokens=2,
-        latency_ms=10,
-        is_fallback=False,
-        status="success",
-        error_type=None,
-    ))
+    generator.generate_embedding = AsyncMock(
+        return_value=EmbeddingGenerationResult(
+            embedding=[0.2] * EMBEDDING_DIMENSION,
+            source_text_hash="hash123",
+            input_tokens=2,
+            total_tokens=2,
+            latency_ms=10,
+            is_fallback=False,
+            status="success",
+            error_type=None,
+        )
+    )
 
     session = AsyncMock()
     result = await service.generate_candidate_embedding_pipeline(
@@ -460,7 +467,9 @@ async def test_get_candidate_embedding_status_current() -> None:
     generator.compute_source_text_hash.return_value = "hash1"
 
     existing = MagicMock(
-        source_text_hash="hash1", model_version="gemini-embedding-2", embedding=[0.1] * EMBEDDING_DIMENSION
+        source_text_hash="hash1",
+        model_version="gemini-embedding-2",
+        embedding=[0.1] * EMBEDDING_DIMENSION,
     )
     emb_repo.get_latest_candidate_embedding.return_value = existing
 
@@ -491,7 +500,9 @@ async def test_get_candidate_embedding_status_stale_hash() -> None:
     generator.compute_source_text_hash.return_value = "hash2"
 
     existing = MagicMock(
-        source_text_hash="hash1", model_version="gemini-embedding-2", embedding=[0.1] * EMBEDDING_DIMENSION
+        source_text_hash="hash1",
+        model_version="gemini-embedding-2",
+        embedding=[0.1] * EMBEDDING_DIMENSION,
     )
     emb_repo.get_latest_candidate_embedding.return_value = existing
 
@@ -522,7 +533,9 @@ async def test_get_candidate_embedding_status_stale_model() -> None:
     generator.compute_source_text_hash.return_value = "hash1"
 
     existing = MagicMock(
-        source_text_hash="hash1", model_version="text-embedding-ada-002", embedding=[0.1] * EMBEDDING_DIMENSION
+        source_text_hash="hash1",
+        model_version="text-embedding-ada-002",
+        embedding=[0.1] * EMBEDDING_DIMENSION,
     )
     emb_repo.get_latest_candidate_embedding.return_value = existing
 
@@ -569,7 +582,9 @@ async def test_get_job_embedding_status_current() -> None:
     generator.compute_source_text_hash.return_value = "hash1"
 
     existing = MagicMock(
-        source_text_hash="hash1", model_version="gemini-embedding-2", embedding=[0.1] * EMBEDDING_DIMENSION
+        source_text_hash="hash1",
+        model_version="gemini-embedding-2",
+        embedding=[0.1] * EMBEDDING_DIMENSION,
     )
     emb_repo.get_latest_job_embedding.return_value = existing
 
@@ -672,7 +687,9 @@ async def test_get_job_embedding_status_stale_hash() -> None:
     generator.compute_source_text_hash.return_value = "hash2"
 
     existing = MagicMock(
-        source_text_hash="hash1", model_version="gemini-embedding-2", embedding=[0.1] * EMBEDDING_DIMENSION
+        source_text_hash="hash1",
+        model_version="gemini-embedding-2",
+        embedding=[0.1] * EMBEDDING_DIMENSION,
     )
     emb_repo.get_latest_job_embedding.return_value = existing
 
@@ -699,7 +716,9 @@ async def test_get_job_embedding_status_stale_model() -> None:
     generator.compute_source_text_hash.return_value = "hash1"
 
     existing = MagicMock(
-        source_text_hash="hash1", model_version="text-embedding-ada-002", embedding=[0.1] * EMBEDDING_DIMENSION
+        source_text_hash="hash1",
+        model_version="text-embedding-ada-002",
+        embedding=[0.1] * EMBEDDING_DIMENSION,
     )
     emb_repo.get_latest_job_embedding.return_value = existing
 

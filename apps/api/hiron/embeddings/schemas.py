@@ -78,10 +78,12 @@ class IndividualEmbeddingStatusResponse(BaseModel):
 
     data: IndividualEmbeddingStatusData = Field(...)
 
+
 class CandidateEmbeddingWebhookPayload(BaseModel):
     tenant_id: uuid.UUID
     candidate_id: uuid.UUID
     model_version: str
+
 
 class JobEmbeddingWebhookPayload(BaseModel):
     tenant_id: uuid.UUID

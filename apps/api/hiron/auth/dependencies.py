@@ -80,7 +80,9 @@ async def get_current_user(
     if cached_user:
         user = User(**cached_user)
     else:
-        user = await user_repo.get_by_id_and_tenant(session=db, user_id=user_id, tenant_id=tenant_id)
+        user = await user_repo.get_by_id_and_tenant(
+            session=db, user_id=user_id, tenant_id=tenant_id
+        )
         if user:
             user_dict = {
                 "id": str(user.id),

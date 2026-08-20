@@ -156,7 +156,10 @@ class ScoreService:
                         is_cache_hit=True,
                     )
                 except Exception as log_exc:
-                    logger.warning("Failed to write AI usage telemetry for scoring cache hit", error=str(log_exc))
+                    logger.warning(
+                        "Failed to write AI usage telemetry for scoring cache hit",
+                        error=str(log_exc),
+                    )
 
                 return ScoreResponse(data=self._build_score_data(existing_score))
 
@@ -205,7 +208,9 @@ class ScoreService:
             warnings=evaluation["warnings"],
         )
 
-        cost_usd = (evaluation["input_tokens"] / 1_000_000 * 0.075) + (evaluation["output_tokens"] / 1_000_000 * 0.30)
+        cost_usd = (evaluation["input_tokens"] / 1_000_000 * 0.075) + (
+            evaluation["output_tokens"] / 1_000_000 * 0.30
+        )
 
         await self.ai_usage_service.record_ai_usage(
             session=session,
@@ -274,6 +279,7 @@ class ScoreService:
         estimated_sec = max(5, queued_count * 5)
 
         from hiron.core.config import get_settings
+
         settings = get_settings()
 
         if not settings.qstash_webhook_url:

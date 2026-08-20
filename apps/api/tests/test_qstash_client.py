@@ -16,12 +16,14 @@ def test_qstash_publisher_initialization(monkeypatch):
     assert publisher.enabled is True
     assert publisher.client is not None
 
+
 def test_qstash_publisher_disabled_when_no_token(monkeypatch):
     monkeypatch.setenv("QSTASH_TOKEN", "")
     get_settings.cache_clear()
 
     publisher = QStashPublisher()
     assert getattr(publisher, "enabled", False) is False
+
 
 @pytest.mark.asyncio
 async def test_qstash_publisher_publish(monkeypatch):
@@ -34,9 +36,13 @@ async def test_qstash_publisher_publish(monkeypatch):
     assert publisher.enabled is True
     assert publisher.client is not None
 
-    with patch.object(publisher.client.message, "publish_json", new_callable=AsyncMock) as mock_publish_json:
+    with patch.object(
+        publisher.client.message, "publish_json", new_callable=AsyncMock
+    ) as mock_publish_json:
+
         class MockResponse:
             message_id = "msg_123"
+
         mock_publish_json.return_value = MockResponse()
 
         result = await publisher.publish(
@@ -44,7 +50,7 @@ async def test_qstash_publisher_publish(monkeypatch):
             payload={"data": "value"},
             deduplication_id="dedup_abc",
             retries=3,
-            delay="10s"
+            delay="10s",
         )
 
         assert result == "msg_123"

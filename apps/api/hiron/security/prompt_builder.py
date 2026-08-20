@@ -6,6 +6,7 @@ from hiron.security.sanitizer import detect_prompt_injection
 
 logger = structlog.get_logger("hiron.security.prompt_builder")
 
+
 class PromptBuilder:
     """Constructs LLM prompts with strict role separation and input truncation."""
 
@@ -22,8 +23,7 @@ class PromptBuilder:
             return ""
         if len(text) > max_length:
             logger.warning(
-                "ai_input_truncated",
-                extra={"original_length": len(text), "max_length": max_length}
+                "ai_input_truncated", extra={"original_length": len(text), "max_length": max_length}
             )
             return text[:max_length]
         return text
@@ -34,11 +34,11 @@ class PromptBuilder:
     ) -> list[dict[str, str]]:
         """
         Build a list of messages (System/User) with encapsulated untrusted data.
-        
+
         Args:
             user_variables: A dictionary mapping data labels to their untrusted content.
                             Example: {"candidate_resume": "...", "job_description": "..."}
-                            
+
         Returns:
             A list of formatted message dicts for an LLM API.
         """
@@ -65,13 +65,11 @@ class PromptBuilder:
             if detect_prompt_injection(truncated_content):
                 logger.warning(
                     "prompt_injection_detected",
-                    extra={"field": label, "length": len(truncated_content)}
+                    extra={"field": label, "length": len(truncated_content)},
                 )
 
             # 3. Apply XML-style data encapsulation
-            user_content_parts.append(
-                f"<{label}>\n{truncated_content}\n</{label}>"
-            )
+            user_content_parts.append(f"<{label}>\n{truncated_content}\n</{label}>")
 
         user_message_content = "\n\n".join(user_content_parts)
 

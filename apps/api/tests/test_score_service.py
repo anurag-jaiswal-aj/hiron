@@ -17,6 +17,7 @@ from hiron.scores.service import ScoreService
 def force_qstash_engine(monkeypatch):
     monkeypatch.setenv("QSTASH_WEBHOOK_URL", "http://localhost:8000")
     from hiron.core.config import get_settings
+
     get_settings.cache_clear()
 
 

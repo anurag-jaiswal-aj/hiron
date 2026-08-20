@@ -13,7 +13,9 @@ class HironLoadTestUser(HttpUser):
         import psycopg
 
         # Fetch the tenant ID for the loadtest-tenant
-        db_url = os.getenv("DATABASE_URL", "postgresql://hiron_user:hiron_secure_password@localhost:5432/hiron_dev")
+        db_url = os.getenv(
+            "DATABASE_URL", "postgresql://hiron_user:hiron_secure_password@localhost:5432/hiron_dev"
+        )
         with psycopg.connect(db_url) as conn, conn.cursor() as cur:
             cur.execute("SELECT id FROM tenants WHERE slug = 'loadtest-tenant'")
             result = cur.fetchone()
@@ -25,11 +27,14 @@ class HironLoadTestUser(HttpUser):
                 return
 
         # Authenticate using the load test admin credentials
-        response = self.client.post("/api/v1/auth/login", json={
-            "email": "admin@loadtest.hiron.ai",
-            "password": "LoadTestPassword123!",
-            "tenantId": self.tenant_id
-        })
+        response = self.client.post(
+            "/api/v1/auth/login",
+            json={
+                "email": "admin@loadtest.hiron.ai",
+                "password": "LoadTestPassword123!",
+                "tenantId": self.tenant_id,
+            },
+        )
 
         if response.status_code == 200:
             token = response.json().get("data", {}).get("accessToken")

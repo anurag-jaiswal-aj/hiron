@@ -198,6 +198,7 @@ def test_retry_resume_parse_endpoint_success(
     assert payload["data"]["resumeId"] == str(resume_id)
     assert payload["data"]["status"] == "pending"
 
+
 def test_upload_single_resume_unauthenticated() -> None:
     """Verify POST /api/v1/resumes/upload without auth returns 401 Unauthorized per §RES-1."""
     # Use a fresh client without dependency overrides for auth
@@ -210,6 +211,7 @@ def test_upload_single_resume_unauthenticated() -> None:
         files=files,
     )
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
 
 def test_get_candidate_resumes_endpoint_success(
     client: TestClient,
@@ -245,4 +247,3 @@ def test_get_candidate_resumes_endpoint_success(
     assert len(payload["data"]) == 2
     assert payload["data"][0]["resumeId"] == str(resume_id_1)
     assert payload["data"][1]["resumeId"] == str(resume_id_2)
-

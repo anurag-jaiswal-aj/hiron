@@ -161,7 +161,9 @@ async def test_upload_resume_placeholder_candidate_creation(recruiter_user_id: u
 
 
 @pytest.mark.asyncio
-async def test_upload_resume_existing_candidate_and_job_assignment(admin_user_id: uuid.UUID) -> None:
+async def test_upload_resume_existing_candidate_and_job_assignment(
+    admin_user_id: uuid.UUID,
+) -> None:
     """Verify upload binds to existing candidate and associates with job when provided."""
     resume_repo = AsyncMock()
     candidate_repo = AsyncMock()
@@ -250,7 +252,11 @@ async def test_bulk_upload_resumes_rejections(recruiter_user_id: uuid.UUID) -> N
     """Verify bulk upload filters out files > 10 MB or unsupported file types into rejections."""
     resume_repo = AsyncMock()
     candidate_repo = AsyncMock()
-    service = ResumeService(resume_repository=resume_repo, candidate_repository=candidate_repo, storage_provider=AsyncMock())
+    service = ResumeService(
+        resume_repository=resume_repo,
+        candidate_repository=candidate_repo,
+        storage_provider=AsyncMock(),
+    )
 
     session = AsyncMock()
     tenant_id = uuid.uuid4()
@@ -304,7 +310,11 @@ async def test_retry_parse_success(recruiter_user_id: uuid.UUID) -> None:
     """Verify retrying a failed resume resets status to pending."""
     resume_repo = AsyncMock()
     candidate_repo = AsyncMock()
-    service = ResumeService(resume_repository=resume_repo, candidate_repository=candidate_repo, storage_provider=AsyncMock())
+    service = ResumeService(
+        resume_repository=resume_repo,
+        candidate_repository=candidate_repo,
+        storage_provider=AsyncMock(),
+    )
 
     session = AsyncMock()
     tenant_id = uuid.uuid4()
@@ -356,7 +366,9 @@ async def test_retry_parse_success(recruiter_user_id: uuid.UUID) -> None:
 
 
 @pytest.mark.asyncio
-async def test_retry_parse_not_failed_status_raises_validation_exception(recruiter_user_id: uuid.UUID) -> None:
+async def test_retry_parse_not_failed_status_raises_validation_exception(
+    recruiter_user_id: uuid.UUID,
+) -> None:
     """Verify retrying a non-failed resume raises ValidationException."""
     resume_repo = AsyncMock()
     service = ResumeService(resume_repository=resume_repo, storage_provider=AsyncMock())
@@ -381,7 +393,9 @@ async def test_retry_parse_not_failed_status_raises_validation_exception(recruit
 
 
 @pytest.mark.asyncio
-async def test_upload_resume_qstash_publish_failure_raises_503(recruiter_user_id: uuid.UUID) -> None:
+async def test_upload_resume_qstash_publish_failure_raises_503(
+    recruiter_user_id: uuid.UUID,
+) -> None:
     """Verify that a QStash publish exception results in a failed resume status and raises a 503 error."""
     resume_repo = AsyncMock()
     candidate_repo = AsyncMock()
@@ -402,9 +416,13 @@ async def test_upload_resume_qstash_publish_failure_raises_503(recruiter_user_id
     candidate_id = uuid.uuid4()
 
     resume_repo.find_file_by_checksum.return_value = None
-    mock_candidate = Candidate(id=candidate_id, tenant_id=tenant_id, full_name="John Doe", source="upload")
+    mock_candidate = Candidate(
+        id=candidate_id, tenant_id=tenant_id, full_name="John Doe", source="upload"
+    )
     candidate_repo.create_candidate.return_value = mock_candidate
-    mock_resume = Resume(id=resume_id, tenant_id=tenant_id, candidate_id=candidate_id, status="pending")
+    mock_resume = Resume(
+        id=resume_id, tenant_id=tenant_id, candidate_id=candidate_id, status="pending"
+    )
     resume_repo.create_resume.return_value = mock_resume
 
     with patch("hiron.core.config.get_settings") as mock_settings:
@@ -413,6 +431,7 @@ async def test_upload_resume_qstash_publish_failure_raises_503(recruiter_user_id
             mock_publish.side_effect = Exception("Simulated QStash network failure")
 
             from hiron.common.exceptions import HironException
+
             with pytest.raises(HironException) as exc_info:
                 await service.upload_resume(
                     session=session,
@@ -431,6 +450,6 @@ async def test_upload_resume_qstash_publish_failure_raises_503(recruiter_user_id
             session=session,
             resume=mock_resume,
             status="failed",
-            parse_error="Queue error: Simulated QStash network failure"
+            parse_error="Queue error: Simulated QStash network failure",
         )
         assert session.commit.call_count == 2

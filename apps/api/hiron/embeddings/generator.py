@@ -19,6 +19,7 @@ EMBEDDING_DIMENSION = 768
 @dataclass
 class EmbeddingGenerationResult:
     """Telemetry-rich result of an embedding generation attempt."""
+
     embedding: list[float]
     source_text_hash: str
     input_tokens: int
@@ -64,7 +65,7 @@ class EmbeddingGenerator:
         if text and len(text) > max_chars:
             logger.warning(
                 "embedding_input_truncated_by_chars",
-                extra={"original_chars": len(text), "max_chars": max_chars}
+                extra={"original_chars": len(text), "max_chars": max_chars},
             )
             text = text[:max_chars]
 
@@ -89,9 +90,8 @@ class EmbeddingGenerator:
                     model=self.model_version,
                     contents=text if text else "",
                     config=types.EmbedContentConfig(
-                        output_dimensionality=EMBEDDING_DIMENSION,
-                        task_type="RETRIEVAL_DOCUMENT"
-                    )
+                        output_dimensionality=EMBEDDING_DIMENSION, task_type="RETRIEVAL_DOCUMENT"
+                    ),
                 )
 
                 if not response.embeddings or not response.embeddings[0].values:

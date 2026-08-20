@@ -54,6 +54,7 @@ AsyncSessionLocal: async_sessionmaker[AsyncSession] = async_sessionmaker(
     autocommit=False,
 )
 
+
 @event.listens_for(engine.sync_engine, "checkout")
 def set_tenant_context_on_checkout(dbapi_connection, connection_record, connection_proxy) -> None:
     """Inject tenant identity into the PostgreSQL session upon checking out a connection."""

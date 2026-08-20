@@ -81,6 +81,7 @@ class Score(Base):
     tenant: Mapped["Tenant"] = relationship("Tenant")
     job_candidate: Mapped["JobCandidate"] = relationship("JobCandidate")
 
+
 class BatchScoreJob(Base):
     """Tracks state and accounting for asynchronous batch candidate scoring via external task engine."""
 
@@ -112,7 +113,9 @@ class BatchScoreJob(Base):
         nullable=False,
     )
 
-    status: Mapped[str] = mapped_column(String(20), server_default=text("'pending'"), nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(20), server_default=text("'pending'"), nullable=False
+    )
 
     queued_count: Mapped[int] = mapped_column(Integer, server_default=text("0"), nullable=False)
     completed_count: Mapped[int] = mapped_column(Integer, server_default=text("0"), nullable=False)

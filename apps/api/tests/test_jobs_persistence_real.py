@@ -17,9 +17,25 @@ API_URL = os.getenv("API_URL", "http://localhost:8000/api/v1")
 def auth_token() -> tuple[str, str]:
     """Logs in and returns a tuple of (token, tenant_id)."""
     try:
-        tenant_id = subprocess.check_output(
-            ["docker", "exec", "hiron-postgres", "psql", "-U", "hiron_user", "-d", "hiron_dev", "-t", "-c", "SELECT id FROM tenants LIMIT 1;"]  # noqa: S607
-        ).decode().strip()
+        tenant_id = (
+            subprocess.check_output(
+                [
+                    "docker",
+                    "exec",
+                    "hiron-postgres",
+                    "psql",
+                    "-U",
+                    "hiron_user",
+                    "-d",
+                    "hiron_dev",
+                    "-t",
+                    "-c",
+                    "SELECT id FROM tenants LIMIT 1;",
+                ]  # noqa: S607
+            )
+            .decode()
+            .strip()
+        )
     except Exception as e:
         pytest.skip(f"Failed to fetch tenant ID from database: {e}")
 
@@ -54,7 +70,7 @@ def test_job_persistence_across_requests(auth_token: tuple[str, str]) -> None:
             "description": "This job must persist across transactions.",
             "department": "Engineering",
             "requiredSkills": ["Python", "Testing"],
-            "employmentType": "full_time"
+            "employmentType": "full_time",
         },
         headers=headers,
         timeout=15,
@@ -65,7 +81,9 @@ def test_job_persistence_across_requests(auth_token: tuple[str, str]) -> None:
 
     # 2. Issue a separate GET request for the specific job (Request 2)
     get_resp = requests.get(f"{API_URL}/jobs/{job_id}", headers=headers, timeout=15)
-    assert get_resp.status_code == 200, "Job was not found in a separate request (Transaction rollback bug?)"
+    assert get_resp.status_code == 200, (
+        "Job was not found in a separate request (Transaction rollback bug?)"
+    )
     assert get_resp.json()["data"]["title"] == job_title
 
     # Check default pipeline stages persisted

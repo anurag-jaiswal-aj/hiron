@@ -49,7 +49,9 @@ class SearchRepository:
         """Query candidates with pgvector similarity search and hybrid metadata filter clauses."""
 
         if query_vector is not None:
-            similarity = (1 - CandidateEmbedding.embedding.cosine_distance(query_vector)).label("similarity")
+            similarity = (1 - CandidateEmbedding.embedding.cosine_distance(query_vector)).label(
+                "similarity"
+            )
             order_clause = CandidateEmbedding.embedding.cosine_distance(query_vector)
 
             stmt = (
@@ -66,12 +68,9 @@ class SearchRepository:
             similarity = text("0.5 AS similarity")
             order_clause = Candidate.created_at.desc()
 
-            stmt = (
-                select(Candidate, similarity)
-                .where(
-                    Candidate.tenant_id == tenant_id,
-                    Candidate.is_archived.is_(False),
-                )
+            stmt = select(Candidate, similarity).where(
+                Candidate.tenant_id == tenant_id,
+                Candidate.is_archived.is_(False),
             )
 
         if filters:
@@ -124,7 +123,9 @@ class SearchRepository:
         """Query open jobs ranked by vector similarity to candidate embedding or query."""
 
         if query_vector is not None:
-            similarity = (1 - JobEmbedding.embedding.cosine_distance(query_vector)).label("similarity")
+            similarity = (1 - JobEmbedding.embedding.cosine_distance(query_vector)).label(
+                "similarity"
+            )
             order_clause = JobEmbedding.embedding.cosine_distance(query_vector)
         else:
             similarity = text("0.5 AS similarity")

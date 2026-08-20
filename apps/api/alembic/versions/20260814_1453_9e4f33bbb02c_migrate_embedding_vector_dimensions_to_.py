@@ -5,6 +5,7 @@ Revises: 'd336f5d8940e'
 Create Date: 2026-08-14 14:53:00.156469
 
 """
+
 from collections.abc import Sequence
 
 from alembic import op
@@ -14,6 +15,8 @@ revision: str = "9e4f33bbb02c"
 down_revision: str | None = "d336f5d8940e"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
+
+
 def upgrade() -> None:
     op.execute("DROP INDEX IF EXISTS ix_candidate_embeddings_vector;")
     op.execute("DROP INDEX IF EXISTS ix_job_embeddings_vector;")

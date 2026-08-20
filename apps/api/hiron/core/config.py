@@ -9,10 +9,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     # Rate Limiting & Security
-    rate_limit_requests_per_minute: int = Field(default=600, description="Rate limit requests per minute per IP")
+    rate_limit_requests_per_minute: int = Field(
+        default=600, description="Rate limit requests per minute per IP"
+    )
     trusted_proxies: list[str] = Field(
         default=["127.0.0.1", "::1"],
-        description="List of trusted proxy IPs/CIDRs for resolving X-Forwarded-For"
+        description="List of trusted proxy IPs/CIDRs for resolving X-Forwarded-For",
     )
 
     """Application settings loaded from environment variables and .env files."""
@@ -25,7 +27,9 @@ class Settings(BaseSettings):
     qstash_next_signing_key: str | None = Field(default=None, repr=False)
     qstash_webhook_url: str | None = Field(default=None)
     qstash_token: str | None = Field(default=None, repr=False)
-    worker_url: str | None = Field(default=None, description="Base public URL of the deployed worker")
+    worker_url: str | None = Field(
+        default=None, description="Base public URL of the deployed worker"
+    )
 
     @model_validator(mode="after")
     def validate_production_settings(self) -> "Settings":
@@ -140,8 +144,12 @@ class Settings(BaseSettings):
 
     # 6. Supabase Storage Configuration
     supabase_url: str | None = Field(default=None, description="Supabase API URL")
-    supabase_service_role_key: str | None = Field(default=None, repr=False, description="Supabase Service Role Key")
-    supabase_storage_bucket: str = Field(default="resumes", description="Supabase storage bucket name")
+    supabase_service_role_key: str | None = Field(
+        default=None, repr=False, description="Supabase Service Role Key"
+    )
+    supabase_storage_bucket: str = Field(
+        default="resumes", description="Supabase storage bucket name"
+    )
 
     @property
     def is_production(self) -> bool:

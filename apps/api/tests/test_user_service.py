@@ -293,4 +293,3 @@ async def test_create_user_exception_does_not_commit(
         )
 
     mock_session.commit.assert_not_called()
-

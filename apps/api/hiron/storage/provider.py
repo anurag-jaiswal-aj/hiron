@@ -141,6 +141,7 @@ class SupabaseStorageProvider(StorageProvider):
     ) -> str:
         """Upload file content to Supabase Storage."""
         import httpx
+
         path = f"{tenant_id}/{key.lstrip('/')}"
         url = f"{self.base_url}/{self.bucket_name}/{path}"
 
@@ -159,6 +160,7 @@ class SupabaseStorageProvider(StorageProvider):
     ) -> bytes:
         """Retrieve raw file content bytes from Supabase Storage."""
         import httpx
+
         path = f"{tenant_id}/{key.lstrip('/')}"
         url = f"{self.base_url}/authenticated/{self.bucket_name}/{path}"
 
@@ -174,6 +176,7 @@ class SupabaseStorageProvider(StorageProvider):
     ) -> bool:
         """Remove file from Supabase Storage."""
         import httpx
+
         path = f"{tenant_id}/{key.lstrip('/')}"
         url = f"{self.base_url}/{self.bucket_name}/{path}"
 
@@ -189,6 +192,7 @@ class SupabaseStorageProvider(StorageProvider):
     ) -> str:
         """Generate download URL via Supabase Storage sign endpoint."""
         import httpx
+
         path = f"{tenant_id}/{key.lstrip('/')}"
         url = f"{self.base_url}/sign/{self.bucket_name}/{path}"
 

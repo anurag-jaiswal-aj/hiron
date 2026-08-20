@@ -106,8 +106,6 @@ class ResumeService:
             return filename.split(".")[-1].lower()
         return "bin"
 
-
-
     async def _enqueue_parse_task(self, tenant_id: uuid.UUID, resume_id: uuid.UUID) -> str:
         """Enqueue parsing task via QStash Webhook."""
         from hiron.core.config import get_settings
@@ -273,10 +271,7 @@ class ResumeService:
             task_id = await self._enqueue_parse_task(tenant_id=tenant_id, resume_id=resume.id)
         except Exception as e:
             await self.resume_repo.update_resume_status(
-                session=session,
-                resume=resume,
-                status="failed",
-                parse_error=f"Queue error: {e!s}"
+                session=session, resume=resume, status="failed", parse_error=f"Queue error: {e!s}"
             )
             await session.commit()
             raise HironException(
@@ -445,10 +440,7 @@ class ResumeService:
             task_id = await self._enqueue_parse_task(tenant_id=tenant_id, resume_id=resume.id)
         except Exception as e:
             await self.resume_repo.update_resume_status(
-                session=session,
-                resume=resume,
-                status="failed",
-                parse_error=f"Queue error: {e!s}"
+                session=session, resume=resume, status="failed", parse_error=f"Queue error: {e!s}"
             )
             await session.commit()
             raise HironException(

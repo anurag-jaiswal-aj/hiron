@@ -140,7 +140,9 @@ class CacheManager:
             if keys:
                 deleted_count = await r.delete(*keys)
         except redis.RedisError as e:
-            logger.warning("Redis SCAN/DEL failed for pattern", error=str(e), pattern=pattern_prefix)
+            logger.warning(
+                "Redis SCAN/DEL failed for pattern", error=str(e), pattern=pattern_prefix
+            )
 
         async with self._get_lock():
             keys_to_del = [k for k in self._fallback_store if k.startswith(pattern_prefix)]
@@ -170,7 +172,7 @@ class CacheManager:
             "misses": self._misses,
             "total_requests": total,
             "hit_rate": round(hit_rate, 4),
-            "cached_entries_count": len(self._fallback_store), # Redis keys count requires dbsize
+            "cached_entries_count": len(self._fallback_store),  # Redis keys count requires dbsize
         }
 
 

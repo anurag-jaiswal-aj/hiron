@@ -52,7 +52,6 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
-
 class RequestSizeLimitMiddleware:
     """Pure ASGI middleware rejecting oversized request bodies (1 MB JSON limit, 10 MB file limit)."""
 
@@ -74,7 +73,11 @@ class RequestSizeLimitMiddleware:
         content_length_raw = headers.get(b"content-length")
 
         path = scope.get("path", "")
-        max_allowed = MAX_FILE_SIZE_BYTES if "/resumes/upload" in path or "multipart/form-data" in content_type else MAX_JSON_SIZE_BYTES
+        max_allowed = (
+            MAX_FILE_SIZE_BYTES
+            if "/resumes/upload" in path or "multipart/form-data" in content_type
+            else MAX_JSON_SIZE_BYTES
+        )
 
         if content_length_raw:
             try:
@@ -116,9 +119,12 @@ class RequestSizeLimitMiddleware:
 
         return
 
-    async def _send_413(self, send: Callable[[MutableMapping[str, Any]], Awaitable[None]], max_allowed: int) -> None:
+    async def _send_413(
+        self, send: Callable[[MutableMapping[str, Any]], Awaitable[None]], max_allowed: int
+    ) -> None:
         async def dummy_receive() -> MutableMapping[str, Any]:
             return {"type": "http.disconnect"}
+
         response = JSONResponse(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             content={
@@ -147,6 +153,7 @@ def is_trusted_proxy(ip: str, trusted_proxies: list[str]) -> bool:
     except ValueError:
         pass
     return False
+
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """Redis-backed fixed-window rate limiter for API endpoints."""
@@ -218,10 +225,13 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         return await call_next(request)
 
+
 class TenantIsolationMiddleware(BaseHTTPMiddleware):
     """Extracts tenant identity from authenticated JWTs and sets it in the request contextvar."""
 
-    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
         tenant_id = None
 
         auth = request.headers.get("Authorization")
@@ -231,7 +241,7 @@ class TenantIsolationMiddleware(BaseHTTPMiddleware):
                 payload = verify_token(token, expected_type="access")
                 tenant_str = payload.get("tenantId")
                 if tenant_str:
-                    uuid.UUID(tenant_str) # strictly validate format
+                    uuid.UUID(tenant_str)  # strictly validate format
                     tenant_id = tenant_str
             except (ExpiredSignatureError, InvalidTokenError, ValueError, KeyError):
                 # Don't fail the request here, let FastAPI auth dependencies handle 401s

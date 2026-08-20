@@ -220,7 +220,9 @@ class TenantService:
         await session.commit()
         return updated_tenant
 
-    async def delete_tenant(self, session: AsyncSession, tenant_id: uuid.UUID, user_id: uuid.UUID) -> None:
+    async def delete_tenant(
+        self, session: AsyncSession, tenant_id: uuid.UUID, user_id: uuid.UUID
+    ) -> None:
         """Hard-delete tenant organization per Database Design §9."""
         tenant = await self.get_tenant_by_id(session, tenant_id)
 

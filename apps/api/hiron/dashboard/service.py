@@ -35,7 +35,9 @@ class DashboardService:
     ) -> DashboardSummaryResponse:
         """Fetch complete dashboard summary payload."""
         # 1. Metrics (Consolidated query for Phase 12 latency improvement)
-        op, tot, sc, sh, hi = await self.dashboard_repo.get_dashboard_metrics_consolidated(session, tenant_id)
+        op, tot, sc, sh, hi = await self.dashboard_repo.get_dashboard_metrics_consolidated(
+            session, tenant_id
+        )
         metrics = DashboardMetrics(
             open_jobs_count=op,
             total_candidates_count=tot,

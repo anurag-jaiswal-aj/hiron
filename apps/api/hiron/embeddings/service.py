@@ -277,6 +277,7 @@ class EmbeddingService:
             raise ResourceNotFoundException(f"Candidate with ID '{candidate_id}' not found")
 
         from hiron.core.config import get_settings
+
         settings = get_settings()
 
         if not settings.qstash_webhook_url:
@@ -289,7 +290,9 @@ class EmbeddingService:
             "candidate_id": str(candidate_id),
             "model_version": model_version,
         }
-        webhook_url = f"{settings.qstash_webhook_url.rstrip('/')}/api/v1/webhooks/qstash/embeddings/candidate"
+        webhook_url = (
+            f"{settings.qstash_webhook_url.rstrip('/')}/api/v1/webhooks/qstash/embeddings/candidate"
+        )
         # Deduplication ID ensures we don't enqueue multiple generation tasks for the same candidate simultaneously
         task_id = await qstash_publisher.publish(
             url=webhook_url,
@@ -328,6 +331,7 @@ class EmbeddingService:
             raise ResourceNotFoundException(f"Job with ID '{job_id}' not found")
 
         from hiron.core.config import get_settings
+
         settings = get_settings()
 
         if not settings.qstash_webhook_url:

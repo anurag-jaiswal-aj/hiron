@@ -69,14 +69,19 @@ async def test_ai_scoring_engine_evaluation_benchmark() -> None:
         )
 
         matched = [s for s in mock_job.required_skills if s in mock_candidate.skills]
-        fit = int((len(matched) / len(mock_job.required_skills)) * 70 + min(mock_candidate.total_experience_years / 10, 1.0) * 30)
+        fit = int(
+            (len(matched) / len(mock_job.required_skills)) * 70
+            + min(mock_candidate.total_experience_years / 10, 1.0) * 30
+        )
         conf = float(c_data["data_completeness_score"]) * 0.9 + 0.05
         eval_result = {
             "fit_score": max(20, min(95, fit)),
             "confidence": conf,
             "explanation": "Benchmark evaluation match",
             "skills_matched": matched,
-            "skills_missing": [s for s in mock_job.required_skills if s not in mock_candidate.skills],
+            "skills_missing": [
+                s for s in mock_job.required_skills if s not in mock_candidate.skills
+            ],
         }
 
         results.append(eval_result)

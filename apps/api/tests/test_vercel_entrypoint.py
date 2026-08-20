@@ -10,12 +10,14 @@ def test_vercel_entrypoint_loads_successfully() -> None:
     with patch("uvicorn.run") as mock_run:
         import sys
         from pathlib import Path
+
         root_dir = Path(__file__).resolve().parent.parent.parent.parent
         sys.path.insert(0, str(root_dir))
 
         # Import the entrypoint dynamically to ensure it runs during the test
         import api.index as vercel_entrypoint
         from fastapi import FastAPI
+
         assert isinstance(vercel_entrypoint.app, FastAPI)
 
         # Verify routes are registered (in newer FastAPI they are _IncludedRouter instances)

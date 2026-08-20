@@ -150,4 +150,3 @@ async def get_me(
 ) -> ResponseEnvelope[UserAuthPayload]:
     """Return currently authenticated user profile per API Contract §AUTH-4."""
     return ResponseEnvelope(data=UserAuthPayload.model_validate(current_user))
-

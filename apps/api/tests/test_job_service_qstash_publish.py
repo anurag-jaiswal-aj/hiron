@@ -33,20 +33,25 @@ async def test_job_service_create_job_uses_qstash(admin_user_id: uuid.UUID):
     service.job_repo.create_job = AsyncMock(return_value=Job(id=job_id, tenant_id=tenant_id))
     service.job_repo.create_pipeline_stages = AsyncMock()
 
-    with patch("hiron.core.qstash_client.qstash_publisher.publish", new_callable=AsyncMock) as mock_publish:
+    with patch(
+        "hiron.core.qstash_client.qstash_publisher.publish", new_callable=AsyncMock
+    ) as mock_publish:
         await service.create_job(
             session=AsyncMock(),
             tenant_id=tenant_id,
             created_by=admin_user_id,
             current_user_role="org_admin",
             title="Software Engineer",
-            description="Great job"
+            description="Great job",
         )
         mock_publish.assert_called_once()
         assert "api/v1/webhooks/qstash/embeddings/job" in mock_publish.call_args[1]["url"]
         assert mock_publish.call_args[1]["payload"]["job_id"] == str(job_id)
         assert mock_publish.call_args[1]["payload"]["model_version"] == "gemini-embedding-2"
-        assert mock_publish.call_args[1]["deduplication_id"] == f"embed-job-{job_id}-gemini-embedding-2"
+        assert (
+            mock_publish.call_args[1]["deduplication_id"]
+            == f"embed-job-{job_id}-gemini-embedding-2"
+        )
 
 
 @pytest.mark.asyncio
@@ -63,25 +68,30 @@ async def test_job_service_update_job_uses_qstash(admin_user_id: uuid.UUID):
         title="Old",
         description="Old",
         experience_years_min=0,
-        experience_years_max=5
+        experience_years_max=5,
     )
     service.job_repo.get_job_by_id = AsyncMock(return_value=existing_job)
     service.job_repo.update_job = AsyncMock(return_value=existing_job)
 
-    with patch("hiron.core.qstash_client.qstash_publisher.publish", new_callable=AsyncMock) as mock_publish:
+    with patch(
+        "hiron.core.qstash_client.qstash_publisher.publish", new_callable=AsyncMock
+    ) as mock_publish:
         await service.update_job(
             session=AsyncMock(),
             job_id=job_id,
             tenant_id=tenant_id,
             user_id=admin_user_id,
             current_user_role="org_admin",
-            description="New description"
+            description="New description",
         )
         mock_publish.assert_called_once()
         assert "api/v1/webhooks/qstash/embeddings/job" in mock_publish.call_args[1]["url"]
         assert mock_publish.call_args[1]["payload"]["job_id"] == str(job_id)
         assert mock_publish.call_args[1]["payload"]["model_version"] == "gemini-embedding-2"
-        assert mock_publish.call_args[1]["deduplication_id"] == f"embed-job-{job_id}-gemini-embedding-2"
+        assert (
+            mock_publish.call_args[1]["deduplication_id"]
+            == f"embed-job-{job_id}-gemini-embedding-2"
+        )
 
 
 @pytest.mark.asyncio
@@ -98,12 +108,14 @@ async def test_job_service_update_job_no_source_change_skips_qstash(admin_user_i
         title="Old",
         description="Old",
         experience_years_min=0,
-        experience_years_max=5
+        experience_years_max=5,
     )
     service.job_repo.get_job_by_id = AsyncMock(return_value=existing_job)
     service.job_repo.update_job = AsyncMock(return_value=existing_job)
 
-    with patch("hiron.core.qstash_client.qstash_publisher.publish", new_callable=AsyncMock) as mock_publish:
+    with patch(
+        "hiron.core.qstash_client.qstash_publisher.publish", new_callable=AsyncMock
+    ) as mock_publish:
         await service.update_job(
             session=AsyncMock(),
             job_id=job_id,
@@ -111,7 +123,7 @@ async def test_job_service_update_job_no_source_change_skips_qstash(admin_user_i
             user_id=admin_user_id,
             current_user_role="org_admin",
             location="New Location",
-            employment_type="part_time"
+            employment_type="part_time",
         )
         mock_publish.assert_not_called()
 
@@ -127,7 +139,9 @@ async def test_job_service_create_job_qstash_failure_swallowed(admin_user_id: uu
     service.job_repo.create_job = AsyncMock(return_value=Job(id=job_id, tenant_id=tenant_id))
     service.job_repo.create_pipeline_stages = AsyncMock()
 
-    with patch("hiron.core.qstash_client.qstash_publisher.publish", new_callable=AsyncMock) as mock_publish:
+    with patch(
+        "hiron.core.qstash_client.qstash_publisher.publish", new_callable=AsyncMock
+    ) as mock_publish:
         mock_publish.side_effect = Exception("QStash network error")
 
         job = await service.create_job(
@@ -136,7 +150,7 @@ async def test_job_service_create_job_qstash_failure_swallowed(admin_user_id: uu
             created_by=admin_user_id,
             current_user_role="org_admin",
             title="Software Engineer",
-            description="Great job"
+            description="Great job",
         )
         assert job.id == job_id
         mock_publish.assert_called_once()
@@ -156,12 +170,14 @@ async def test_job_service_update_job_qstash_failure_swallowed(admin_user_id: uu
         title="Old",
         description="Old",
         experience_years_min=0,
-        experience_years_max=5
+        experience_years_max=5,
     )
     service.job_repo.get_job_by_id = AsyncMock(return_value=existing_job)
     service.job_repo.update_job = AsyncMock(return_value=existing_job)
 
-    with patch("hiron.core.qstash_client.qstash_publisher.publish", new_callable=AsyncMock) as mock_publish:
+    with patch(
+        "hiron.core.qstash_client.qstash_publisher.publish", new_callable=AsyncMock
+    ) as mock_publish:
         mock_publish.side_effect = Exception("QStash network error")
 
         updated = await service.update_job(
@@ -170,7 +186,7 @@ async def test_job_service_update_job_qstash_failure_swallowed(admin_user_id: uu
             tenant_id=tenant_id,
             user_id=admin_user_id,
             current_user_role="org_admin",
-            title="New Title"
+            title="New Title",
         )
         assert updated == existing_job
         mock_publish.assert_called_once()

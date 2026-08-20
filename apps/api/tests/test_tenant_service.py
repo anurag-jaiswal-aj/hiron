@@ -68,7 +68,9 @@ async def test_create_tenant_duplicate_slug_raises_error(
 
     service = TenantService(tenant_repo=mock_tenant_repo)
     with pytest.raises(TenantSlugAlreadyExistsError, match="duplicate-slug"):
-        await service.create_tenant(mock_session, user_id=admin_user_id, name="New", slug="DUPLICATE-SLUG", plan="starter")
+        await service.create_tenant(
+            mock_session, user_id=admin_user_id, name="New", slug="DUPLICATE-SLUG", plan="starter"
+        )
 
     mock_tenant_repo.create.assert_not_called()
 
@@ -82,7 +84,9 @@ async def test_create_tenant_invalid_plan_raises_error(
     """Verify create_tenant raises InvalidTenantPlanError when plan is invalid."""
     service = TenantService(tenant_repo=mock_tenant_repo)
     with pytest.raises(InvalidTenantPlanError, match="invalid_plan"):
-        await service.create_tenant(mock_session, user_id=admin_user_id, name="New", slug="new-slug", plan="invalid_plan")
+        await service.create_tenant(
+            mock_session, user_id=admin_user_id, name="New", slug="new-slug", plan="invalid_plan"
+        )
 
     mock_tenant_repo.get_by_slug.assert_not_called()
     mock_tenant_repo.create.assert_not_called()
@@ -149,7 +153,9 @@ async def test_update_tenant_slug_duplicate_raises_error(
 
     service = TenantService(tenant_repo=mock_tenant_repo)
     with pytest.raises(TenantSlugAlreadyExistsError, match="taken-slug"):
-        await service.update_tenant(mock_session, user_id=admin_user_id, tenant_id=tenant_id, slug="TAKEN-SLUG")
+        await service.update_tenant(
+            mock_session, user_id=admin_user_id, tenant_id=tenant_id, slug="TAKEN-SLUG"
+        )
 
 
 @pytest.mark.asyncio

@@ -20,10 +20,16 @@ class ScoreBreakdownAI(BaseModel):
 
 class AIGeneratedScore(BaseModel):
     fit_score: int = Field(..., ge=0, le=100, description="Overall fit score from 0 to 100")
-    confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence in the evaluation from 0.0 to 1.0")
+    confidence: float = Field(
+        ..., ge=0.0, le=1.0, description="Confidence in the evaluation from 0.0 to 1.0"
+    )
     explanation: str = Field(..., description="Overall summary explanation of candidate fit")
-    skills_matched: list[str] = Field(..., description="List of job required skills the candidate possesses")
-    skills_missing: list[str] = Field(..., description="List of job required skills the candidate lacks")
+    skills_matched: list[str] = Field(
+        ..., description="List of job required skills the candidate possesses"
+    )
+    skills_missing: list[str] = Field(
+        ..., description="List of job required skills the candidate lacks"
+    )
     breakdown: ScoreBreakdownAI
 
 
@@ -144,12 +150,14 @@ class ScoreExplanationResponse(BaseModel):
 
     data: ScoreExplanationData = Field(...)
 
+
 class BatchScoreWorkerWebhookPayload(BaseModel):
     batch_id: str
     tenant_id: uuid.UUID
     job_id: uuid.UUID
     candidate_id: uuid.UUID
     force_rescore: bool
+
 
 class BatchScoreCoordinatorWebhookPayload(BaseModel):
     batch_id: str

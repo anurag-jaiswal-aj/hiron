@@ -62,11 +62,11 @@ def serialize_for_audit(val: Any) -> Any:
 
 def extract_model_changes(instance: Any, operation: str) -> dict[str, Any] | None:
     """Extract before/after state from a SQLAlchemy model instance before flush.
-    
+
     Args:
         instance: The SQLAlchemy model object.
         operation: 'create', 'update', or 'delete'.
-        
+
     Returns:
         dict with 'before' and/or 'after' keys containing serialized states.
     """
@@ -110,6 +110,6 @@ def extract_model_changes(instance: Any, operation: str) -> dict[str, Any] | Non
             changes["before"] = before
             changes["after"] = after
         else:
-            return None # No changes to columns
+            return None  # No changes to columns
 
     return changes

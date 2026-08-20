@@ -10,6 +10,7 @@ import pytest
 APP_DB_URL = "postgresql://hiron_app:app_password@localhost:5432/hiron_dev"
 ADMIN_DB_URL = "postgresql://hiron_user:hiron_secure_password@localhost:5432/hiron_dev"
 
+
 @pytest.fixture
 async def setup_data() -> dict[str, str]:
     """Setup test tenants and users using the admin superuser role."""
@@ -30,22 +31,47 @@ async def setup_data() -> dict[str, str]:
         END $$;
     """)
     await conn.execute("GRANT USAGE ON SCHEMA public TO hiron_app;")
-    await conn.execute("GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO hiron_app;")
+    await conn.execute(
+        "GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO hiron_app;"
+    )
     await conn.execute("GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO hiron_app;")
-    await conn.execute("ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO hiron_app;")
-    await conn.execute("ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO hiron_app;")
+    await conn.execute(
+        "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO hiron_app;"
+    )
+    await conn.execute(
+        "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO hiron_app;"
+    )
 
     # Create tenants
-    await conn.execute("INSERT INTO tenants (id, name, slug) VALUES ($1, 'Tenant A', $2)", tenant_a, f"tenant-a-{tenant_a}")
-    await conn.execute("INSERT INTO tenants (id, name, slug) VALUES ($1, 'Tenant B', $2)", tenant_b, f"tenant-b-{tenant_b}")
+    await conn.execute(
+        "INSERT INTO tenants (id, name, slug) VALUES ($1, 'Tenant A', $2)",
+        tenant_a,
+        f"tenant-a-{tenant_a}",
+    )
+    await conn.execute(
+        "INSERT INTO tenants (id, name, slug) VALUES ($1, 'Tenant B', $2)",
+        tenant_b,
+        f"tenant-b-{tenant_b}",
+    )
 
     # Create users
-    await conn.execute("INSERT INTO users (id, tenant_id, email, password_hash, full_name, role) VALUES ($1, $2, $3, 'hash', 'Test User A', 'recruiter')", user_a, tenant_a, f"a_{user_a}@test.com")
-    await conn.execute("INSERT INTO users (id, tenant_id, email, password_hash, full_name, role) VALUES ($1, $2, $3, 'hash', 'Test User B', 'recruiter')", user_b, tenant_b, f"b_{user_b}@test.com")
+    await conn.execute(
+        "INSERT INTO users (id, tenant_id, email, password_hash, full_name, role) VALUES ($1, $2, $3, 'hash', 'Test User A', 'recruiter')",
+        user_a,
+        tenant_a,
+        f"a_{user_a}@test.com",
+    )
+    await conn.execute(
+        "INSERT INTO users (id, tenant_id, email, password_hash, full_name, role) VALUES ($1, $2, $3, 'hash', 'Test User B', 'recruiter')",
+        user_b,
+        tenant_b,
+        f"b_{user_b}@test.com",
+    )
 
     await conn.close()
 
     return {"tenant_a": tenant_a, "tenant_b": tenant_b, "user_a": user_a, "user_b": user_b}
+
 
 @pytest.mark.asyncio
 async def test_rls_isolation_scenarios(setup_data: dict[str, str]) -> None:
@@ -90,7 +116,11 @@ async def test_rls_isolation_scenarios(setup_data: dict[str, str]) -> None:
 
         # 6. Tenant A cannot INSERT a row with Tenant B's tenant_id.
         try:
-            await conn.execute("INSERT INTO users (id, tenant_id, email, password_hash, full_name, role) VALUES ($1, $2, 'hack@test.com', 'hash', 'Hacker', 'recruiter')", str(uuid.uuid4()), tb)
+            await conn.execute(
+                "INSERT INTO users (id, tenant_id, email, password_hash, full_name, role) VALUES ($1, $2, 'hack@test.com', 'hash', 'Hacker', 'recruiter')",
+                str(uuid.uuid4()),
+                tb,
+            )
             pytest.fail("Tenant A was able to INSERT a row for Tenant B!")
         except asyncpg.exceptions.InsufficientPrivilegeError:
             # WITH CHECK policy should enforce this
@@ -103,6 +133,7 @@ async def test_rls_isolation_scenarios(setup_data: dict[str, str]) -> None:
 
     finally:
         await conn.close()
+
 
 @pytest.mark.asyncio
 async def test_rls_connection_pool_safety(setup_data: dict[str, str]) -> None:

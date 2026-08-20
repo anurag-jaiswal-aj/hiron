@@ -142,9 +142,7 @@ class TagService:
         tenant_id: uuid.UUID,
     ) -> list[str]:
         """List all unique tags across the tenant for autocomplete."""
-        return await self.tag_repo.list_tenant_tags(
-            session=session, tenant_id=tenant_id
-        )
+        return await self.tag_repo.list_tenant_tags(session=session, tenant_id=tenant_id)
 
     async def remove_tag(
         self,

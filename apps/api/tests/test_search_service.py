@@ -61,16 +61,18 @@ async def test_search_candidates_success() -> None:
     tenant_id = uuid.uuid4()
     candidate_id = uuid.uuid4()
 
-    generator.generate_embedding = AsyncMock(return_value=EmbeddingGenerationResult(
-        embedding=[0.1] * EMBEDDING_DIMENSION,
-        source_text_hash="hash123",
-        input_tokens=10,
-        total_tokens=15,
-        latency_ms=100,
-        is_fallback=False,
-        status="success",
-        error_type=None,
-    ))
+    generator.generate_embedding = AsyncMock(
+        return_value=EmbeddingGenerationResult(
+            embedding=[0.1] * EMBEDDING_DIMENSION,
+            source_text_hash="hash123",
+            input_tokens=10,
+            total_tokens=15,
+            latency_ms=100,
+            is_fallback=False,
+            status="success",
+            error_type=None,
+        )
+    )
     cand = Candidate(
         id=candidate_id,
         tenant_id=tenant_id,
@@ -92,6 +94,7 @@ async def test_search_candidates_success() -> None:
     assert response.data[0].candidate.full_name == "Jane Smith"
     assert response.data[0].relevance_score == 0.92
     assert response.pagination.total_count == 1
+
 
 @pytest.mark.asyncio
 async def test_search_candidates_fallback() -> None:
@@ -117,19 +120,19 @@ async def test_search_candidates_fallback() -> None:
     tenant_id = uuid.uuid4()
     candidate_id = uuid.uuid4()
 
-    generator.generate_embedding = AsyncMock(return_value=EmbeddingGenerationResult(
-        embedding=[0.1] * EMBEDDING_DIMENSION,
-        source_text_hash="hash123",
-        input_tokens=0,
-        total_tokens=0,
-        latency_ms=10,
-        is_fallback=True,
-        status="error",
-        error_type="NetworkError",
-    ))
-    cand = Candidate(
-        id=candidate_id, tenant_id=tenant_id, full_name="Jane Smith"
+    generator.generate_embedding = AsyncMock(
+        return_value=EmbeddingGenerationResult(
+            embedding=[0.1] * EMBEDDING_DIMENSION,
+            source_text_hash="hash123",
+            input_tokens=0,
+            total_tokens=0,
+            latency_ms=10,
+            is_fallback=True,
+            status="error",
+            error_type="NetworkError",
+        )
     )
+    cand = Candidate(id=candidate_id, tenant_id=tenant_id, full_name="Jane Smith")
     search_repo.search_candidates_by_vector_and_filters.return_value = [(cand, 0.92)]
 
     await service.search_candidates(
@@ -143,6 +146,7 @@ async def test_search_candidates_fallback() -> None:
     ai_args = mock_ai_repo.create_usage_log.call_args.kwargs
     assert ai_args["is_cache_hit"] is False
     assert ai_args["error_type"] == "NetworkError"
+
 
 @pytest.mark.asyncio
 async def test_search_candidates_by_job_cache_hit() -> None:
@@ -168,10 +172,12 @@ async def test_search_candidates_by_job_cache_hit() -> None:
     job_id = uuid.uuid4()
 
     from hiron.jobs.models import Job
+
     job = Job(id=job_id, tenant_id=tenant_id, title="Dev")
     job_repo.get_job_by_id.return_value = job
 
     from hiron.embeddings.models import JobEmbedding
+
     emb_repo.get_job_embedding.return_value = JobEmbedding(
         job_id=job_id, tenant_id=tenant_id, embedding=[0.1] * EMBEDDING_DIMENSION
     )
@@ -191,6 +197,7 @@ async def test_search_candidates_by_job_cache_hit() -> None:
     assert ai_args["is_cache_hit"] is True
     assert ai_args["cost_usd"] == 0.0
     assert ai_args["input_tokens"] == 0
+
 
 @pytest.mark.asyncio
 async def test_search_candidates_by_job_cache_miss() -> None:
@@ -216,22 +223,25 @@ async def test_search_candidates_by_job_cache_miss() -> None:
     job_id = uuid.uuid4()
 
     from hiron.jobs.models import Job
+
     job = Job(id=job_id, tenant_id=tenant_id, title="Dev")
     job_repo.get_job_by_id.return_value = job
 
     # Cache miss
     emb_repo.get_job_embedding.return_value = None
 
-    generator.generate_embedding = AsyncMock(return_value=EmbeddingGenerationResult(
-        embedding=[0.1] * EMBEDDING_DIMENSION,
-        source_text_hash="hash123",
-        input_tokens=100,
-        total_tokens=100,
-        latency_ms=10,
-        is_fallback=False,
-        status="success",
-        error_type=None,
-    ))
+    generator.generate_embedding = AsyncMock(
+        return_value=EmbeddingGenerationResult(
+            embedding=[0.1] * EMBEDDING_DIMENSION,
+            source_text_hash="hash123",
+            input_tokens=100,
+            total_tokens=100,
+            latency_ms=10,
+            is_fallback=False,
+            status="success",
+            error_type=None,
+        )
+    )
     search_repo.search_candidates_by_vector_and_filters.return_value = []
 
     await service.search_candidates_by_job(

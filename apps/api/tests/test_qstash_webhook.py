@@ -7,7 +7,9 @@ from tests.test_qstash_auth import CURRENT_KEY, NEXT_KEY, generate_qstash_signat
 
 @pytest.fixture
 async def async_client():
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://testserver"
+    ) as client:
         yield client
 
 
@@ -25,12 +27,14 @@ def mock_settings(monkeypatch):
 @pytest.mark.asyncio
 async def test_webhook_valid_signature_current_key_returns_200(async_client):
     body = '{"event": "phase_21_6_3_test", "message_id": "msg-123", "payload": {"hello": "qstash"}}'
-    signature = generate_qstash_signature(body, CURRENT_KEY, url="http://testserver/api/v1/webhooks/qstash/test")
+    signature = generate_qstash_signature(
+        body, CURRENT_KEY, url="http://testserver/api/v1/webhooks/qstash/test"
+    )
 
     response = await async_client.post(
         "/api/v1/webhooks/qstash/test",
         content=body,
-        headers={"Upstash-Signature": signature, "Content-Type": "application/json"}
+        headers={"Upstash-Signature": signature, "Content-Type": "application/json"},
     )
 
     assert response.status_code == 200
@@ -40,12 +44,14 @@ async def test_webhook_valid_signature_current_key_returns_200(async_client):
 @pytest.mark.asyncio
 async def test_webhook_valid_signature_next_key_returns_200(async_client):
     body = '{"event": "phase_21_6_3_test", "message_id": "msg-123", "payload": {"hello": "qstash"}}'
-    signature = generate_qstash_signature(body, NEXT_KEY, url="http://testserver/api/v1/webhooks/qstash/test")
+    signature = generate_qstash_signature(
+        body, NEXT_KEY, url="http://testserver/api/v1/webhooks/qstash/test"
+    )
 
     response = await async_client.post(
         "/api/v1/webhooks/qstash/test",
         content=body,
-        headers={"Upstash-Signature": signature, "Content-Type": "application/json"}
+        headers={"Upstash-Signature": signature, "Content-Type": "application/json"},
     )
 
     assert response.status_code == 200
@@ -56,9 +62,7 @@ async def test_webhook_missing_signature_returns_401(async_client):
     body = '{"event": "phase_21_6_3_test", "message_id": "msg-123", "payload": {"hello": "qstash"}}'
 
     response = await async_client.post(
-        "/api/v1/webhooks/qstash/test",
-        content=body,
-        headers={"Content-Type": "application/json"}
+        "/api/v1/webhooks/qstash/test", content=body, headers={"Content-Type": "application/json"}
     )
 
     assert response.status_code == 401
@@ -68,12 +72,14 @@ async def test_webhook_missing_signature_returns_401(async_client):
 @pytest.mark.asyncio
 async def test_webhook_invalid_signature_returns_401(async_client):
     body = '{"event": "phase_21_6_3_test", "message_id": "msg-123", "payload": {"hello": "qstash"}}'
-    signature = generate_qstash_signature(body, "wrong_key", url="http://testserver/api/v1/webhooks/qstash/test")
+    signature = generate_qstash_signature(
+        body, "wrong_key", url="http://testserver/api/v1/webhooks/qstash/test"
+    )
 
     response = await async_client.post(
         "/api/v1/webhooks/qstash/test",
         content=body,
-        headers={"Upstash-Signature": signature, "Content-Type": "application/json"}
+        headers={"Upstash-Signature": signature, "Content-Type": "application/json"},
     )
 
     assert response.status_code == 401
@@ -83,12 +89,17 @@ async def test_webhook_invalid_signature_returns_401(async_client):
 @pytest.mark.asyncio
 async def test_webhook_modified_body_returns_401(async_client):
     body = '{"event": "phase_21_6_3_test", "message_id": "msg-123", "payload": {"hello": "qstash"}}'
-    signature = generate_qstash_signature(body, CURRENT_KEY, modify_body_hash=True, url="http://testserver/api/v1/webhooks/qstash/test")
+    signature = generate_qstash_signature(
+        body,
+        CURRENT_KEY,
+        modify_body_hash=True,
+        url="http://testserver/api/v1/webhooks/qstash/test",
+    )
 
     response = await async_client.post(
         "/api/v1/webhooks/qstash/test",
         content=body,
-        headers={"Upstash-Signature": signature, "Content-Type": "application/json"}
+        headers={"Upstash-Signature": signature, "Content-Type": "application/json"},
     )
 
     assert response.status_code == 401
@@ -101,7 +112,7 @@ async def test_webhook_malformed_signature_returns_401(async_client):
     response = await async_client.post(
         "/api/v1/webhooks/qstash/test",
         content=body,
-        headers={"Upstash-Signature": "non.jwt.token", "Content-Type": "application/json"}
+        headers={"Upstash-Signature": "non.jwt.token", "Content-Type": "application/json"},
     )
 
     assert response.status_code == 401
@@ -110,12 +121,14 @@ async def test_webhook_malformed_signature_returns_401(async_client):
 @pytest.mark.asyncio
 async def test_webhook_valid_signature_but_malformed_json_returns_400_or_422(async_client):
     body = '{"event": "phase_21_6_3_test", "message_id": "msg-123", "payload": malformed'
-    signature = generate_qstash_signature(body, CURRENT_KEY, url="http://testserver/api/v1/webhooks/qstash/test")
+    signature = generate_qstash_signature(
+        body, CURRENT_KEY, url="http://testserver/api/v1/webhooks/qstash/test"
+    )
 
     response = await async_client.post(
         "/api/v1/webhooks/qstash/test",
         content=body,
-        headers={"Upstash-Signature": signature, "Content-Type": "application/json"}
+        headers={"Upstash-Signature": signature, "Content-Type": "application/json"},
     )
 
     # 422 Unprocessable Entity or 400 Bad Request depending on Pydantic/FastAPI details
@@ -132,12 +145,14 @@ async def test_webhook_valid_signature_but_malformed_json_returns_400_or_422(asy
 @pytest.mark.asyncio
 async def test_webhook_payload_reaches_endpoint(async_client):
     body = '{"event": "custom_event", "message_id": "msg-999", "payload": {"hello": "world"}}'
-    signature = generate_qstash_signature(body, CURRENT_KEY, url="http://testserver/api/v1/webhooks/qstash/test")
+    signature = generate_qstash_signature(
+        body, CURRENT_KEY, url="http://testserver/api/v1/webhooks/qstash/test"
+    )
 
     response = await async_client.post(
         "/api/v1/webhooks/qstash/test",
         content=body,
-        headers={"Upstash-Signature": signature, "Content-Type": "application/json"}
+        headers={"Upstash-Signature": signature, "Content-Type": "application/json"},
     )
 
     assert response.status_code == 200
@@ -147,12 +162,14 @@ async def test_webhook_payload_reaches_endpoint(async_client):
 @pytest.mark.asyncio
 async def test_webhook_signing_secrets_never_appear_in_response(async_client):
     body = '{"event": "test", "message_id": "msg-123", "payload": {"hello": "qstash"}}'
-    signature = generate_qstash_signature(body, "wrong_key", url="http://testserver/api/v1/webhooks/qstash/test")
+    signature = generate_qstash_signature(
+        body, "wrong_key", url="http://testserver/api/v1/webhooks/qstash/test"
+    )
 
     response = await async_client.post(
         "/api/v1/webhooks/qstash/test",
         content=body,
-        headers={"Upstash-Signature": signature, "Content-Type": "application/json"}
+        headers={"Upstash-Signature": signature, "Content-Type": "application/json"},
     )
 
     assert response.status_code == 401
@@ -160,6 +177,3 @@ async def test_webhook_signing_secrets_never_appear_in_response(async_client):
 
     assert CURRENT_KEY not in response_text
     assert NEXT_KEY not in response_text
-
-
-

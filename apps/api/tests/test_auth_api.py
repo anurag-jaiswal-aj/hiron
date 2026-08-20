@@ -244,4 +244,3 @@ def test_get_me_endpoint_unauthenticated_returns_401(client: TestClient) -> None
     """Verify GET /api/v1/auth/me returns 401 UNAUTHORIZED when Authorization header is missing."""
     response = client.get("/api/v1/auth/me")
     assert response.status_code == 401
-

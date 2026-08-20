@@ -284,8 +284,8 @@ async def test_invite_persistence_across_separate_session_boundaries() -> None:
     # Session B: Completely SEPARATE session querying created user
     session_b = AsyncMock()
     user_repo_b = AsyncMock(spec=UserRepository)
-    user_repo_b.get_by_id_and_tenant.side_effect = (
-        lambda _session, uid, tid: db_store.get(uid) if tid == tenant_id else None
+    user_repo_b.get_by_id_and_tenant.side_effect = lambda _session, uid, tid: (
+        db_store.get(uid) if tid == tenant_id else None
     )
 
     service_b = UserService(user_repo=user_repo_b)
@@ -322,15 +322,17 @@ async def test_update_persistence_across_separate_session_boundaries() -> None:
     # Session A: Update user
     session_a = AsyncMock()
 
-    async def mock_repo_update(_session: AsyncMock, uid: uuid.UUID, _tid: uuid.UUID, **kwargs: object) -> User:
+    async def mock_repo_update(
+        _session: AsyncMock, uid: uuid.UUID, _tid: uuid.UUID, **kwargs: object
+    ) -> User:
         target = db_store[uid]
         for k, v in kwargs.items():
             setattr(target, k, v)
         return target
 
     user_repo_a = AsyncMock(spec=UserRepository)
-    user_repo_a.get_by_id_and_tenant.side_effect = (
-        lambda _session, uid, tid: db_store.get(uid) if tid == tenant_id else None
+    user_repo_a.get_by_id_and_tenant.side_effect = lambda _session, uid, tid: (
+        db_store.get(uid) if tid == tenant_id else None
     )
     user_repo_a.update.side_effect = mock_repo_update
     user_repo_a.count_active_admins_by_tenant.return_value = 2
@@ -352,12 +354,14 @@ async def test_update_persistence_across_separate_session_boundaries() -> None:
     # Session B: Query from separate session
     session_b = AsyncMock()
     user_repo_b = AsyncMock(spec=UserRepository)
-    user_repo_b.get_by_id_and_tenant.side_effect = (
-        lambda _session, uid, tid: db_store.get(uid) if tid == tenant_id else None
+    user_repo_b.get_by_id_and_tenant.side_effect = lambda _session, uid, tid: (
+        db_store.get(uid) if tid == tenant_id else None
     )
 
     service_b = UserService(user_repo=user_repo_b)
-    fetched = await service_b.get_user_by_id(session=session_b, user_id=user_id, tenant_id=tenant_id)
+    fetched = await service_b.get_user_by_id(
+        session=session_b, user_id=user_id, tenant_id=tenant_id
+    )
     assert fetched.full_name == "Updated Name"
     assert fetched.role == "hiring_manager"
 
@@ -381,15 +385,17 @@ async def test_deactivate_and_reactivate_persistence_across_separate_session_bou
     )
     db_store: dict[uuid.UUID, User] = {user_id: user_entity}
 
-    async def mock_repo_update(_session: AsyncMock, uid: uuid.UUID, _tid: uuid.UUID, **kwargs: object) -> User:
+    async def mock_repo_update(
+        _session: AsyncMock, uid: uuid.UUID, _tid: uuid.UUID, **kwargs: object
+    ) -> User:
         target = db_store[uid]
         for k, v in kwargs.items():
             setattr(target, k, v)
         return target
 
     user_repo = AsyncMock(spec=UserRepository)
-    user_repo.get_by_id_and_tenant.side_effect = (
-        lambda _session, uid, tid: db_store.get(uid) if tid == tenant_id else None
+    user_repo.get_by_id_and_tenant.side_effect = lambda _session, uid, tid: (
+        db_store.get(uid) if tid == tenant_id else None
     )
     user_repo.update.side_effect = mock_repo_update
 
@@ -409,7 +415,9 @@ async def test_deactivate_and_reactivate_persistence_across_separate_session_bou
     # Verify in Session B
     session_b = AsyncMock()
     service_b = UserService(user_repo=user_repo)
-    fetched_b = await service_b.get_user_by_id(session=session_b, user_id=user_id, tenant_id=tenant_id)
+    fetched_b = await service_b.get_user_by_id(
+        session=session_b, user_id=user_id, tenant_id=tenant_id
+    )
     assert fetched_b.is_active is False
 
     # 2. Reactivate in Session C
@@ -428,7 +436,9 @@ async def test_deactivate_and_reactivate_persistence_across_separate_session_bou
     # Verify in Session D
     session_d = AsyncMock()
     service_d = UserService(user_repo=user_repo)
-    fetched_d = await service_d.get_user_by_id(session=session_d, user_id=user_id, tenant_id=tenant_id)
+    fetched_d = await service_d.get_user_by_id(
+        session=session_d, user_id=user_id, tenant_id=tenant_id
+    )
     assert fetched_d.is_active is True
 
 
@@ -458,8 +468,8 @@ async def test_delete_persistence_across_separate_session_boundaries() -> None:
         return False
 
     user_repo = AsyncMock(spec=UserRepository)
-    user_repo.get_by_id_and_tenant.side_effect = (
-        lambda _session, uid, tid: db_store.get(uid) if tid == tenant_id else None
+    user_repo.get_by_id_and_tenant.side_effect = lambda _session, uid, tid: (
+        db_store.get(uid) if tid == tenant_id else None
     )
     user_repo.delete.side_effect = mock_repo_delete
 
@@ -480,4 +490,3 @@ async def test_delete_persistence_across_separate_session_boundaries() -> None:
     service_b = UserService(user_repo=user_repo)
     with pytest.raises(UserNotFoundError):
         await service_b.get_user_by_id(session=session_b, user_id=user_id, tenant_id=tenant_id)
-

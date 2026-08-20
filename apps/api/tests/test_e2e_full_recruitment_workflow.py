@@ -118,7 +118,7 @@ async def test_full_recruitment_workflow_e2e_journey() -> None:
         "output_tokens": 500,
         "total_tokens": 1500,
         "latency_ms": 1200,
-        "warnings": []
+        "warnings": [],
     }
 
     score_service.score_repo.create_score.return_value = Score(
@@ -311,7 +311,13 @@ async def test_full_recruitment_workflow_e2e_journey() -> None:
     dashboard_service.dashboard_repo.get_scored_candidates_count.return_value = 1
     dashboard_service.dashboard_repo.get_shortlisted_candidates_count.return_value = 1
     dashboard_service.dashboard_repo.get_hired_candidates_count.return_value = 0
-    dashboard_service.dashboard_repo.get_dashboard_metrics_consolidated.return_value = (1, 1, 1, 1, 0)
+    dashboard_service.dashboard_repo.get_dashboard_metrics_consolidated.return_value = (
+        1,
+        1,
+        1,
+        1,
+        0,
+    )
     dashboard_service.dashboard_repo.get_top_jobs_pipeline_overviews.return_value = []
     dashboard_service.dashboard_repo.get_score_distribution_stats.return_value = (1, 0, 0, 1, 92.0)
     dashboard_service.dashboard_repo.get_recent_activity_feed.return_value = []

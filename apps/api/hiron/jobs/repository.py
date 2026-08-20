@@ -34,10 +34,7 @@ class JobRepository:
         """Fetch job by primary key ID and tenant_id with pipeline stages loaded."""
         stmt = (
             select(Job)
-            .options(
-                selectinload(Job.pipeline_stages),
-                selectinload(Job.creator)
-            )
+            .options(selectinload(Job.pipeline_stages), selectinload(Job.creator))
             .where(
                 Job.id == job_id,
                 Job.tenant_id == tenant_id,
@@ -106,10 +103,7 @@ class JobRepository:
 
         items_stmt = (
             select(Job)
-            .options(
-                selectinload(Job.pipeline_stages),
-                selectinload(Job.creator)
-            )
+            .options(selectinload(Job.pipeline_stages), selectinload(Job.creator))
             .where(*base_filters)
             .order_by(order_clause, Job.id.desc())
             .limit(limit)

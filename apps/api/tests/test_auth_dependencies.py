@@ -93,7 +93,8 @@ async def test_get_current_user_expired_token_raises_authentication_error(
 ) -> None:
     """Verify get_current_user raises AuthenticationError when access token has expired."""
     with patch(
-        "hiron.auth.dependencies.verify_token", side_effect=ExpiredSignatureError("Signature has expired")
+        "hiron.auth.dependencies.verify_token",
+        side_effect=ExpiredSignatureError("Signature has expired"),
     ):
         credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="expired_jwt")
 

@@ -95,11 +95,15 @@ async def test_supabase_storage_provider_mock() -> None:
     with patch("httpx.AsyncClient.post") as mock_post_sign:
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {"signedURL": "/object/sign/my-bucket/123/test.pdf?token=abc"}
+        mock_response.json.return_value = {
+            "signedURL": "/object/sign/my-bucket/123/test.pdf?token=abc"
+        }
         mock_post_sign.return_value = mock_response
 
         url = await provider.generate_presigned_url(tenant_id, key)
-        assert url == "https://xyz.supabase.co/storage/v1/object/sign/my-bucket/123/test.pdf?token=abc"
+        assert (
+            url == "https://xyz.supabase.co/storage/v1/object/sign/my-bucket/123/test.pdf?token=abc"
+        )
         assert mock_post_sign.called
 
 

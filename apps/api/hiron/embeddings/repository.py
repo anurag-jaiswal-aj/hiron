@@ -163,20 +163,17 @@ class EmbeddingRepository:
         subq = (
             select(
                 CandidateEmbedding.candidate_id,
-                func.max(CandidateEmbedding.created_at).label("max_created_at")
+                func.max(CandidateEmbedding.created_at).label("max_created_at"),
             )
             .where(CandidateEmbedding.tenant_id == tenant_id)
             .group_by(CandidateEmbedding.candidate_id)
             .subquery()
         )
 
-        stmt = (
-            select(CandidateEmbedding)
-            .join(
-                subq,
-                (CandidateEmbedding.candidate_id == subq.c.candidate_id) &
-                (CandidateEmbedding.created_at == subq.c.max_created_at)
-            )
+        stmt = select(CandidateEmbedding).join(
+            subq,
+            (CandidateEmbedding.candidate_id == subq.c.candidate_id)
+            & (CandidateEmbedding.created_at == subq.c.max_created_at),
         )
         result = await session.execute(stmt)
         records = result.scalars().all()
@@ -192,22 +189,16 @@ class EmbeddingRepository:
 
         # Subquery to get max created_at per job
         subq = (
-            select(
-                JobEmbedding.job_id,
-                func.max(JobEmbedding.created_at).label("max_created_at")
-            )
+            select(JobEmbedding.job_id, func.max(JobEmbedding.created_at).label("max_created_at"))
             .where(JobEmbedding.tenant_id == tenant_id)
             .group_by(JobEmbedding.job_id)
             .subquery()
         )
 
-        stmt = (
-            select(JobEmbedding)
-            .join(
-                subq,
-                (JobEmbedding.job_id == subq.c.job_id) &
-                (JobEmbedding.created_at == subq.c.max_created_at)
-            )
+        stmt = select(JobEmbedding).join(
+            subq,
+            (JobEmbedding.job_id == subq.c.job_id)
+            & (JobEmbedding.created_at == subq.c.max_created_at),
         )
         result = await session.execute(stmt)
         records = result.scalars().all()

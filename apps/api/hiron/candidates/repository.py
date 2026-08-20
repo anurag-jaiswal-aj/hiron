@@ -97,7 +97,10 @@ class CandidateRepository:
                 if clean_skill:
                     if session.bind and getattr(session.bind.dialect, "name", None) == "postgresql":
                         from sqlalchemy.dialects.postgresql import JSONB
-                        filters.append(Candidate.skills.contains(literal([clean_skill], type_=JSONB)))
+
+                        filters.append(
+                            Candidate.skills.contains(literal([clean_skill], type_=JSONB))
+                        )
                     else:
                         filters.append(Candidate.skills.cast(func.text).ilike(f"%{clean_skill}%"))
 
@@ -137,6 +140,7 @@ class CandidateRepository:
         filters.extend(self._build_candidate_search_and_skills_filters(session, q, skills))
         if tag:
             from hiron.tags.models import CandidateTag
+
             tag_clean = tag.strip().lower()
             if tag_clean:
                 # Subquery to find candidates with this specific tag

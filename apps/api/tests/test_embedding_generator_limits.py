@@ -12,6 +12,7 @@ async def test_embedding_generator_char_limits(monkeypatch):
         original_hash_method = generator.compute_source_text_hash
 
         captured_text = []
+
         def mock_hash(text):
             captured_text.append(text)
             return original_hash_method(text)
@@ -20,6 +21,7 @@ async def test_embedding_generator_char_limits(monkeypatch):
 
         # We need to mock get_settings as well for non-production error suppression
         from unittest.mock import patch
+
         with patch("hiron.embeddings.generator.get_settings") as mock_get_settings:
             mock_get_settings.return_value.is_production = False
             await generator.generate_embedding(original_text)

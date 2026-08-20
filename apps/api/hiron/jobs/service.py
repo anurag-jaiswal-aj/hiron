@@ -222,6 +222,7 @@ class JobService:
         # Auto-trigger job embedding generation
         try:
             from hiron.core.config import get_settings
+
             settings = get_settings()
 
             if not settings.qstash_webhook_url:
@@ -476,6 +477,7 @@ class JobService:
         if title is not None or description is not None or required_skills is not None:
             try:
                 from hiron.core.config import get_settings
+
                 settings = get_settings()
 
                 if not settings.qstash_webhook_url:

@@ -22,7 +22,9 @@ async def test_sqlalchemy_transaction_lifecycle() -> None:
     async def get_tenant_setting(t_id: str | None) -> str:
         set_tenant_context(t_id)
         async for session in get_db_session():
-            res = await session.execute(text("SELECT current_setting('app.current_tenant_id', true)"))
+            res = await session.execute(
+                text("SELECT current_setting('app.current_tenant_id', true)")
+            )
             val = res.scalar()
             return str(val) if val else ""
 
@@ -49,14 +51,14 @@ async def test_sqlalchemy_transaction_lifecycle() -> None:
             await asyncio.sleep(0.1)
             # Re-read contextvar to ensure it wasn't overwritten globally
             assert tenant_context.get() == t_id
-            res = await session.execute(text("SELECT current_setting('app.current_tenant_id', true)"))
+            res = await session.execute(
+                text("SELECT current_setting('app.current_tenant_id', true)")
+            )
             val = res.scalar()
             assert (str(val) if val else "") == (t_id if t_id else "")
 
     await asyncio.gather(
-        concurrent_request(tenant_a),
-        concurrent_request(tenant_b),
-        concurrent_request(None)
+        concurrent_request(tenant_a), concurrent_request(tenant_b), concurrent_request(None)
     )
 
     # 6. & 7. Transaction Commit and Rollback
@@ -65,12 +67,16 @@ async def test_sqlalchemy_transaction_lifecycle() -> None:
         # Commit
         await session.execute(text("SELECT 1"))
         await session.commit()
-        res_after: Any = await session.execute(text("SELECT current_setting('app.current_tenant_id', true)"))
+        res_after: Any = await session.execute(
+            text("SELECT current_setting('app.current_tenant_id', true)")
+        )
         assert res_after.scalar() == tenant_a
 
         # Rollback
         await session.execute(text("SELECT 1"))
         await session.rollback()
-        res_after_rollback: Any = await session.execute(text("SELECT current_setting('app.current_tenant_id', true)"))
+        res_after_rollback: Any = await session.execute(
+            text("SELECT current_setting('app.current_tenant_id', true)")
+        )
         val_after_rollback = res_after_rollback.scalar()
         assert val_after_rollback == tenant_a

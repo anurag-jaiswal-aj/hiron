@@ -118,6 +118,7 @@ async def test_update_resume_status() -> None:
     assert updated.parse_confidence == 0.95
     session.flush.assert_called_once()
 
+
 @pytest.mark.asyncio
 async def test_get_resumes_by_candidate_id_success() -> None:
     """Verify repository correctly queries resumes by candidate ID with descending order."""
@@ -130,7 +131,7 @@ async def test_get_resumes_by_candidate_id_success() -> None:
     mock_result = MagicMock()
     mock_result.scalars.return_value.all.return_value = [
         Resume(id=uuid.uuid4(), tenant_id=tenant_id, candidate_id=candidate_id),
-        Resume(id=uuid.uuid4(), tenant_id=tenant_id, candidate_id=candidate_id)
+        Resume(id=uuid.uuid4(), tenant_id=tenant_id, candidate_id=candidate_id),
     ]
     mock_db_session.execute.return_value = mock_result
 

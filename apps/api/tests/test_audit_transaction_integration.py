@@ -46,7 +46,7 @@ async def setup_data(db_engine) -> tuple[uuid.UUID, uuid.UUID]:
             email=f"{user_id}@test.com",
             full_name="Integration User",
             password_hash="hash",
-            role="org_admin"
+            role="org_admin",
         )
         session.add(user)
 
@@ -148,10 +148,16 @@ async def test_b_audit_failure_rolls_back_mutation(
         assert result.scalars().first() is None
 
         # Assert audit row does NOT exist
-        stmt = select(AuditLog).where(AuditLog.tenant_id == tenant_id, AuditLog.action == "job_created")
+        stmt = select(AuditLog).where(
+            AuditLog.tenant_id == tenant_id, AuditLog.action == "job_created"
+        )
         result = await session.execute(stmt)
         # Exclude the successful one from Test A
-        logs = [log for log in result.scalars().all() if log.changes and log.changes.get("after", {}).get("title") == "Fail Postgres Job"]
+        logs = [
+            log
+            for log in result.scalars().all()
+            if log.changes and log.changes.get("after", {}).get("title") == "Fail Postgres Job"
+        ]
         assert len(logs) == 0
 
 
@@ -181,7 +187,7 @@ async def test_c_mutation_failure_rolls_back_audit(
                 entity_type="job",
                 entity_id=job_id,
                 actor_id=user_id,
-                changes={"after": {"title": "Will Fail Job"}}
+                changes={"after": {"title": "Will Fail Job"}},
             )
 
             # Raise exception BEFORE commit
@@ -228,7 +234,7 @@ async def test_d_same_transaction(
             entity_type="job",
             entity_id=job_id,
             actor_id=user_id,
-            changes={"txid": txid}
+            changes={"txid": txid},
         )
 
         # Verify the session hasn't implicitly opened a new transaction
@@ -260,8 +266,8 @@ async def test_e_secret_redaction(
                     "api_key": "my-api-key",
                     "cookie": "my-cookie",
                     "secret": "my-secret",
-                    "access_token": "my-access-token"
-                }
+                    "access_token": "my-access-token",
+                },
             }
         }
 
@@ -277,13 +283,15 @@ async def test_e_secret_redaction(
             entity_type="user",
             entity_id=entity_id,
             actor_id=user_id,
-            changes=sanitized
+            changes=sanitized,
         )
 
         await session.commit()
 
     # Read the actual JSONB value from PostgreSQL using raw asyncpg to ensure we see EXACTLY what is persisted
-    conn = await asyncpg.connect("postgresql://hiron_user:hiron_secure_password@localhost:5432/hiron_dev")
+    conn = await asyncpg.connect(
+        "postgresql://hiron_user:hiron_secure_password@localhost:5432/hiron_dev"
+    )
     try:
         row = await conn.fetchrow("SELECT changes FROM audit_logs WHERE entity_id = $1", entity_id)
         changes_json = row["changes"]
@@ -343,7 +351,7 @@ async def test_f_update_before_after_persistence(
             tenant_id=tenant_id,
             user_id=user_id,
             current_user_role="org_admin",
-            job_id=job_id
+            job_id=job_id,
         )
 
     # Open new session to verify audit JSONB
@@ -356,7 +364,7 @@ async def test_f_update_before_after_persistence(
         changes = audit_log.changes
         assert "before" in changes
         assert "after" in changes
-        assert changes["before"]["status"] == "draft" # Default status on creation is draft
+        assert changes["before"]["status"] == "draft"  # Default status on creation is draft
         assert changes["after"]["status"] == "closed"
 
 
@@ -372,6 +380,7 @@ async def test_g_delete_archive_before_state(
 
     # Let's use candidate archive
     from hiron.candidates.service import CandidateService
+
     candidate_id = None
 
     async with async_session() as session:
@@ -383,7 +392,7 @@ async def test_g_delete_archive_before_state(
             current_user_role="org_admin",
             full_name="Archive Me",
             email="archive@test.com",
-            source="upload"
+            source="upload",
         )
         candidate_id = candidate.id
 
@@ -395,12 +404,14 @@ async def test_g_delete_archive_before_state(
             tenant_id=tenant_id,
             user_id=user_id,
             current_user_role="org_admin",
-            candidate_id=candidate_id
+            candidate_id=candidate_id,
         )
 
     # Open new session to verify audit JSONB
     async with async_session() as session:
-        stmt = select(AuditLog).where(AuditLog.entity_id == candidate_id, AuditLog.action == "candidate_archived")
+        stmt = select(AuditLog).where(
+            AuditLog.entity_id == candidate_id, AuditLog.action == "candidate_archived"
+        )
         result = await session.execute(stmt)
         audit_log = result.scalars().first()
 

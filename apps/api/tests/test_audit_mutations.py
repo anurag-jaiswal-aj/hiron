@@ -32,7 +32,9 @@ async def test_job_mutations_generate_audit(
     job_service = JobService()
 
     mock_job_repo = AsyncMock()
-    mock_job_repo.create_job.return_value = Job(id=uuid.uuid4(), title="Software Engineer", status="open")
+    mock_job_repo.create_job.return_value = Job(
+        id=uuid.uuid4(), title="Software Engineer", status="open"
+    )
     mock_job_repo.create_pipeline_stages = AsyncMock()
     job_service.job_repo = mock_job_repo
 

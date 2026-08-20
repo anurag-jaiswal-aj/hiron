@@ -134,7 +134,7 @@ def register_exception_handlers(app: FastAPI) -> None:
             "Request validation failed",
             details_count=len(details),
             errors=str(exc.errors()),
-            body=str(getattr(exc, "body", None))
+            body=str(getattr(exc, "body", None)),
         )
         payload = ErrorEnvelope(
             error=ErrorBody(

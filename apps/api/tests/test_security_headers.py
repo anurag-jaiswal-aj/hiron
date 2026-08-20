@@ -23,7 +23,8 @@ def test_security_headers_present_on_all_responses() -> None:
     # Test HTTPS -> HSTS present
     https_response = client.get("https://testserver/api/v1/health")
     assert (
-        https_response.headers.get("Strict-Transport-Security") == "max-age=31536000; includeSubDomains"
+        https_response.headers.get("Strict-Transport-Security")
+        == "max-age=31536000; includeSubDomains"
     )
 
 

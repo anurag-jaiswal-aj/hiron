@@ -44,8 +44,10 @@ SCORE_COUNT = 50000
 AI_USAGE_COUNT = 10000
 AUDIT_LOG_COUNT = 10000
 
+
 def generate_uuid() -> uuid.UUID:
     return uuid.uuid4()
+
 
 async def clean_loadtest_tenant(session) -> None:
     """Safely delete ONLY the load test tenant and its cascading data."""
@@ -59,7 +61,9 @@ async def clean_loadtest_tenant(session) -> None:
         await session.execute(delete(AIUsageLog).where(AIUsageLog.tenant_id == tenant.id))
         await session.execute(delete(AuditLog).where(AuditLog.tenant_id == tenant.id))
         await session.execute(delete(Score).where(Score.tenant_id == tenant.id))
-        await session.execute(delete(CandidateStageHistory).where(CandidateStageHistory.tenant_id == tenant.id))
+        await session.execute(
+            delete(CandidateStageHistory).where(CandidateStageHistory.tenant_id == tenant.id)
+        )
         await session.execute(delete(JobCandidate).where(JobCandidate.tenant_id == tenant.id))
         await session.execute(delete(PipelineStage).where(PipelineStage.tenant_id == tenant.id))
         await session.execute(delete(Candidate).where(Candidate.tenant_id == tenant.id))
@@ -71,6 +75,7 @@ async def clean_loadtest_tenant(session) -> None:
     else:
         print("No existing loadtest tenant found.")
 
+
 async def seed_loadtest_data() -> None:
     """Seed the database with an isolated loadtest tenant."""
     tenant_service = TenantService()
@@ -81,12 +86,7 @@ async def seed_loadtest_data() -> None:
             await clean_loadtest_tenant(session)
 
             print("Creating loadtest tenant...")
-            tenant = Tenant(
-                id=TENANT_ID,
-                name=TENANT_NAME,
-                slug=TENANT_SLUG,
-                plan="enterprise"
-            )
+            tenant = Tenant(id=TENANT_ID, name=TENANT_NAME, slug=TENANT_SLUG, plan="enterprise")
             session.add(tenant)
             await session.flush()
             tenant_id = tenant.id
@@ -107,7 +107,7 @@ async def seed_loadtest_data() -> None:
                     session=session,
                     tenant_id=tenant_id,
                     email=email,
-                    full_name=f"LoadTest Recruiter {i+1}",
+                    full_name=f"LoadTest Recruiter {i + 1}",
                     role="recruiter",
                     password=PASSWORD,
                 )
@@ -124,20 +124,22 @@ async def seed_loadtest_data() -> None:
             for i in range(JOB_COUNT):
                 job_id = generate_uuid()
                 job_ids.append(job_id)
-                jobs_data.append({
-                    "id": job_id,
-                    "tenant_id": tenant_id,
-                    "title": f"LoadTest Software Engineer {i}",
-                    "description": "Load test generated job description.",
-                    "status": "open",
-                    "is_archived": False,
-                    "created_by": admin_user.id,
-                    "created_at": now,
-                    "updated_at": now,
-                    "opened_at": now,
-                    "required_skills": ["Python", "Docker"],
-                    "preferred_skills": ["Locust"]
-                })
+                jobs_data.append(
+                    {
+                        "id": job_id,
+                        "tenant_id": tenant_id,
+                        "title": f"LoadTest Software Engineer {i}",
+                        "description": "Load test generated job description.",
+                        "status": "open",
+                        "is_archived": False,
+                        "created_by": admin_user.id,
+                        "created_at": now,
+                        "updated_at": now,
+                        "opened_at": now,
+                        "required_skills": ["Python", "Docker"],
+                        "preferred_skills": ["Locust"],
+                    }
+                )
             await session.execute(insert(Job).values(jobs_data))
 
             stages_data = []
@@ -148,17 +150,19 @@ async def seed_loadtest_data() -> None:
                 for idx, st in enumerate(stages):
                     st_id = generate_uuid()
                     j_stages.append(st_id)
-                    stages_data.append({
-                        "id": st_id,
-                        "tenant_id": tenant_id,
-                        "job_id": j_id,
-                        "name": st,
-                        "position": idx + 1,
-                        "is_terminal": (idx == len(stages) - 1),
-                        "stage_type": "hired" if idx == len(stages) - 1 else "active",
-                        "created_at": now,
-                        "updated_at": now,
-                    })
+                    stages_data.append(
+                        {
+                            "id": st_id,
+                            "tenant_id": tenant_id,
+                            "job_id": j_id,
+                            "name": st,
+                            "position": idx + 1,
+                            "is_terminal": (idx == len(stages) - 1),
+                            "stage_type": "hired" if idx == len(stages) - 1 else "active",
+                            "created_at": now,
+                            "updated_at": now,
+                        }
+                    )
                 stage_ids_per_job[j_id] = j_stages
             await session.execute(insert(PipelineStage).values(stages_data))
             await session.commit()
@@ -183,30 +187,34 @@ async def seed_loadtest_data() -> None:
                 job_for_candidate[c_id] = j_id
                 job_candidate_for_candidate[c_id] = jc_id
 
-                candidates_data.append({
-                    "id": c_id,
-                    "tenant_id": tenant_id,
-                    "full_name": f"Test Candidate {i}",
-                    "email": f"candidate{i}@loadtest.hiron.ai",
-                    "source": "api",
-                    "is_archived": False,
-                    "created_at": now,
-                    "updated_at": now,
-                    "skills": ["Python", "Testing"],
-                })
+                candidates_data.append(
+                    {
+                        "id": c_id,
+                        "tenant_id": tenant_id,
+                        "full_name": f"Test Candidate {i}",
+                        "email": f"candidate{i}@loadtest.hiron.ai",
+                        "source": "api",
+                        "is_archived": False,
+                        "created_at": now,
+                        "updated_at": now,
+                        "skills": ["Python", "Testing"],
+                    }
+                )
 
-                job_candidates_data.append({
-                    "id": jc_id,
-                    "tenant_id": tenant_id,
-                    "job_id": j_id,
-                    "candidate_id": c_id,
-                    "current_stage_id": st_id,
-                    "added_by": u_id,
-                    "is_shortlisted": False,
-                    "is_archived": False,
-                    "created_at": now,
-                    "updated_at": now,
-                })
+                job_candidates_data.append(
+                    {
+                        "id": jc_id,
+                        "tenant_id": tenant_id,
+                        "job_id": j_id,
+                        "candidate_id": c_id,
+                        "current_stage_id": st_id,
+                        "added_by": u_id,
+                        "is_shortlisted": False,
+                        "is_archived": False,
+                        "created_at": now,
+                        "updated_at": now,
+                    }
+                )
 
                 if len(candidates_data) >= BATCH_SIZE:
                     await session.execute(insert(Candidate).values(candidates_data))
@@ -227,15 +235,17 @@ async def seed_loadtest_data() -> None:
                 jc_id = job_candidate_for_candidate[c_id]
                 st_id = random.choice(stage_ids_per_job[j_id])
                 u_id = random.choice(users).id
-                history_data.append({
-                    "id": generate_uuid(),
-                    "tenant_id": tenant_id,
-                    "job_candidate_id": jc_id,
-                    "from_stage_id": None,
-                    "to_stage_id": st_id,
-                    "moved_by": u_id,
-                    "created_at": now,
-                })
+                history_data.append(
+                    {
+                        "id": generate_uuid(),
+                        "tenant_id": tenant_id,
+                        "job_candidate_id": jc_id,
+                        "from_stage_id": None,
+                        "to_stage_id": st_id,
+                        "moved_by": u_id,
+                        "created_at": now,
+                    }
+                )
                 if len(history_data) >= BATCH_SIZE:
                     await session.execute(insert(CandidateStageHistory).values(history_data))
                     history_data = []
@@ -253,23 +263,25 @@ async def seed_loadtest_data() -> None:
                 if jc_id not in seen_jc_ids:
                     is_current = True
                     seen_jc_ids.add(jc_id)
-                scores_data.append({
-                    "id": generate_uuid(),
-                    "tenant_id": tenant_id,
-                    "job_candidate_id": jc_id,
-                    "fit_score": random.randint(50, 100),
-                    "confidence": 0.85,
-                    "breakdown": {"technical": 90, "cultural": 80},
-                    "explanation": "Loadtest generated explanation",
-                    "prompt_name": "loadtest_prompt",
-                    "prompt_version": "v1",
-                    "model_version": "gpt-4",
-                    "input_tokens": 1500,
-                    "output_tokens": 300,
-                    "latency_ms": 1200,
-                    "is_current": is_current,
-                    "created_at": now,
-                })
+                scores_data.append(
+                    {
+                        "id": generate_uuid(),
+                        "tenant_id": tenant_id,
+                        "job_candidate_id": jc_id,
+                        "fit_score": random.randint(50, 100),
+                        "confidence": 0.85,
+                        "breakdown": {"technical": 90, "cultural": 80},
+                        "explanation": "Loadtest generated explanation",
+                        "prompt_name": "loadtest_prompt",
+                        "prompt_version": "v1",
+                        "model_version": "gpt-4",
+                        "input_tokens": 1500,
+                        "output_tokens": 300,
+                        "latency_ms": 1200,
+                        "is_current": is_current,
+                        "created_at": now,
+                    }
+                )
                 if len(scores_data) >= BATCH_SIZE:
                     await session.execute(insert(Score).values(scores_data))
                     scores_data = []
@@ -281,21 +293,23 @@ async def seed_loadtest_data() -> None:
             usage_data = []
             for i in range(AI_USAGE_COUNT):
                 u_id = random.choice(users).id
-                usage_data.append({
-                    "id": generate_uuid(),
-                    "tenant_id": tenant_id,
-                    "user_id": u_id,
-                    "operation": "resume_parsing",
-                    "model_version": "gpt-4o",
-                    "input_tokens": 1000,
-                    "output_tokens": 200,
-                    "total_tokens": 1200,
-                    "cost_usd": 0.01,
-                    "latency_ms": 1500,
-                    "status": "success",
-                    "is_cache_hit": False,
-                    "created_at": now,
-                })
+                usage_data.append(
+                    {
+                        "id": generate_uuid(),
+                        "tenant_id": tenant_id,
+                        "user_id": u_id,
+                        "operation": "resume_parsing",
+                        "model_version": "gpt-4o",
+                        "input_tokens": 1000,
+                        "output_tokens": 200,
+                        "total_tokens": 1200,
+                        "cost_usd": 0.01,
+                        "latency_ms": 1500,
+                        "status": "success",
+                        "is_cache_hit": False,
+                        "created_at": now,
+                    }
+                )
                 if len(usage_data) >= BATCH_SIZE:
                     await session.execute(insert(AIUsageLog).values(usage_data))
                     usage_data = []
@@ -307,15 +321,17 @@ async def seed_loadtest_data() -> None:
             audit_data = []
             for i in range(AUDIT_LOG_COUNT):
                 u_id = random.choice(users).id
-                audit_data.append({
-                    "id": generate_uuid(),
-                    "tenant_id": tenant_id,
-                    "actor_id": u_id,
-                    "action": "candidate_created",
-                    "entity_type": "candidate",
-                    "entity_id": random.choice(candidate_ids),
-                    "created_at": now,
-                })
+                audit_data.append(
+                    {
+                        "id": generate_uuid(),
+                        "tenant_id": tenant_id,
+                        "actor_id": u_id,
+                        "action": "candidate_created",
+                        "entity_type": "candidate",
+                        "entity_id": random.choice(candidate_ids),
+                        "created_at": now,
+                    }
+                )
                 if len(audit_data) >= BATCH_SIZE:
                     await session.execute(insert(AuditLog).values(audit_data))
                     audit_data = []

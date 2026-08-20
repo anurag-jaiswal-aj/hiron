@@ -71,7 +71,9 @@ async def test_parse_resume_pipeline_success_and_candidate_enrichment(
     mock_cand_repo.get_candidate_by_id = AsyncMock(return_value=mock_candidate)
 
     mock_storage = mock_storage_cls.return_value
-    mock_storage.download_file = AsyncMock(return_value=b"Jane Smith\njane.smith@example.com\nSenior Backend Engineer at Stripe\nSkills: Python, FastAPI, Docker, PostgreSQL")
+    mock_storage.download_file = AsyncMock(
+        return_value=b"Jane Smith\njane.smith@example.com\nSenior Backend Engineer at Stripe\nSkills: Python, FastAPI, Docker, PostgreSQL"
+    )
 
     mock_extract_text.return_value = "Jane Smith\njane.smith@example.com\nSenior Backend Engineer at Stripe\nSkills: Python, FastAPI, Docker, PostgreSQL"
 
@@ -105,7 +107,9 @@ async def test_parse_resume_pipeline_success_and_candidate_enrichment(
 
 @pytest.mark.asyncio
 @patch("apps.worker.src.pipeline.ResumeRepository")
-async def test_parse_resume_pipeline_resume_not_found_raises_404(mock_resume_repo_cls: MagicMock) -> None:
+async def test_parse_resume_pipeline_resume_not_found_raises_404(
+    mock_resume_repo_cls: MagicMock,
+) -> None:
     """Verify non-existent resume ID raises ResumeNotFoundError."""
     session = AsyncMock()
     tenant_id = uuid.uuid4()
@@ -120,7 +124,9 @@ async def test_parse_resume_pipeline_resume_not_found_raises_404(mock_resume_rep
 
 @pytest.mark.asyncio
 @patch("apps.worker.src.pipeline.ResumeRepository")
-async def test_parse_resume_pipeline_file_missing_raises_failed(mock_resume_repo_cls: MagicMock) -> None:
+async def test_parse_resume_pipeline_file_missing_raises_failed(
+    mock_resume_repo_cls: MagicMock,
+) -> None:
     """Verify missing file metadata sets resume status to failed and raises ResumeParseFailedError."""
     session = AsyncMock()
     tenant_id = uuid.uuid4()

@@ -16,9 +16,25 @@ def auth_tokens() -> tuple[str, str, str]:
 
     try:
         # Dynamically fetch the tenant ID from the running database container
-        tenant_id = subprocess.check_output(
-            ["docker", "exec", "hiron-postgres", "psql", "-U", "hiron_user", "-d", "hiron_dev", "-t", "-c", "SELECT id FROM tenants LIMIT 1;"]  # noqa: S607
-        ).decode().strip()
+        tenant_id = (
+            subprocess.check_output(
+                [
+                    "docker",
+                    "exec",
+                    "hiron-postgres",
+                    "psql",
+                    "-U",
+                    "hiron_user",
+                    "-d",
+                    "hiron_dev",
+                    "-t",
+                    "-c",
+                    "SELECT id FROM tenants LIMIT 1;",
+                ]  # noqa: S607
+            )
+            .decode()
+            .strip()
+        )
     except Exception as e:
         pytest.skip(f"Failed to fetch tenant ID from database: {e}")
 
@@ -50,7 +66,18 @@ def auth_tokens() -> tuple[str, str, str]:
         VALUES ('{user_b_id}', '{email_b}', '$argon2id$v=19$m=65536,t=3,p=4$UGWvDbS9C2rEGsUtIVIvRQ$j++SovLzPKuZhxWY6L4rovdEgCEPwnPVDha18Cnhxik', 'Admin B', '{tenant_b_id}', 'org_admin', NOW(), NOW());
         """  # noqa: S608
         subprocess.check_call(  # noqa: S603
-            ["docker", "exec", "hiron-postgres", "psql", "-U", "hiron_user", "-d", "hiron_dev", "-c", insert_sql]  # noqa: S607
+            [
+                "docker",
+                "exec",
+                "hiron-postgres",
+                "psql",
+                "-U",
+                "hiron_user",
+                "-d",
+                "hiron_dev",
+                "-c",
+                insert_sql,
+            ]  # noqa: S607
         )
 
         # Login to Tenant B
@@ -84,7 +111,7 @@ def test_candidate_persistence_across_requests(auth_tokens: tuple[str, str, str]
             "email": email,
             "phone": "555-1234",
             "skills": ["Python", "Docker"],
-            "totalExperienceYears": 5
+            "totalExperienceYears": 5,
         },
         headers=headers,
         timeout=15,
@@ -107,7 +134,9 @@ def test_candidate_persistence_across_requests(auth_tokens: tuple[str, str, str]
     )
     assert patch_resp.status_code == 200
 
-    get_patch_resp = requests.get(f"{API_URL}/candidates/{candidate_id}", headers=headers, timeout=5)
+    get_patch_resp = requests.get(
+        f"{API_URL}/candidates/{candidate_id}", headers=headers, timeout=5
+    )
     assert get_patch_resp.json()["data"]["fullName"] == f"{full_name} UPDATED"
 
     # TEST 4 & 5 - CANDIDATE -> JOB ASSOCIATION PERSISTENCE & INITIAL PIPELINE STAGE
@@ -119,7 +148,7 @@ def test_candidate_persistence_across_requests(auth_tokens: tuple[str, str, str]
             "description": "Test Job Description",
             "department": "Engineering",
             "requiredSkills": ["Python"],
-            "employmentType": "full_time"
+            "employmentType": "full_time",
         },
         headers=headers,
         timeout=5,
@@ -142,12 +171,18 @@ def test_candidate_persistence_across_requests(auth_tokens: tuple[str, str, str]
     get_job_resp = requests.get(f"{API_URL}/jobs/{job_id}", headers=headers, timeout=5)
     pipeline_stages = get_job_resp.json()["data"]["pipelineStages"]
     first_stage = min(pipeline_stages, key=lambda s: s["position"])
-    assert current_stage_id == first_stage["id"], "Candidate was not placed in the first pipeline stage"
+    assert current_stage_id == first_stage["id"], (
+        "Candidate was not placed in the first pipeline stage"
+    )
 
     # Verify association persists by fetching candidate details (should include jobs)
-    get_assoc_resp = requests.get(f"{API_URL}/candidates/{candidate_id}", headers=headers, timeout=5)
+    get_assoc_resp = requests.get(
+        f"{API_URL}/candidates/{candidate_id}", headers=headers, timeout=5
+    )
     jobs_associated = get_assoc_resp.json()["data"].get("jobs", [])
-    assert any(j["jobId"] == job_id for j in jobs_associated), f"Job association did not persist across requests. Got: {jobs_associated}"
+    assert any(j["jobId"] == job_id for j in jobs_associated), (
+        f"Job association did not persist across requests. Got: {jobs_associated}"
+    )
 
     # TEST 6 - DUPLICATE EMAIL
     duplicate_resp = requests.post(
@@ -159,51 +194,74 @@ def test_candidate_persistence_across_requests(auth_tokens: tuple[str, str, str]
         headers=headers,
         timeout=5,
     )
-    assert duplicate_resp.status_code == 409, "Duplicate email in same tenant should return 409 Conflict"
+    assert duplicate_resp.status_code == 409, (
+        "Duplicate email in same tenant should return 409 Conflict"
+    )
 
     # TEST 3 - ARCHIVE PERSISTENCE
-    archive_resp = requests.post(f"{API_URL}/candidates/{candidate_id}/archive", headers=headers, timeout=5)
+    archive_resp = requests.post(
+        f"{API_URL}/candidates/{candidate_id}/archive", headers=headers, timeout=5
+    )
     assert archive_resp.status_code == 200
 
-    get_archive_resp = requests.get(f"{API_URL}/candidates/{candidate_id}", headers=headers, timeout=5)
+    get_archive_resp = requests.get(
+        f"{API_URL}/candidates/{candidate_id}", headers=headers, timeout=5
+    )
     assert get_archive_resp.json()["data"]["isArchived"] is True
 
     # Verify archived candidates are excluded from default list view
     list_resp = requests.get(f"{API_URL}/candidates", headers=headers, timeout=5)
     assert list_resp.status_code == 200
     listed_candidates = list_resp.json()["data"]["data"]
-    assert all(c["id"] != candidate_id for c in listed_candidates), "Archived candidate appeared in default list view"
+    assert all(c["id"] != candidate_id for c in listed_candidates), (
+        "Archived candidate appeared in default list view"
+    )
 
     # TEST - SKILL FILTER REGRESSION
     # We create a new candidate with specific skills to avoid clashes
     skill_suffix = str(uuid.uuid4())[:8]
     requests.post(
         f"{API_URL}/candidates",
-        json={"fullName": "Python Developer", "email": f"py_{skill_suffix}@example.com", "skills": ["Python", "FastAPI"]},
-        headers=headers, timeout=5
+        json={
+            "fullName": "Python Developer",
+            "email": f"py_{skill_suffix}@example.com",
+            "skills": ["Python", "FastAPI"],
+        },
+        headers=headers,
+        timeout=5,
     )
 
     # Filter by exact match
     skill_resp = requests.get(f"{API_URL}/candidates?skills=Python", headers=headers, timeout=5)
     assert skill_resp.status_code == 200, "Skill filter API returned error"
     skill_cands = skill_resp.json()["data"]["data"]
-    assert any(c["email"] == f"py_{skill_suffix}@example.com" for c in skill_cands), "Skill filter did not return the expected candidate"
+    assert any(c["email"] == f"py_{skill_suffix}@example.com" for c in skill_cands), (
+        "Skill filter did not return the expected candidate"
+    )
 
     # Filter by no-match
     no_skill_resp = requests.get(f"{API_URL}/candidates?skills=Rust", headers=headers, timeout=5)
     assert no_skill_resp.status_code == 200
     no_skill_cands = no_skill_resp.json()["data"]["data"]
-    assert not any(c["email"] == f"py_{skill_suffix}@example.com" for c in no_skill_cands), "Skill filter returned candidate without the requested skill"
+    assert not any(c["email"] == f"py_{skill_suffix}@example.com" for c in no_skill_cands), (
+        "Skill filter returned candidate without the requested skill"
+    )
 
     # TEST - FULL TEXT SEARCH
-    search_resp = requests.get(f"{API_URL}/candidates?q={unique_suffix}", headers=headers, timeout=5)
+    search_resp = requests.get(
+        f"{API_URL}/candidates?q={unique_suffix}", headers=headers, timeout=5
+    )
     assert search_resp.status_code == 200
     # Search finds by name/email/skills, our name has unique_suffix
     # But it is archived! So we must include archived or search another candidate
     # The python dev has skill_suffix.
-    search2_resp = requests.get(f"{API_URL}/candidates?q=Python Developer", headers=headers, timeout=5)
+    search2_resp = requests.get(
+        f"{API_URL}/candidates?q=Python Developer", headers=headers, timeout=5
+    )
     search2_cands = search2_resp.json()["data"]["data"]
-    assert any(c["email"] == f"py_{skill_suffix}@example.com" for c in search2_cands), "Full-text search did not find candidate"
+    assert any(c["email"] == f"py_{skill_suffix}@example.com" for c in search2_cands), (
+        "Full-text search did not find candidate"
+    )
 
     # TEST 7 - CROSS-TENANT SAFETY
     token_b = auth_tokens[2]
@@ -214,23 +272,43 @@ def test_candidate_persistence_across_requests(auth_tokens: tuple[str, str, str]
     assert get_b_resp.status_code == 404, "Tenant B could retrieve Tenant A's candidate"
 
     # Tenant B attempts to PATCH Candidate A
-    patch_b_resp = requests.patch(f"{API_URL}/candidates/{candidate_id}", json={"fullName": "Hacked"}, headers=headers_b, timeout=5)
+    patch_b_resp = requests.patch(
+        f"{API_URL}/candidates/{candidate_id}",
+        json={"fullName": "Hacked"},
+        headers=headers_b,
+        timeout=5,
+    )
     assert patch_b_resp.status_code == 404, "Tenant B could update Tenant A's candidate"
 
     # Tenant B attempts to Archive Candidate A
-    archive_b_resp = requests.post(f"{API_URL}/candidates/{candidate_id}/archive", headers=headers_b, timeout=5)
+    archive_b_resp = requests.post(
+        f"{API_URL}/candidates/{candidate_id}/archive", headers=headers_b, timeout=5
+    )
     assert archive_b_resp.status_code == 404, "Tenant B could archive Tenant A's candidate"
 
     # Tenant B attempts to add Candidate A to Job B
     job_b_resp = requests.post(
         f"{API_URL}/jobs",
-        json={"title": "Job B", "description": "Job B Description", "department": "Eng", "employmentType": "full_time"},
-        headers=headers_b, timeout=5
+        json={
+            "title": "Job B",
+            "description": "Job B Description",
+            "department": "Eng",
+            "employmentType": "full_time",
+        },
+        headers=headers_b,
+        timeout=5,
     )
     assert job_b_resp.status_code == 201, f"Job B creation failed: {job_b_resp.text}"
     job_b_id = job_b_resp.json()["data"]["id"]
-    assoc_b_resp = requests.post(f"{API_URL}/jobs/{job_b_id}/candidates", json={"candidateId": candidate_id}, headers=headers_b, timeout=5)
-    assert assoc_b_resp.status_code == 404, "Tenant B could associate Tenant A's candidate with Job B"
+    assoc_b_resp = requests.post(
+        f"{API_URL}/jobs/{job_b_id}/candidates",
+        json={"candidateId": candidate_id},
+        headers=headers_b,
+        timeout=5,
+    )
+    assert assoc_b_resp.status_code == 404, (
+        "Tenant B could associate Tenant A's candidate with Job B"
+    )
 
     # Verify Candidate A is unchanged by checking via Tenant A
     verify_a_resp = requests.get(f"{API_URL}/candidates/{candidate_id}", headers=headers, timeout=5)

@@ -23,6 +23,7 @@ router = APIRouter(tags=["resumes"])
 
 _storage_provider: StorageProvider | None = None
 
+
 def get_resume_service() -> ResumeService:
     """Dependency provider for ResumeService."""
     global _storage_provider
@@ -150,6 +151,7 @@ async def retry_resume_parse(
     )
 
     return ResponseEnvelope(data=result)
+
 
 @router.get(
     "/candidate/{candidate_id}",

@@ -26,7 +26,9 @@ async def test_generate_candidate_embedding_uses_qstash():
     service = EmbeddingService(candidate_repository=MagicMock())
     service.candidate_repo.get_candidate_by_id = AsyncMock()
 
-    with patch("hiron.core.qstash_client.qstash_publisher.publish", new_callable=AsyncMock) as mock_publish:
+    with patch(
+        "hiron.core.qstash_client.qstash_publisher.publish", new_callable=AsyncMock
+    ) as mock_publish:
         mock_publish.return_value = "msg-123"
 
         response = await service.generate_candidate_embedding(
@@ -34,7 +36,7 @@ async def test_generate_candidate_embedding_uses_qstash():
             tenant_id=tenant_id,
             user_role="org_admin",
             candidate_id=candidate_id,
-            model_version="models/gemini-embedding-001"
+            model_version="models/gemini-embedding-001",
         )
 
         mock_publish.assert_called_once_with(
@@ -42,8 +44,8 @@ async def test_generate_candidate_embedding_uses_qstash():
             payload={
                 "tenant_id": str(tenant_id),
                 "candidate_id": str(candidate_id),
-                "model_version": "models/gemini-embedding-001"
+                "model_version": "models/gemini-embedding-001",
             },
-            deduplication_id=ANY
+            deduplication_id=ANY,
         )
         assert response.data.task_id == "msg-123"

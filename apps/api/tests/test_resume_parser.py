@@ -144,6 +144,7 @@ def test_resume_parser_empty_optional_sections(mock_get_nlp: MagicMock) -> None:
 def test_parser_model_version_truthfulness() -> None:
     """Verify PARSER_MODEL_VERSION accurately describes the hybrid implementation."""
     from apps.worker.src.parser import PARSER_MODEL_VERSION
+
     assert PARSER_MODEL_VERSION == "spacy-en_core_web_sm-3.8.0"
     parser = ResumeParser()
     assert parser.model_version == "spacy-en_core_web_sm-3.8.0"
