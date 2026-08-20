@@ -2,12 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 
-import {
-  httpClient,
-  ResponseEnvelope,
-  setAccessToken,
-  setOnUnauthorized,
-} from "../lib/api";
+import { httpClient, ResponseEnvelope, setAccessToken, setOnUnauthorized } from "../lib/api";
 
 export interface User {
   id: string;
@@ -50,11 +45,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 let globalRefreshPromise: Promise<ResponseEnvelope<RefreshTokenData>> | null = null;
 
-export function AuthProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}): React.ReactElement {
+export function AuthProvider({ children }: { children: React.ReactNode }): React.ReactElement {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -77,7 +68,7 @@ export function AuthProvider({
             .post<ResponseEnvelope<RefreshTokenData>>(
               "/api/v1/auth/refresh",
               {},
-              { skipAuth: true }
+              { skipAuth: true },
             )
             .finally(() => {
               globalRefreshPromise = null;
@@ -95,13 +86,14 @@ export function AuthProvider({
           }
 
           // Fetch user profile in the background
-          httpClient.get<ResponseEnvelope<User>>("/api/v1/auth/me")
-            .then(meResponse => {
+          httpClient
+            .get<ResponseEnvelope<User>>("/api/v1/auth/me")
+            .then((meResponse) => {
               if (isMounted && meResponse && meResponse.data) {
                 setUser(meResponse.data);
               }
             })
-            .catch(err => {
+            .catch((err) => {
               console.error("Failed to fetch user profile in background:", err);
               // Profile fetch failed, but authentication (refresh) succeeded.
               // We intentionally do NOT log out here.
@@ -133,7 +125,7 @@ export function AuthProvider({
     const loginResponse = await httpClient.post<ResponseEnvelope<LoginData>>(
       "/api/v1/auth/login",
       credentials,
-      { skipAuth: true }
+      { skipAuth: true },
     );
 
     const loginData = loginResponse.data;
@@ -156,20 +148,16 @@ export function AuthProvider({
   };
 
   const refreshSession = async (): Promise<void> => {
-      try {
-        if (!globalRefreshPromise) {
-          globalRefreshPromise = httpClient
-            .post<ResponseEnvelope<RefreshTokenData>>(
-              "/api/v1/auth/refresh",
-              {},
-              { skipAuth: true }
-            )
-            .finally(() => {
-              globalRefreshPromise = null;
-            });
-        }
+    try {
+      if (!globalRefreshPromise) {
+        globalRefreshPromise = httpClient
+          .post<ResponseEnvelope<RefreshTokenData>>("/api/v1/auth/refresh", {}, { skipAuth: true })
+          .finally(() => {
+            globalRefreshPromise = null;
+          });
+      }
 
-        const refreshResponse = await globalRefreshPromise;
+      const refreshResponse = await globalRefreshPromise;
 
       if (refreshResponse && refreshResponse.data && refreshResponse.data.accessToken) {
         setAccessToken(refreshResponse.data.accessToken);

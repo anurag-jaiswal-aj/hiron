@@ -191,7 +191,7 @@ export async function apiFetch<T>(endpoint: string, options: RequestOptions = {}
               method: "POST",
               skipAuth: true,
               _isRetry: true,
-            }
+            },
           );
 
           const newAccessToken = refreshResult.data.accessToken;

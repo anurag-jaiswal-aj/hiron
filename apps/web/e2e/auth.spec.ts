@@ -3,14 +3,12 @@ import { loginAs } from "./helpers/auth";
 
 test.describe("Authentication Workflows", () => {
   test("unauthenticated access to /jobs redirects to /login", async ({ page }) => {
-
     await page.goto("/jobs");
     await page.waitForURL(/\/login$/, { timeout: 10000 });
     await expect(page).toHaveURL(/\/login$/);
   });
 
   test("unauthenticated access to /jobs/new redirects to /login", async ({ page }) => {
-
     await page.goto("/jobs/new");
     await page.waitForURL(/\/login$/, { timeout: 10000 });
     await expect(page).toHaveURL(/\/login$/);
@@ -31,7 +29,9 @@ test.describe("Authentication Workflows", () => {
     await expect(page).toHaveURL(/\/$/);
   });
 
-  test("chromium: ensures exactly one concurrent refresh request during session restore", async ({ page }) => {
+  test("chromium: ensures exactly one concurrent refresh request during session restore", async ({
+    page,
+  }) => {
     await loginAs(page, "admin@acme.com", "SecurePassword123!");
 
     let inFlightRefreshCount = 0;
@@ -74,7 +74,7 @@ test.describe("Authentication Workflows", () => {
     page.on("request", async (req) => {
       if (req.url().includes("/api/v1/auth/refresh") && req.method() === "POST") {
         refreshRequestUrl = req.url();
-        refreshCookieHeader = await req.headerValue("cookie") || "";
+        refreshCookieHeader = (await req.headerValue("cookie")) || "";
       } else if (req.url().includes("/api/v1/dashboard/summary")) {
         summaryRequestUrl = req.url();
       }
@@ -97,7 +97,7 @@ test.describe("Authentication Workflows", () => {
 
     // Verify /dashboard/summary is same-origin
     if (summaryRequestUrl) {
-       expect(summaryRequestUrl).toMatch(/^http:\/\/localhost:3000\/api\/v1/);
+      expect(summaryRequestUrl).toMatch(/^http:\/\/localhost:3000\/api\/v1/);
     }
 
     await expect(page).toHaveURL(/\/jobs$/);
