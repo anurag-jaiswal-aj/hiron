@@ -8,6 +8,25 @@ jobs:
     name: PyTest Application Test Suite
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: hiron_dev
+          POSTGRES_USER: hiron_user
+          POSTGRES_PASSWORD: hiron_secure_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://hiron_user:hiron_secure_password@localhost:5432/hiron_dev
+      POSTGRES_PASSWORD: hiron_secure_password
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -22,6 +41,18 @@ jobs:
 
       - name: Install project dependencies
         run: uv sync --all-extras
+
+      - name: Wait for PostgreSQL
+        run: |
+          while ! pg_isready -h localhost -p 5432 -U hiron_user; do
+            echo "Waiting for postgres..."
+            sleep 1
+          done
+
+      - name: Initialize Database
+        run: |
+          cd apps/api && uv run alembic upgrade head
+          cd ../..
 
       - name: Run PyTest Suite
         run: uv run pytest --cov=hiron --cov-fail-under=80
@@ -78,7 +109,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Install Playwright Browsers
-        run: npx playwright install --with-deps
+        run: pnpm --filter @hiron/web exec playwright install --with-deps
 
       - name: Install Python dependencies
         run: uv sync --all-extras
