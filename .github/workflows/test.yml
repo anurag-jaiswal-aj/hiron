@@ -51,8 +51,7 @@ jobs:
 
       - name: Initialize Database
         run: |
-          cd apps/api && uv run alembic upgrade head
-          cd ../..
+          uv run alembic -c apps/api/alembic.ini upgrade head
 
       - name: Run PyTest Suite
         run: uv run pytest --cov=hiron --cov-fail-under=80
@@ -114,8 +113,17 @@ jobs:
       - name: Install Python dependencies
         run: uv sync --all-extras
 
+      - name: Create CI environment file
+        run: |
+          touch .env.local
+          echo "DATABASE_URL=postgresql+asyncpg://hiron_user:hiron_secure_password@postgres:5432/hiron_dev" >> .env.local
+          echo "POSTGRES_USER=hiron_user" >> .env.local
+          echo "POSTGRES_PASSWORD=hiron_secure_password" >> .env.local
+          echo "POSTGRES_DB=hiron_dev" >> .env.local
+          echo "JWT_SECRET=ci_test_secret_key" >> .env.local
+
       - name: Start backend infrastructure
-        run: docker compose up -d postgres redis api worker
+        run: docker compose up -d postgres redis api
 
       - name: Wait for API health
         run: |
@@ -126,8 +134,7 @@ jobs:
 
       - name: Initialize Database
         run: |
-          cd apps/api && uv run alembic upgrade head
-          cd ../..
+          uv run alembic -c apps/api/alembic.ini upgrade head
           uv run python scripts/init-db.py
           uv run python scripts/seed.py
 
