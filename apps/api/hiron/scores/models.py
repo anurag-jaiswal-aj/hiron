@@ -1,7 +1,6 @@
 """SQLAlchemy model for scores table per Database Design §5.10."""
 
 import datetime
-import datetime
 import uuid
 from typing import TYPE_CHECKING, Any
 
@@ -17,7 +16,6 @@ from sqlalchemy import (
     SmallInteger,
     String,
     Text,
-    UniqueConstraint,
     func,
     text,
 )

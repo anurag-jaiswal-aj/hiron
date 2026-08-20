@@ -45,7 +45,7 @@ async def test_supabase_storage_provider_initialization_validates_args() -> None
 @pytest.mark.asyncio
 async def test_supabase_storage_provider_mock() -> None:
     """Verify SupabaseStorageProvider methods via httpx mocking."""
-    from unittest.mock import patch, MagicMock
+    from unittest.mock import MagicMock, patch
 
     provider = SupabaseStorageProvider(
         supabase_url="https://xyz.supabase.co",

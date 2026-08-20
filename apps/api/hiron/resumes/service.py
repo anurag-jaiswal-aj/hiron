@@ -2,7 +2,6 @@
 
 import hashlib
 import uuid
-from typing import Any
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,16 +11,14 @@ from hiron.audit.utils import extract_model_changes, sanitize_audit_payload
 from hiron.candidates.models import Candidate
 from hiron.candidates.repository import CandidateRepository
 from hiron.candidates.service import CandidateService
-from hiron.common.exceptions import ResourceNotFoundException, ValidationException, HironException
+from hiron.common.exceptions import HironException, ResourceNotFoundException, ValidationException
 from hiron.jobs.repository import JobRepository
 from hiron.resumes.exceptions import (
     FileTooLargeError,
     InsufficientResumePermissionsError,
     ResumeNotFoundError,
-    ResumeParseFailedError,
     UnsupportedFileTypeError,
 )
-from hiron.resumes.models import Resume
 from hiron.resumes.repository import ResumeRepository
 from hiron.resumes.schemas import (
     BulkRejectionItem,
@@ -255,7 +252,7 @@ class ResumeService:
         )
 
         # 6. Commit transaction before enqueueing background task so worker can read metadata
-        
+
         changes = extract_model_changes(resume, "create")
         if changes:
             changes = sanitize_audit_payload(changes)
@@ -279,7 +276,7 @@ class ResumeService:
                 session=session,
                 resume=resume,
                 status="failed",
-                parse_error=f"Queue error: {str(e)}"
+                parse_error=f"Queue error: {e!s}"
             )
             await session.commit()
             raise HironException(
@@ -427,7 +424,7 @@ class ResumeService:
             status="pending",
             parse_error="",
         )
-        
+
         changes = extract_model_changes(updated, "update")
         if changes:
             changes = sanitize_audit_payload(changes)
@@ -451,7 +448,7 @@ class ResumeService:
                 session=session,
                 resume=resume,
                 status="failed",
-                parse_error=f"Queue error: {str(e)}"
+                parse_error=f"Queue error: {e!s}"
             )
             await session.commit()
             raise HironException(

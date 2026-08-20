@@ -9,8 +9,8 @@ from typing import Any
 import structlog
 from fastapi import Request, Response, status
 from fastapi.responses import JSONResponse
-from starlette.middleware.base import BaseHTTPMiddleware
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from hiron.core.cache import CacheManager
 from hiron.core.config import get_settings

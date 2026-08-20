@@ -33,10 +33,12 @@ _DOMAIN_MODELS = (
     _user_models,
 )
 
+from pathlib import Path
+
 import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-from pathlib import Path
+
 from hiron.core.config import get_settings
 from hiron.core.jwt import load_private_key, load_public_key
 

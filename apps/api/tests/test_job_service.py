@@ -14,7 +14,6 @@ from hiron.jobs.exceptions import (
 )
 from hiron.jobs.models import Job
 from hiron.jobs.service import JobService
-from hiron.users.models import User
 
 
 @pytest.fixture(autouse=True)

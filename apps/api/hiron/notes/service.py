@@ -5,10 +5,10 @@ import uuid
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from hiron.candidates.repository import CandidateRepository
-from hiron.common.exceptions import ResourceNotFoundException
 from hiron.audit.service import AuditService
 from hiron.audit.utils import extract_model_changes, sanitize_audit_payload
+from hiron.candidates.repository import CandidateRepository
+from hiron.common.exceptions import ResourceNotFoundException
 from hiron.notes.exceptions import InsufficientNotePermissionsError, NoteValidationError
 from hiron.notes.models import CandidateNote
 from hiron.notes.repository import NoteRepository
@@ -91,7 +91,7 @@ class NoteService:
             note_id=str(note.id),
             is_private=is_private,
         )
-        
+
         changes = extract_model_changes(note, "create")
         if changes:
             changes = sanitize_audit_payload(changes)
@@ -104,7 +104,7 @@ class NoteService:
                 actor_id=user_id,
                 changes=changes,
             )
-            
+
         await session.commit()
         return NoteResponse(data=self._build_note_data(target_note))
 
@@ -160,7 +160,7 @@ class NoteService:
         updated = await self.note_repo.update_note(
             session=session, note=note, content=content, is_private=is_private
         )
-        
+
         changes = extract_model_changes(updated, "update")
         if changes:
             changes = sanitize_audit_payload(changes)
@@ -173,7 +173,7 @@ class NoteService:
                 actor_id=user_id,
                 changes=changes,
             )
-            
+
         await session.commit()
         return NoteResponse(data=self._build_note_data(updated))
 
@@ -205,7 +205,7 @@ class NoteService:
             candidate_id=str(candidate_id),
             note_id=str(note_id),
         )
-        
+
         changes = extract_model_changes(note, "update")
         if changes:
             changes = sanitize_audit_payload(changes)
@@ -218,5 +218,5 @@ class NoteService:
                 actor_id=user_id,
                 changes=changes,
             )
-            
+
         await session.commit()

@@ -8,13 +8,13 @@ from typing import Any
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from hiron.audit.service import AuditService
+from hiron.audit.utils import extract_model_changes, sanitize_audit_payload
 from hiron.common.exceptions import HironException
 from hiron.core.security import hash_password
 from hiron.tokens.repository import RefreshTokenRepository
 from hiron.users.models import User
 from hiron.users.repository import UserRepository
-from hiron.audit.service import AuditService
-from hiron.audit.utils import extract_model_changes, sanitize_audit_payload
 
 logger = structlog.get_logger("hiron.api.users.service")
 
@@ -158,7 +158,7 @@ class UserService:
             is_email_verified=False,
         )
         created = await self.user_repo.create(session, user)
-        
+
         changes = extract_model_changes(created, "create")
         if changes:
             changes = sanitize_audit_payload(changes)
@@ -171,7 +171,7 @@ class UserService:
             actor_id=user_id,
             changes=changes,
         )
-        
+
         await session.commit()
         await session.refresh(created)
         logger.info(
@@ -359,7 +359,7 @@ class UserService:
             await self._check_last_admin_protection(session, tenant_id, "deletion")
 
         await self.token_repo.revoke_all_for_user(session, user_id)
-        
+
         changes = extract_model_changes(target_user, "delete")
         if changes:
             changes = sanitize_audit_payload(changes)
@@ -372,7 +372,7 @@ class UserService:
             actor_id=current_user_id,
             changes=changes,
         )
-        
+
         await self.user_repo.delete(session, user_id, tenant_id)
         await session.commit()
         logger.info(

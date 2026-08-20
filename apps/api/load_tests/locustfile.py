@@ -1,26 +1,28 @@
-from locust import HttpUser, task, between
 import random
+
+from locust import HttpUser, between, task
+
 
 class HironLoadTestUser(HttpUser):
     wait_time = between(1, 3)
-    
+
     def on_start(self):
         """Authenticate as the org_admin and fetch a job_id for pipeline requests."""
-        import psycopg
         import os
-        
+
+        import psycopg
+
         # Fetch the tenant ID for the loadtest-tenant
         db_url = os.getenv("DATABASE_URL", "postgresql://hiron_user:hiron_secure_password@localhost:5432/hiron_dev")
-        with psycopg.connect(db_url) as conn:
-            with conn.cursor() as cur:
-                cur.execute("SELECT id FROM tenants WHERE slug = 'loadtest-tenant'")
-                result = cur.fetchone()
-                if result:
-                    self.tenant_id = str(result[0])
-                else:
-                    print("Could not find loadtest-tenant in DB")
-                    self.environment.runner.quit()
-                    return
+        with psycopg.connect(db_url) as conn, conn.cursor() as cur:
+            cur.execute("SELECT id FROM tenants WHERE slug = 'loadtest-tenant'")
+            result = cur.fetchone()
+            if result:
+                self.tenant_id = str(result[0])
+            else:
+                print("Could not find loadtest-tenant in DB")
+                self.environment.runner.quit()
+                return
 
         # Authenticate using the load test admin credentials
         response = self.client.post("/api/v1/auth/login", json={
@@ -28,7 +30,7 @@ class HironLoadTestUser(HttpUser):
             "password": "LoadTestPassword123!",
             "tenantId": self.tenant_id
         })
-        
+
         if response.status_code == 200:
             token = response.json().get("data", {}).get("accessToken")
             self.client.headers.update({"Authorization": f"Bearer {token}"})
@@ -36,7 +38,7 @@ class HironLoadTestUser(HttpUser):
             print(f"Failed to authenticate: {response.text}")
             self.environment.runner.quit()
             return
-            
+
         # Fetch jobs to get a job_id for pipeline requests
         jobs_response = self.client.get("/api/v1/jobs")
         if jobs_response.status_code == 200:

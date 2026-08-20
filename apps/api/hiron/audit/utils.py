@@ -39,7 +39,7 @@ def sanitize_audit_payload(payload: Any) -> Any:
             else:
                 sanitized[k] = sanitize_audit_payload(v)
         return sanitized
-    elif isinstance(payload, list):
+    if isinstance(payload, list):
         return [sanitize_audit_payload(item) for item in payload]
     return payload
 
@@ -102,10 +102,10 @@ def extract_model_changes(instance: Any, operation: str) -> dict[str, Any] | Non
             if history.has_changes():
                 old_val = history.deleted[0] if history.deleted else None
                 new_val = history.added[0] if history.added else getattr(instance, attr.key, None)
-                
+
                 before[attr.key] = serialize_for_audit(old_val)
                 after[attr.key] = serialize_for_audit(new_val)
-        
+
         if before or after:
             changes["before"] = before
             changes["after"] = after

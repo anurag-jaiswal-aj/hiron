@@ -8,6 +8,8 @@ from typing import Any
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from hiron.audit.service import AuditService
+from hiron.audit.utils import extract_model_changes, sanitize_audit_payload
 from hiron.jobs.exceptions import (
     InsufficientJobPermissionsError,
     InvalidJobDataError,
@@ -16,8 +18,6 @@ from hiron.jobs.exceptions import (
 )
 from hiron.jobs.models import Job, PipelineStage
 from hiron.jobs.repository import JobRepository
-from hiron.audit.service import AuditService
-from hiron.audit.utils import extract_model_changes, sanitize_audit_payload
 
 logger = structlog.get_logger("hiron.api.jobs.service")
 
@@ -535,7 +535,7 @@ class JobService:
             raise JobNotFoundError()
 
         logger.info("Job opened successfully", job_id=str(job_id), tenant_id=str(tenant_id))
-        
+
         changes = extract_model_changes(updated, "update")
         if changes:
             changes = sanitize_audit_payload(changes)
@@ -548,7 +548,7 @@ class JobService:
                 actor_id=user_id,
                 changes=changes,
             )
-            
+
         await session.commit()
         return updated
 
@@ -574,7 +574,7 @@ class JobService:
             raise JobNotFoundError()
 
         logger.info("Job paused successfully", job_id=str(job_id), tenant_id=str(tenant_id))
-        
+
         changes = extract_model_changes(updated, "update")
         if changes:
             changes = sanitize_audit_payload(changes)
@@ -587,7 +587,7 @@ class JobService:
                 actor_id=user_id,
                 changes=changes,
             )
-            
+
         await session.commit()
         return updated
 
@@ -617,7 +617,7 @@ class JobService:
             raise JobNotFoundError()
 
         logger.info("Job closed successfully", job_id=str(job_id), tenant_id=str(tenant_id))
-        
+
         changes = extract_model_changes(updated, "update")
         if changes:
             changes = sanitize_audit_payload(changes)
@@ -630,7 +630,7 @@ class JobService:
                 actor_id=user_id,
                 changes=changes,
             )
-            
+
         await session.commit()
         return updated
 
@@ -657,7 +657,7 @@ class JobService:
             raise JobNotFoundError()
 
         logger.info("Job archived successfully", job_id=str(job_id), tenant_id=str(tenant_id))
-        
+
         changes = extract_model_changes(updated, "update")
         if changes:
             changes = sanitize_audit_payload(changes)
@@ -670,7 +670,7 @@ class JobService:
                 actor_id=user_id,
                 changes=changes,
             )
-            
+
         await session.commit()
         return updated
 
@@ -746,7 +746,7 @@ class JobService:
             job_id=str(job_id),
             tenant_id=str(tenant_id),
         )
-        
+
         changes = extract_model_changes(created, "create")
         if changes:
             changes = sanitize_audit_payload(changes)
@@ -759,7 +759,7 @@ class JobService:
                 actor_id=user_id,
                 changes=changes,
             )
-            
+
         await session.commit()
         return created
 
@@ -856,7 +856,7 @@ class JobService:
             raise PipelineStageNotFoundError()
 
         logger.info("Pipeline stage updated", stage_id=str(stage_id), job_id=str(job_id))
-        
+
         changes = extract_model_changes(updated, "update")
         if changes:
             changes = sanitize_audit_payload(changes)
@@ -869,7 +869,7 @@ class JobService:
                 actor_id=user_id,
                 changes=changes,
             )
-            
+
         await session.commit()
         return updated
 

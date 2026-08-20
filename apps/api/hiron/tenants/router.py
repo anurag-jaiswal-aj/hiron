@@ -8,10 +8,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from hiron.auth.dependencies import get_current_user, require_role
 from hiron.common.schemas import ResponseEnvelope
-from hiron.users.models import User
 from hiron.core.database import get_db_session
 from hiron.tenants.schemas import TenantCreateRequest, TenantResponse, TenantUpdateRequest
 from hiron.tenants.service import TenantService
+from hiron.users.models import User
 
 router = APIRouter()
 

@@ -5,16 +5,15 @@ Revises: b3b6a3f2c986
 Create Date: 2026-08-11 12:00:00.000000
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 from alembic import op
 
-
 # revision identifiers, used by Alembic.
 revision: str = "phase16_rls_001"
-down_revision: Union[str, None] = "b3b6a3f2c986"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "b3b6a3f2c986"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 TENANT_SCOPED_TABLES = [
     "users",

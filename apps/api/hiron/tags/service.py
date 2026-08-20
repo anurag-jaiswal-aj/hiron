@@ -5,10 +5,10 @@ import uuid
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from hiron.candidates.repository import CandidateRepository
-from hiron.common.exceptions import ResourceNotFoundException
 from hiron.audit.service import AuditService
 from hiron.audit.utils import extract_model_changes, sanitize_audit_payload
+from hiron.candidates.repository import CandidateRepository
+from hiron.common.exceptions import ResourceNotFoundException
 from hiron.tags.exceptions import DuplicateTagError, InsufficientTagPermissionsError
 from hiron.tags.models import CandidateTag
 from hiron.tags.repository import TagRepository
@@ -101,7 +101,7 @@ class TagService:
             candidate_id=str(candidate_id),
             tag_name=normalized,
         )
-        
+
         changes = extract_model_changes(tag, "create")
         if changes:
             changes = sanitize_audit_payload(changes)
@@ -169,7 +169,7 @@ class TagService:
             candidate_id=str(candidate_id),
             tag_id=str(tag_id),
         )
-        
+
         changes = extract_model_changes(tag, "delete")
         if changes:
             changes = sanitize_audit_payload(changes)

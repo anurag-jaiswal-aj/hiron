@@ -2,8 +2,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
 from fastapi.exceptions import HTTPException
-
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from hiron.auth.dependencies import get_current_user
 from hiron.core.database import get_db_session as get_db
 from hiron.scores.repository import ScoreRepository

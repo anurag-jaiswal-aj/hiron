@@ -54,17 +54,17 @@ def test_sanitize_audit_payload():
 def test_serialize_for_audit():
     """Test safe serialization of types."""
     assert serialize_for_audit(None) is None
-    
+
     val_uuid = uuid.uuid4()
     assert serialize_for_audit(val_uuid) == str(val_uuid)
-    
+
     val_dt = datetime.datetime(2023, 1, 1, 12, 0, 0, tzinfo=datetime.UTC)
     assert serialize_for_audit(val_dt) == "2023-01-01T12:00:00+00:00"
-    
+
     assert serialize_for_audit(Decimal("10.5")) == 10.5
-    
+
     assert serialize_for_audit(DummyEnum.OPEN) == "open"
-    
+
     assert serialize_for_audit({"foo": "bar"}) == {"foo": "bar"}
     assert serialize_for_audit([1, 2, 3]) == [1, 2, 3]
     assert serialize_for_audit(42) == 42
@@ -73,7 +73,7 @@ def test_serialize_for_audit():
 def test_extract_model_changes_create():
     """Test extracting changes for a newly created model."""
     instance = DummyModel(id=1, name="Test", status="open")
-    
+
     # Needs to be attached to a session or properly mapped to have state initialized
     # For a detached object, inspect() might not show it as added, but column_attrs are available.
     changes = extract_model_changes(instance, "create")
@@ -87,7 +87,7 @@ def test_extract_model_changes_create():
 def test_extract_model_changes_delete():
     """Test extracting changes for a deleted model."""
     instance = DummyModel(id=1, name="Test", status="open")
-    
+
     changes = extract_model_changes(instance, "delete")
     assert changes is not None
     assert "before" in changes
@@ -95,21 +95,21 @@ def test_extract_model_changes_delete():
     assert changes["before"]["name"] == "Test"
 
 def test_extract_model_changes_update():
-    from sqlalchemy.orm import Session
     from sqlalchemy import create_engine
-    
+    from sqlalchemy.orm import Session
+
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
-    
+
     with Session(engine) as session:
         instance = DummyModel(id=1, name="Test", status="open")
         session.add(instance)
         session.commit()
-        
+
         _ = instance.status # Trigger load
         instance.status = "closed"
         changes = extract_model_changes(instance, "update")
-        
+
         assert changes is not None
         assert changes["before"] == {"status": "open"}
         assert changes["after"] == {"status": "closed"}

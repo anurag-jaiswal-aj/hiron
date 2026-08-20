@@ -11,7 +11,11 @@ from hiron.candidates.models import Candidate
 from hiron.candidates.repository import CandidateRepository
 from hiron.common.exceptions import ResourceNotFoundException
 from hiron.embeddings.exceptions import InsufficientEmbeddingPermissionsError
-from hiron.embeddings.generator import DEFAULT_EMBEDDING_MODEL, EMBEDDING_DIMENSION, EmbeddingGenerator
+from hiron.embeddings.generator import (
+    DEFAULT_EMBEDDING_MODEL,
+    EMBEDDING_DIMENSION,
+    EmbeddingGenerator,
+)
 from hiron.embeddings.repository import EmbeddingRepository
 from hiron.embeddings.schemas import (
     CandidateEmbeddingResponseData,

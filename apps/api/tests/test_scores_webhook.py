@@ -11,39 +11,40 @@ from httpx import (
     Request as HTTPXRequest,
     Response as HTTPXResponse,
 )
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from hiron.candidates.models import Candidate
 from hiron.common.exceptions import ResourceNotFoundException
 from hiron.core.config import get_settings
-from hiron.main import app
-from tests.test_qstash_auth import CURRENT_KEY, NEXT_KEY, generate_qstash_signature
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text
 from hiron.core.database import AsyncSessionLocal
-from hiron.scores.repository import ScoreRepository
-from hiron.tenants.models import Tenant
 from hiron.jobs.models import Job
-from hiron.candidates.models import Candidate
+from hiron.main import app
+from hiron.scores.repository import ScoreRepository
 from hiron.security.context import set_tenant_context
+from hiron.tenants.models import Tenant
+from tests.test_qstash_auth import CURRENT_KEY, NEXT_KEY, generate_qstash_signature
+
 
 async def _seed_test_db(session: AsyncSession) -> tuple[uuid.UUID, uuid.UUID, uuid.UUID, uuid.UUID]:
     tenant_id = uuid.uuid4()
     job_id = uuid.uuid4()
     candidate_id = uuid.uuid4()
-    
+
     tenant = Tenant(id=tenant_id, name="Webhook Tenant", slug=str(tenant_id))
     session.add(tenant)
     await session.flush()
     await session.execute(text(f"SET app.current_tenant_id = '{tenant_id}'"))
-    
+
     job = Job(id=job_id, tenant_id=tenant_id, title="Webhook Job", description="Desc")
     session.add(job)
     candidate = Candidate(id=candidate_id, tenant_id=tenant_id, full_name="Webhook Cand")
     session.add(candidate)
-    
+
     repo = ScoreRepository()
     batch_job = await repo.create_batch_score_job(session, tenant_id, job_id, 3)
     await session.commit()
-    
+
     return tenant_id, job_id, candidate_id, batch_job.id
 
 
@@ -104,7 +105,7 @@ async def test_batch_score_worker_webhook_success(async_client):
             "batch_id": str(batch_id),
             "candidate_id": str(candidate_id),
         }
-        
+
     # VERIFY DB MUTATION (Production Boundary)
     set_tenant_context(str(tenant_id))
     async with AsyncSessionLocal() as session:

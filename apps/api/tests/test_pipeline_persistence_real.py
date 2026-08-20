@@ -3,6 +3,7 @@
 import os
 import subprocess
 import uuid
+
 import pytest
 import requests
 
@@ -34,6 +35,7 @@ def auth_setup() -> tuple[str, str, str]:
             token = login_resp.json()["data"]["accessToken"]
         else:
             import datetime
+
             from hiron.core.jwt import create_access_token
             token = create_access_token(
                 user_id=user_id,
@@ -76,7 +78,7 @@ def create_candidate_and_apply(headers: dict[str, str], job_id: str) -> tuple[st
     )
     assert resp.status_code == 201, f"Failed to create candidate: {resp.text}"
     candidate_id = resp.json()["data"]["id"]
-    
+
     apply_resp = requests.post(
         f"{API_URL}/jobs/{job_id}/candidates",
         json={"candidateId": candidate_id},
@@ -89,25 +91,25 @@ def create_candidate_and_apply(headers: dict[str, str], job_id: str) -> tuple[st
 def test_pipeline_integration_flows(auth_setup: tuple[str, str, str]) -> None:
     token, tenant_id, user_id = auth_setup
     headers = {"Authorization": f"Bearer {token}"}
-    
+
     # Setup Data
     job_a_id = create_job(headers, f"Job A {uuid.uuid4()}")
     job_b_id = create_job(headers, f"Job B {uuid.uuid4()}")
-    
+
     cand_id, jc_id = create_candidate_and_apply(headers, job_a_id)
-    
+
     # Fetch stages for Job A
     board_a_resp = requests.get(f"{API_URL}/jobs/{job_a_id}/pipeline", headers=headers)
     assert board_a_resp.status_code == 200
     stages_a = board_a_resp.json()["data"]
-    
+
     applied_stage = next(s for s in stages_a if "applied" in s["stageName"].lower())
     screening_stage = next(s for s in stages_a if "screening" in s["stageName"].lower())
-    
+
     board_b_resp = requests.get(f"{API_URL}/jobs/{job_b_id}/pipeline", headers=headers)
     stages_b = board_b_resp.json()["data"]
     job_b_screening_stage = next(s for s in stages_b if "screening" in s["stageName"].lower())
-    
+
     # ---------------------------------------------------------
     # SCENARIO A: Valid Move (Applied -> Screening)
     # ---------------------------------------------------------
@@ -121,12 +123,12 @@ def test_pipeline_integration_flows(auth_setup: tuple[str, str, str]) -> None:
         headers=headers,
     )
     assert move_resp.status_code == 200, move_resp.text
-    
+
     # Verify via Stage History API
     hist_resp = requests.get(f"{API_URL}/jobs/{job_a_id}/candidates/{cand_id}/stage-history", headers=headers)
     assert hist_resp.status_code == 200
     history_items = hist_resp.json()["data"]
-    
+
     try:
         move_item = next(item for item in history_items if item["toStage"]["id"] == screening_stage["stageId"])
     except StopIteration:
@@ -136,14 +138,14 @@ def test_pipeline_integration_flows(auth_setup: tuple[str, str, str]) -> None:
     assert move_item["movedBy"]["id"] == user_id
     assert move_item["note"] == "Initial screening move"
     assert move_item["createdAt"] is not None
-    
+
     # Check current_stage_id via DB directly to be absolutely certain of persistence
     db_check = subprocess.check_output([
         "docker", "exec", "hiron-postgres", "psql", "-U", "hiron_user", "-d", "hiron_dev", "-t", "-c",
         f"SELECT current_stage_id FROM job_candidates WHERE id = '{jc_id}';"
     ]).decode().strip()
     assert db_check == screening_stage["stageId"]
-    
+
     # ---------------------------------------------------------
     # SCENARIO B: Same-stage Move
     # ---------------------------------------------------------
@@ -154,10 +156,10 @@ def test_pipeline_integration_flows(auth_setup: tuple[str, str, str]) -> None:
     )
     assert same_resp.status_code == 422
     assert "already in the requested" in same_resp.text
-    
+
     hist_resp2 = requests.get(f"{API_URL}/jobs/{job_a_id}/candidates/{cand_id}/stage-history", headers=headers)
     assert len(hist_resp2.json()["data"]) == len(history_items) # No new record
-    
+
     # ---------------------------------------------------------
     # SCENARIO C: Wrong Job Stage
     # ---------------------------------------------------------
@@ -168,10 +170,10 @@ def test_pipeline_integration_flows(auth_setup: tuple[str, str, str]) -> None:
     )
     assert wrong_resp.status_code == 422
     assert "does not belong to candidate's job" in wrong_resp.text
-    
+
     hist_resp3 = requests.get(f"{API_URL}/jobs/{job_a_id}/candidates/{cand_id}/stage-history", headers=headers)
     assert len(hist_resp3.json()["data"]) == len(history_items) # No new record
-    
+
     # ---------------------------------------------------------
     # SCENARIO D: Cross Tenant Stage
     # ---------------------------------------------------------
@@ -181,7 +183,7 @@ def test_pipeline_integration_flows(auth_setup: tuple[str, str, str]) -> None:
         headers=headers,
     )
     assert random_resp.status_code == 404
-    
+
     # ---------------------------------------------------------
     # SCENARIO E: Shortlist Candidate
     # ---------------------------------------------------------
@@ -191,13 +193,13 @@ def test_pipeline_integration_flows(auth_setup: tuple[str, str, str]) -> None:
     )
     assert shortlist_resp.status_code == 200
     assert shortlist_resp.json()["data"]["isShortlisted"] is True
-    
+
     db_shortlist_check = subprocess.check_output([
         "docker", "exec", "hiron-postgres", "psql", "-U", "hiron_user", "-d", "hiron_dev", "-t", "-c",
         f"SELECT is_shortlisted FROM job_candidates WHERE id = '{jc_id}';"
     ]).decode().strip()
     assert db_shortlist_check == "t"
-    
+
     # ---------------------------------------------------------
     # SCENARIO F: Reject Workflow
     # ---------------------------------------------------------
@@ -210,15 +212,15 @@ def test_pipeline_integration_flows(auth_setup: tuple[str, str, str]) -> None:
     assert reject_resp.status_code == 200, reject_resp.text
     assert reject_resp.json()["data"]["status"] == "rejected"
     assert reject_resp.json()["data"]["rejectionReason"] == reject_reason
-    
+
     hist_resp_final = requests.get(f"{API_URL}/jobs/{job_a_id}/candidates/{cand_id}/stage-history", headers=headers)
     history_items_final = hist_resp_final.json()["data"]
-    
+
     reject_item = history_items_final[-1]
     assert "Rejected" in reject_item["toStage"]["name"] or "Disqualified" in reject_item["toStage"]["name"]
     assert reject_item["fromStage"]["id"] == screening_stage["stageId"]
     assert reject_reason in reject_item["note"]
-    
+
     db_status_check = subprocess.check_output([
         "docker", "exec", "hiron-postgres", "psql", "-U", "hiron_user", "-d", "hiron_dev", "-t", "-c",
         f"SELECT rejection_reason FROM job_candidates WHERE id = '{jc_id}';"

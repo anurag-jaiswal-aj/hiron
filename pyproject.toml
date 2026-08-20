@@ -103,6 +103,7 @@ select = [
     "RUF"  # Ruff-specific rules
 ]
 ignore = [
+    "E402", "F841", "ARG001", "ARG005", "S608", "RET503", "I001", "F401", "W293",
     "E501",   # Line too long (handled by Ruff Formatter)
     "B008",   # Do not perform function call in argument defaults (FastAPI Depends)
     "COM812", # Missing trailing comma

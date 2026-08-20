@@ -7,6 +7,8 @@ from typing import Any
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from hiron.audit.service import AuditService
+from hiron.audit.utils import extract_model_changes, sanitize_audit_payload
 from hiron.candidates.exceptions import (
     CandidateNotFoundError,
     DuplicateCandidateEmailError,
@@ -18,8 +20,6 @@ from hiron.candidates.models import Candidate, JobCandidate
 from hiron.candidates.repository import CandidateRepository
 from hiron.jobs.exceptions import JobNotFoundError
 from hiron.jobs.repository import JobRepository
-from hiron.audit.service import AuditService
-from hiron.audit.utils import extract_model_changes, sanitize_audit_payload
 
 logger = structlog.get_logger(__name__)
 
@@ -183,7 +183,7 @@ class CandidateService:
             tenant_id=str(tenant_id),
             action="candidate_created",
         )
-        
+
         changes = extract_model_changes(created_candidate, "create")
         if changes:
             changes = sanitize_audit_payload(changes)
@@ -196,7 +196,7 @@ class CandidateService:
                 actor_id=user_id,
                 changes=changes,
             )
-            
+
         await session.commit()
         return created_candidate
 
@@ -373,7 +373,7 @@ class CandidateService:
             tenant_id=str(tenant_id),
             action="candidate_updated",
         )
-        
+
         changes = extract_model_changes(updated_candidate, "update")
         if changes:
             changes = sanitize_audit_payload(changes)
@@ -386,7 +386,7 @@ class CandidateService:
                 actor_id=user_id,
                 changes=changes,
             )
-            
+
         await session.commit()
         return updated_candidate
 
@@ -412,7 +412,7 @@ class CandidateService:
             tenant_id=str(tenant_id),
             action="candidate_archived",
         )
-        
+
         changes = extract_model_changes(archived, "update")
         if changes:
             changes = sanitize_audit_payload(changes)
@@ -425,7 +425,7 @@ class CandidateService:
                 actor_id=user_id,
                 changes=changes,
             )
-            
+
         await session.commit()
         return archived
 
@@ -481,7 +481,7 @@ class CandidateService:
             tenant_id=str(tenant_id),
             action="candidate_added_to_job",
         )
-        
+
         changes = extract_model_changes(result, "create")
         if changes:
             changes = sanitize_audit_payload(changes)
@@ -494,6 +494,6 @@ class CandidateService:
                 actor_id=added_by_user_id,
                 changes=changes,
             )
-            
+
         await session.commit()
         return result

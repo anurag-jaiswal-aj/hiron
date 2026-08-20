@@ -6,9 +6,9 @@ import uuid
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from hiron.candidates.repository import CandidateRepository
 from hiron.audit.service import AuditService
 from hiron.audit.utils import extract_model_changes, sanitize_audit_payload
+from hiron.candidates.repository import CandidateRepository
 from hiron.common.exceptions import ResourceNotFoundException
 from hiron.jobs.repository import JobRepository
 from hiron.pipeline.exceptions import (

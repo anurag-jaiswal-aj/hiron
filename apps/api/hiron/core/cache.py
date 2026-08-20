@@ -45,9 +45,9 @@ class CacheManager:
         except RuntimeError:
             loop = None
 
-        if self._lock is None or getattr(self._lock, '_loop', None) is not loop:
+        if self._lock is None or getattr(self._lock, "_loop", None) is not loop:
             self._lock = asyncio.Lock()
-            setattr(self._lock, '_loop', loop)
+            self._lock._loop = loop
         return self._lock
 
     def _get_redis(self) -> redis.Redis:
@@ -56,9 +56,9 @@ class CacheManager:
         except RuntimeError:
             loop = None
 
-        if self._redis is None or getattr(self._redis, '_loop', None) is not loop:
+        if self._redis is None or getattr(self._redis, "_loop", None) is not loop:
             self._redis = redis.from_url(settings.redis_url, decode_responses=True)
-            setattr(self._redis, '_loop', loop)
+            self._redis._loop = loop
         return self._redis
 
     async def get(self, key: str) -> Any | None:
@@ -129,12 +129,12 @@ class CacheManager:
         r = self._get_redis()
         try:
             # SCAN for keys matching pattern
-            cursor = b'0'
+            cursor = b"0"
             keys = []
             while cursor:
                 cursor, scan_keys = await r.scan(cursor=cursor, match=f"{pattern_prefix}*")
                 keys.extend(scan_keys)
-                if cursor == 0 or cursor == b'0':
+                if cursor == 0 or cursor == b"0":
                     break
 
             if keys:

@@ -2,42 +2,31 @@
 """Database seeding script for generating load-test data within an isolated tenant."""
 
 import asyncio
-import os
+import random
 import sys
 import uuid
-from datetime import datetime, timezone
-import json
-import random
+from datetime import UTC, datetime
 
 # Add apps/api to Python path for module resolution
 from pathlib import Path
+
 root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(root))
 
 # Import ORM models
-import hiron.candidates.models
-import hiron.jobs.models
-import hiron.pipeline.models
-import hiron.scores.models
-import hiron.audit.models
-import hiron.ai_usage.models
-import hiron.tenants.models
-import hiron.users.models
+from sqlalchemy import delete, insert, select
 
-from hiron.core.database import AsyncSessionLocal, engine
-from hiron.tenants.service import TenantService
-from hiron.users.service import UserService
-from sqlalchemy import insert, delete, select
-from sqlalchemy.orm import selectinload
-
+from hiron.ai_usage.models import AIUsageLog
+from hiron.audit.models import AuditLog
 from hiron.candidates.models import Candidate, JobCandidate
+from hiron.core.database import AsyncSessionLocal, engine
 from hiron.jobs.models import Job, PipelineStage
 from hiron.pipeline.models import CandidateStageHistory
 from hiron.scores.models import Score
-from hiron.audit.models import AuditLog
-from hiron.ai_usage.models import AIUsageLog
 from hiron.tenants.models import Tenant
+from hiron.tenants.service import TenantService
 from hiron.users.models import User
+from hiron.users.service import UserService
 
 # Load Test Config
 TENANT_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
@@ -101,7 +90,7 @@ async def seed_loadtest_data() -> None:
             session.add(tenant)
             await session.flush()
             tenant_id = tenant.id
-            
+
             print("Creating loadtest users...")
             admin_user = await user_service.create_user(
                 session=session,
@@ -111,7 +100,7 @@ async def seed_loadtest_data() -> None:
                 role="org_admin",
                 password=PASSWORD,
             )
-            
+
             recruiter_users = []
             for i, email in enumerate(RECRUITER_EMAILS):
                 u = await user_service.create_user(
@@ -123,13 +112,13 @@ async def seed_loadtest_data() -> None:
                     password=PASSWORD,
                 )
                 recruiter_users.append(u)
-            
+
             users = [admin_user] + recruiter_users
-            
+
             await session.commit()
 
             print(f"Generating {JOB_COUNT} Jobs and Pipeline Stages...")
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             jobs_data = []
             job_ids = []
             for i in range(JOB_COUNT):
@@ -150,7 +139,7 @@ async def seed_loadtest_data() -> None:
                     "preferred_skills": ["Locust"]
                 })
             await session.execute(insert(Job).values(jobs_data))
-            
+
             stages_data = []
             stage_ids_per_job = {}
             for j_id in job_ids:
@@ -180,7 +169,7 @@ async def seed_loadtest_data() -> None:
             candidate_ids = []
             job_for_candidate = {}
             job_candidate_for_candidate = {}
-            
+
             # Batch inserts to avoid memory bloat
             BATCH_SIZE = 1000
             for i in range(CANDIDATE_COUNT):
@@ -193,7 +182,7 @@ async def seed_loadtest_data() -> None:
                 candidate_ids.append(c_id)
                 job_for_candidate[c_id] = j_id
                 job_candidate_for_candidate[c_id] = jc_id
-                
+
                 candidates_data.append({
                     "id": c_id,
                     "tenant_id": tenant_id,
@@ -218,13 +207,13 @@ async def seed_loadtest_data() -> None:
                     "created_at": now,
                     "updated_at": now,
                 })
-                
+
                 if len(candidates_data) >= BATCH_SIZE:
                     await session.execute(insert(Candidate).values(candidates_data))
                     await session.execute(insert(JobCandidate).values(job_candidates_data))
                     candidates_data = []
                     job_candidates_data = []
-                    
+
             if candidates_data:
                 await session.execute(insert(Candidate).values(candidates_data))
                 await session.execute(insert(JobCandidate).values(job_candidates_data))
@@ -253,7 +242,7 @@ async def seed_loadtest_data() -> None:
             if history_data:
                 await session.execute(insert(CandidateStageHistory).values(history_data))
             await session.commit()
-            
+
             print(f"Generating {SCORE_COUNT} Scores...")
             scores_data = []
             seen_jc_ids = set()

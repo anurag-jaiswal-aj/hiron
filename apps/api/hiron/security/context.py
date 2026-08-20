@@ -1,10 +1,9 @@
 import contextvars
-from typing import Optional
 
 # Context variable to hold the current tenant ID for the request lifecycle
-tenant_context: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar("tenant_context", default=None)
+tenant_context: contextvars.ContextVar[str | None] = contextvars.ContextVar("tenant_context", default=None)
 
-def get_tenant_context() -> Optional[str]:
+def get_tenant_context() -> str | None:
     """Retrieve the current tenant ID from contextvars."""
     return tenant_context.get()
 

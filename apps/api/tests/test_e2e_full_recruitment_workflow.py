@@ -22,7 +22,6 @@ from hiron.pipeline.schemas import (
     UserInfo,
 )
 from hiron.pipeline.service import PipelineService
-from hiron.scores.engine import AIScoringEngine
 from hiron.scores.models import Score
 from hiron.scores.service import ScoreService
 from hiron.tags.models import CandidateTag

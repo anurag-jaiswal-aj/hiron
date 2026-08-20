@@ -29,11 +29,11 @@ async def setup_data() -> dict[str, str]:
             END IF;
         END $$;
     """)
-    await conn.execute('GRANT USAGE ON SCHEMA public TO hiron_app;')
-    await conn.execute('GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO hiron_app;')
-    await conn.execute('GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO hiron_app;')
-    await conn.execute('ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO hiron_app;')
-    await conn.execute('ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO hiron_app;')
+    await conn.execute("GRANT USAGE ON SCHEMA public TO hiron_app;")
+    await conn.execute("GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO hiron_app;")
+    await conn.execute("GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO hiron_app;")
+    await conn.execute("ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO hiron_app;")
+    await conn.execute("ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO hiron_app;")
 
     # Create tenants
     await conn.execute("INSERT INTO tenants (id, name, slug) VALUES ($1, 'Tenant A', $2)", tenant_a, f"tenant-a-{tenant_a}")

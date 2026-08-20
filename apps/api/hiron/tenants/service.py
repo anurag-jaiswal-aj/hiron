@@ -106,7 +106,7 @@ class TenantService:
         )
         created = await self.tenant_repo.create(session, tenant)
         logger.info("Tenant created successfully", tenant_id=str(created.id), slug=created.slug)
-        
+
         changes = extract_model_changes(created, "create")
         if changes:
             changes = sanitize_audit_payload(changes)
@@ -203,7 +203,7 @@ class TenantService:
             raise TenantNotFoundError()
 
         logger.info("Tenant updated successfully", tenant_id=str(tenant.id))
-        
+
         changes = extract_model_changes(updated_tenant, "update")
         if changes:
             changes = sanitize_audit_payload(changes)
@@ -223,7 +223,7 @@ class TenantService:
     async def delete_tenant(self, session: AsyncSession, tenant_id: uuid.UUID, user_id: uuid.UUID) -> None:
         """Hard-delete tenant organization per Database Design §9."""
         tenant = await self.get_tenant_by_id(session, tenant_id)
-        
+
         changes = extract_model_changes(tenant, "delete")
         if changes:
             changes = sanitize_audit_payload(changes)
@@ -236,7 +236,7 @@ class TenantService:
                 actor_id=user_id,
                 changes=changes,
             )
-            
+
         await self.tenant_repo.delete(session, tenant_id)
         logger.info("Tenant deleted successfully", tenant_id=str(tenant_id))
         await session.commit()

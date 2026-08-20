@@ -30,6 +30,7 @@ def pearson_correlation(x: list[float], y: list[float]) -> float:
 
 
 import pytest
+
 from hiron.search.repository import SearchRepository
 
 
@@ -50,7 +51,7 @@ async def test_ai_scoring_engine_evaluation_benchmark() -> None:
 
     # Load 100 candidates fixture
     fixture_path = Path(__file__).parent / "fixtures" / "candidates_100.json"
-    with open(fixture_path, "r") as f:
+    with open(fixture_path) as f:
         candidates_data = json.load(f)
 
     assert len(candidates_data) == 100
@@ -95,7 +96,7 @@ async def test_ai_scoring_engine_evaluation_benchmark() -> None:
     r_value = pearson_correlation(completeness_scores, confidence_scores)
 
     # Print the r_value for the test report output
-    print(f"\nAI Benchmark Results:")
+    print("\nAI Benchmark Results:")
     print(f"Min Fit Score: {min(fit_scores)}")
     print(f"Max Fit Score: {max(fit_scores)}")
     print(f"Pearson Correlation (Completeness vs Confidence): {r_value:.4f}")

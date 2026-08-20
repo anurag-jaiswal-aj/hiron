@@ -1,6 +1,7 @@
-import pytest
 import uuid
-from unittest.mock import patch, MagicMock, AsyncMock, ANY
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
+
+import pytest
 
 from hiron.core.config import get_settings
 from hiron.embeddings.service import EmbeddingService
@@ -18,16 +19,16 @@ def mock_settings(monkeypatch):
 @pytest.mark.asyncio
 async def test_generate_candidate_embedding_uses_qstash():
     get_settings.cache_clear()
-    
+
     tenant_id = uuid.uuid4()
     candidate_id = uuid.uuid4()
-    
+
     service = EmbeddingService(candidate_repository=MagicMock())
     service.candidate_repo.get_candidate_by_id = AsyncMock()
-    
+
     with patch("hiron.core.qstash_client.qstash_publisher.publish", new_callable=AsyncMock) as mock_publish:
         mock_publish.return_value = "msg-123"
-        
+
         response = await service.generate_candidate_embedding(
             session=AsyncMock(),
             tenant_id=tenant_id,
@@ -35,7 +36,7 @@ async def test_generate_candidate_embedding_uses_qstash():
             candidate_id=candidate_id,
             model_version="models/gemini-embedding-001"
         )
-        
+
         mock_publish.assert_called_once_with(
             url="http://test-qstash-url/api/v1/webhooks/qstash/embeddings/candidate",
             payload={

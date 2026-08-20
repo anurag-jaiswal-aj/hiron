@@ -1,14 +1,14 @@
 """Unit tests for resume text extraction from TXT, PDF, and DOCX files."""
 
 import pytest
-
-from hiron.resumes.exceptions import ResumeParseFailedError
 from apps.worker.src.extractor import (
     extract_text_from_docx,
     extract_text_from_file,
     extract_text_from_pdf,
     extract_text_from_txt,
 )
+
+from hiron.resumes.exceptions import ResumeParseFailedError
 
 
 def test_extract_text_from_txt_success() -> None:

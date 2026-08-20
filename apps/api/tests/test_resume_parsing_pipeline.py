@@ -4,8 +4,8 @@ import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from apps.worker.src.pipeline import parse_resume_pipeline
+
 from hiron.candidates.models import Candidate
 from hiron.resumes.exceptions import ResumeNotFoundError, ResumeParseFailedError
 from hiron.resumes.models import Resume, ResumeFile

@@ -8,13 +8,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from hiron.auth.dependencies import get_current_user
 from hiron.common.schemas import ResponseEnvelope
+from hiron.core.config import get_settings
 from hiron.core.database import get_db_session
 from hiron.resumes.schemas import (
     BulkUploadResumeResponse,
     ResumeStatusResponse,
     UploadResumeResponse,
 )
-from hiron.core.config import get_settings
 from hiron.resumes.service import ResumeService
 from hiron.storage.provider import LocalStorageProvider, StorageProvider, SupabaseStorageProvider
 from hiron.users.models import User
