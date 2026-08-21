@@ -115,6 +115,9 @@ jobs:
       - name: Install Playwright Browsers
         run: pnpm --filter @hiron/web exec playwright install --with-deps
 
+      - name: Build frontend
+        run: pnpm --filter @hiron/web build
+
       - name: Install Python dependencies
         run: uv sync --all-extras
 

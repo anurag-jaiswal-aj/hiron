@@ -13,6 +13,8 @@ export function middleware(request: NextRequest) {
   // - img-src 'self' data: (allow data URIs for images if needed)
   // - connect-src 'self' and apiUrl
   const isDev = process.env.NODE_ENV !== 'production'
+  const isCI = process.env.CI === 'true'
+  const includeUpgradeInsecure = !isDev && !isCI
   const cspHeader = `
     default-src 'self';
     script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ""};
@@ -24,7 +26,7 @@ export function middleware(request: NextRequest) {
     form-action 'self';
     frame-ancestors 'none';
     block-all-mixed-content;
-    ${isDev ? "" : "upgrade-insecure-requests;"}
+    ${includeUpgradeInsecure ? "upgrade-insecure-requests;" : ""}
     connect-src 'self' ${apiUrl};
   `.replace(/\s{2,}/g, ' ').trim()
 
