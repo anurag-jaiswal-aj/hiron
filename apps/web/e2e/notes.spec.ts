@@ -5,7 +5,7 @@ test.describe("Candidate Notes", () => {
 
   test.beforeEach(async ({ page }) => {
     page.on("console", (msg) => console.log("BROWSER LOG:", msg.type(), msg.text()));
-    
+
     // Mock user context
     await page.route("**/api/v1/auth/me", async (route) => {
       await route.fulfill({
@@ -51,6 +51,19 @@ test.describe("Candidate Notes", () => {
             isArchived: false,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
+          },
+        },
+      });
+    });
+
+    // Mock embedding status
+    await page.route("**/api/v1/embeddings/candidates/**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        json: {
+          data: {
+            status: "missing",
+            modelVersion: "gemini-embedding-2",
           },
         },
       });
@@ -123,13 +136,15 @@ test.describe("Candidate Notes", () => {
       });
     });
     await page.route("**/api/v1/**", async (route) => {
-      if (!route.request().url().includes("/notes") && 
-          !route.request().url().includes("/candidates") && 
-          !route.request().url().includes("/auth") &&
-          !route.request().url().includes("/tags") &&
-          !route.request().url().includes("/users") &&
-          !route.request().url().includes("/jobs") &&
-          !route.request().url().includes("/resumes")) {
+      if (
+        !route.request().url().includes("/notes") &&
+        !route.request().url().includes("/candidates") &&
+        !route.request().url().includes("/auth") &&
+        !route.request().url().includes("/tags") &&
+        !route.request().url().includes("/users") &&
+        !route.request().url().includes("/jobs") &&
+        !route.request().url().includes("/resumes")
+      ) {
         console.error("Unhandled API request:", route.request().method(), route.request().url());
         await route.abort();
       } else {
@@ -173,7 +188,7 @@ test.describe("Candidate Notes", () => {
                 isPrivate: false,
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
-              }
+              },
             ],
           },
         });

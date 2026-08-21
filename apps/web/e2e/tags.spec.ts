@@ -58,6 +58,18 @@ test.describe("Candidate Tags", () => {
       }
     });
 
+    // Mock embedding status
+    await page.route("**/api/v1/embeddings/candidates/**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        json: {
+          data: {
+            status: "missing",
+            modelVersion: "gemini-embedding-2",
+          },
+        },
+      });
+    });
     // Resumes
     await page.route(`**/api/v1/resumes/candidate/${candidateId}`, async (route) => {
       await route.fulfill({ status: 200, json: { data: [] } });

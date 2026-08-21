@@ -1,9 +1,11 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("XSS Integration in CandidateNotesTab", () => {
-  test("dangerouslySetInnerHTML is sanitized in the actual rendered component", async ({ page }) => {
-    page.on("console", msg => console.log("BROWSER CONSOLE:", msg.text()));
-    page.on("pageerror", err => console.log("BROWSER ERROR:", err.message));
+  test("dangerouslySetInnerHTML is sanitized in the actual rendered component", async ({
+    page,
+  }) => {
+    page.on("console", (msg) => console.log("BROWSER CONSOLE:", msg.text()));
+    page.on("pageerror", (err) => console.log("BROWSER ERROR:", err.message));
 
     // 1. Mock authentication so the app thinks we are logged in
     await page.route("**/api/v1/auth/refresh", async (route) => {
@@ -13,8 +15,8 @@ test.describe("XSS Integration in CandidateNotesTab", () => {
           data: {
             accessToken: "fake-token",
             tokenType: "Bearer",
-            expiresIn: 3600
-          }
+            expiresIn: 3600,
+          },
         },
       });
     });
@@ -43,7 +45,20 @@ test.describe("XSS Integration in CandidateNotesTab", () => {
             firstName: "John",
             lastName: "Doe",
             email: "john@example.com",
-            stages: []
+            stages: [],
+          },
+        },
+      });
+    });
+
+    // Mock embedding status
+    await page.route("**/api/v1/embeddings/candidates/**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        json: {
+          data: {
+            status: "missing",
+            modelVersion: "gemini-embedding-2",
           },
         },
       });
@@ -52,7 +67,8 @@ test.describe("XSS Integration in CandidateNotesTab", () => {
     // 3. Mock Candidate Notes with Malicious Payloads
     const maliciousNote = {
       id: "note-1",
-      content: "Hello <script>alert(1)</script><img src=x onerror=alert(2)><svg onload=alert(3)><a href=\"javascript:alert(4)\">click</a> <b>safe</b>",
+      content:
+        'Hello <script>alert(1)</script><img src=x onerror=alert(2)><svg onload=alert(3)><a href="javascript:alert(4)">click</a> <b>safe</b>',
       authorId: "user-1",
       isPrivate: false,
       createdAt: new Date().toISOString(),
@@ -61,8 +77,8 @@ test.describe("XSS Integration in CandidateNotesTab", () => {
         id: "user-1",
         email: "test@example.com",
         fullName: "Test Admin",
-        role: "org_admin"
-      }
+        role: "org_admin",
+      },
     };
 
     await page.route("**/api/v1/candidates/cand-123/notes*", async (route) => {
@@ -92,7 +108,7 @@ test.describe("XSS Integration in CandidateNotesTab", () => {
     await page.getByRole("button", { name: "Notes" }).click();
 
     // Wait for the note to render
-    const noteContainer = page.locator('.tiptap-content');
+    const noteContainer = page.locator(".tiptap-content");
     await expect(noteContainer).toBeVisible({ timeout: 10000 });
 
     // 6. Inspect the actual rendered DOM
