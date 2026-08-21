@@ -123,6 +123,9 @@ jobs:
           mkdir -p keys
           openssl genrsa -out keys/jwt_private.pem 2048
           openssl rsa -in keys/jwt_private.pem -outform PEM -pubout -out keys/jwt_public.pem
+          sudo chown 10001:10001 keys/jwt_private.pem keys/jwt_public.pem
+          sudo chmod 600 keys/jwt_private.pem
+          sudo chmod 644 keys/jwt_public.pem
           touch .env.local
           echo "DATABASE_URL=postgresql+asyncpg://hiron_user:hiron_secure_password@postgres:5432/hiron_dev" >> .env.local
           echo "POSTGRES_USER=hiron_user" >> .env.local
