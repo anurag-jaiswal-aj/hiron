@@ -21,7 +21,7 @@ export default function AuditLogsPage(): React.ReactElement {
 function AuditLogsContent(): React.ReactElement {
   const { user } = useAuth();
   const router = useRouter();
-  
+
   useEffect(() => {
     if (user && user.role === "hiring_manager") {
       router.replace("/");
@@ -30,7 +30,7 @@ function AuditLogsContent(): React.ReactElement {
   const [logs, setLogs] = useState<AuditLogData[]>([]);
   const [filters, setFilters] = useState<AuditListParams>({});
   const [nextCursor, setNextCursor] = useState<string | null>(null);
-  
+
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -45,7 +45,7 @@ function AuditLogsContent(): React.ReactElement {
       setIsError(false);
 
       const res = await auditApi.listAuditLogs(currentFilters);
-      
+
       setLogs((prev) => (append ? [...prev, ...res.data] : res.data));
       setNextCursor(res.pagination.nextCursor || null);
     } catch (err) {
@@ -70,13 +70,12 @@ function AuditLogsContent(): React.ReactElement {
   const handleLoadMore = (): void => {
     if (nextCursor && !isLoadingMore) {
       const nextFilters = { ...filters, cursor: nextCursor };
-      setFilters(nextFilters);
       fetchLogs(nextFilters, true);
     }
   };
 
   const hasActiveFilters = Object.keys(filters).some(
-    (k) => k !== "cursor" && k !== "limit" && filters[k as keyof AuditListParams] !== undefined
+    (k) => k !== "cursor" && k !== "limit" && filters[k as keyof AuditListParams] !== undefined,
   );
 
   if (user?.role === "hiring_manager") {
@@ -133,15 +132,18 @@ function AuditLogsContent(): React.ReactElement {
             }
           />
         ) : (
-          <AuditLogsTable
-            logs={logs}
-            hasMore={!!nextCursor}
-            onLoadMore={handleLoadMore}
-          />
+          <AuditLogsTable logs={logs} hasMore={!!nextCursor} onLoadMore={handleLoadMore} />
         )}
 
         {isLoadingMore && (
-          <div style={{ padding: "1rem", textAlign: "center", color: "var(--text-muted)", fontSize: "0.875rem" }}>
+          <div
+            style={{
+              padding: "1rem",
+              textAlign: "center",
+              color: "var(--text-muted)",
+              fontSize: "0.875rem",
+            }}
+          >
             Loading more logs...
           </div>
         )}
