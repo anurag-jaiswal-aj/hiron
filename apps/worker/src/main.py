@@ -14,6 +14,7 @@ from apps.worker.src.embeddings import (
     generate_candidate_embedding_worker_pipeline,
     generate_job_embedding_worker_pipeline,
 )
+from hiron.resumes.exceptions import ResumeParseFailedError
 
 logger = structlog.get_logger("hiron.worker.main")
 
@@ -58,8 +59,17 @@ async def parse_resume_webhook(payload: ParseResumePayload) -> dict[str, str]:
                 resume_id=payload.resume_id,
             )
             return {"status": "parsed"}
+        except ResumeParseFailedError as exc:
+            # Deterministic parsing failure (e.g., empty or image-only PDF).
+            # The pipeline has already set status="failed" on the session.
+            # We commit the failure state here so the resume isn't stuck at "processing".
+            await session.commit()
+            logger.warning("Deterministic parse failure, returning 200 to prevent QStash retries", error=str(exc))
+            return {"status": "failed"}
         except Exception as exc:
-            # Re-raise so QStash knows it failed and can retry if it's transient.
+            # Transient/unexpected errors (e.g., database timeout).
+            # The unhandled exception bubbles up, causing the session context manager to rollback.
+            # We re-raise to return 500, instructing QStash to retry.
             logger.error("Error in parse_resume_webhook", error=str(exc))
             raise
 

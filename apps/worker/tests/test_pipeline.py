@@ -6,6 +6,7 @@ from apps.worker.src.pipeline import parse_resume_pipeline
 
 from hiron.candidates.models import Candidate
 from hiron.resumes.models import Resume, ResumeFile
+from hiron.resumes.exceptions import ResumeParseFailedError
 
 
 @pytest.mark.asyncio
@@ -200,3 +201,52 @@ async def test_parse_resume_trigger_failure_swallowed(
 
     assert result.status == "parsed"
     mock_qstash_publisher.publish.assert_called_once()
+
+@pytest.mark.asyncio
+@patch("apps.worker.src.pipeline.ResumeRepository")
+@patch("apps.worker.src.pipeline.extract_text_from_file")
+@patch("hiron.storage.provider.LocalStorageProvider")
+@patch("hiron.core.config.get_settings")
+async def test_parse_resume_deterministic_failure_mutates_state(
+    mock_get_settings,
+    mock_local_storage_cls,
+    mock_extract_text_from_file,
+    mock_resume_repo_cls,
+):
+    """Verify that a deterministic parsing failure correctly updates the resume status to failed."""
+    session = AsyncMock()
+
+    mock_storage = mock_local_storage_cls.return_value
+    mock_storage.download_file = AsyncMock(return_value=b"resume content")
+    tenant_id = uuid.uuid4()
+    resume_id = uuid.uuid4()
+    candidate_id = uuid.uuid4()
+
+    mock_resume_repo = mock_resume_repo_cls.return_value
+
+    mock_resume = Resume(
+        id=resume_id, tenant_id=tenant_id, candidate_id=candidate_id, status="pending"
+    )
+    mock_resume_repo.get_resume_by_id = AsyncMock(return_value=mock_resume)
+    mock_resume_file = ResumeFile(s3_key="foo", original_filename="bar", content_type="application/pdf")
+    mock_resume_repo.get_resume_file_by_resume_id = AsyncMock(return_value=mock_resume_file)
+
+    mock_extract_text_from_file.side_effect = ResumeParseFailedError("Empty PDF")
+
+    mock_settings = mock_get_settings.return_value
+    mock_settings.worker_url = "http://worker:8000"
+    mock_settings.supabase_url = None
+    mock_settings.supabase_service_role_key = None
+
+    mock_resume_repo.update_resume_status = AsyncMock()
+
+    with pytest.raises(ResumeParseFailedError, match="Empty PDF"):
+        await parse_resume_pipeline(session, tenant_id, resume_id)
+
+    # Verify that the pipeline mutated the state by updating status to failed
+    mock_resume_repo.update_resume_status.assert_called_with(
+        session=session,
+        resume=mock_resume,
+        status="failed",
+        parse_error="Empty PDF"
+    )

@@ -3,7 +3,9 @@ import time
 import base64
 import hashlib
 import uuid
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
+
+from hiron.resumes.exceptions import ResumeParseFailedError
 
 import jwt
 import pytest
@@ -175,3 +177,99 @@ async def test_webhook_pipeline_exception_propagates(mock_pipeline, async_client
             content=body_str,
             headers={"Upstash-Signature": signature, "Content-Type": "application/json"}
         )
+
+@pytest.mark.asyncio
+@patch("apps.worker.src.main.AsyncSessionLocal")
+@patch("apps.worker.src.main.parse_resume_pipeline")
+async def test_webhook_resume_parse_success(mock_pipeline, mock_session_local, async_client):
+    tenant_id = str(uuid.uuid4())
+    resume_id = str(uuid.uuid4())
+
+    body_dict = {
+        "tenant_id": tenant_id,
+        "resume_id": resume_id,
+    }
+    body_str = json.dumps(body_dict)
+
+    url = "http://testserver/api/v1/webhooks/qstash/resumes/parse"
+    signature = generate_qstash_signature(body_str, CURRENT_KEY, url=url)
+
+    mock_session = AsyncMock()
+    mock_session_local.return_value.__aenter__.return_value = mock_session
+    mock_pipeline.return_value = None
+
+    response = await async_client.post(
+        "/api/v1/webhooks/qstash/resumes/parse",
+        content=body_str,
+        headers={"Upstash-Signature": signature, "Content-Type": "application/json"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "parsed"}
+    mock_pipeline.assert_called_once()
+    mock_session.commit.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch("apps.worker.src.main.AsyncSessionLocal")
+@patch("apps.worker.src.main.parse_resume_pipeline")
+async def test_webhook_resume_parse_deterministic_failure_handling(
+    mock_pipeline, mock_session_local, async_client
+):
+    tenant_id = str(uuid.uuid4())
+    resume_id = str(uuid.uuid4())
+
+    body_dict = {
+        "tenant_id": tenant_id,
+        "resume_id": resume_id,
+    }
+    body_str = json.dumps(body_dict)
+
+    url = "http://testserver/api/v1/webhooks/qstash/resumes/parse"
+    signature = generate_qstash_signature(body_str, CURRENT_KEY, url=url)
+
+    mock_session = AsyncMock()
+    mock_session_local.return_value.__aenter__.return_value = mock_session
+    mock_pipeline.side_effect = ResumeParseFailedError("Empty PDF")
+
+    response = await async_client.post(
+        "/api/v1/webhooks/qstash/resumes/parse",
+        content=body_str,
+        headers={"Upstash-Signature": signature, "Content-Type": "application/json"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "failed"}
+    mock_session.commit.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch("apps.worker.src.main.AsyncSessionLocal")
+@patch("apps.worker.src.main.parse_resume_pipeline")
+async def test_webhook_resume_parse_generic_exception_propagates(
+    mock_pipeline, mock_session_local, async_client
+):
+    tenant_id = str(uuid.uuid4())
+    resume_id = str(uuid.uuid4())
+
+    body_dict = {
+        "tenant_id": tenant_id,
+        "resume_id": resume_id,
+    }
+    body_str = json.dumps(body_dict)
+
+    url = "http://testserver/api/v1/webhooks/qstash/resumes/parse"
+    signature = generate_qstash_signature(body_str, CURRENT_KEY, url=url)
+
+    mock_session = AsyncMock()
+    mock_session_local.return_value.__aenter__.return_value = mock_session
+    mock_pipeline.side_effect = Exception("Database timeout")
+
+    with pytest.raises(Exception, match="Database timeout"):
+        await async_client.post(
+            "/api/v1/webhooks/qstash/resumes/parse",
+            content=body_str,
+            headers={"Upstash-Signature": signature, "Content-Type": "application/json"},
+        )
+
+    mock_session.commit.assert_not_called()
