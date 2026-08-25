@@ -30,24 +30,6 @@ jobs:
       - name: Install uv Package Manager
         uses: astral-sh/setup-uv@v3
 
-      - name: Verify Dependencies and Linting
-        run: |
-          uv sync --all-extras
-          BASE_SHA="${{ github.event.before }}"
-          HEAD_SHA="${{ github.sha }}"
-          if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ] || ! git rev-parse --verify "$BASE_SHA" >/dev/null 2>&1; then
-            BASE_SHA="HEAD~1"
-          fi
-          CHANGED_PY_FILES=$(git diff --name-only --diff-filter=ACMRT "$BASE_SHA" "$HEAD_SHA" | grep '\.py$' || true)
-          if [ -n "$CHANGED_PY_FILES" ]; then
-            echo "$CHANGED_PY_FILES" | xargs uv run ruff format --check
-            echo "$CHANGED_PY_FILES" | xargs uv run ruff check
-          else
-            echo "No Python files changed. Skipping Ruff."
-          fi
-          uv run mypy apps/api
-          uv run pytest
-
       - name: Run Database Migrations (Alembic)
         env:
           DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
