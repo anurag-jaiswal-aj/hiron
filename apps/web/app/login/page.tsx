@@ -21,7 +21,7 @@ export default function LoginPage(): React.ReactElement | null {
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      router.replace("/");
+      router.replace("/dashboard");
     }
   }, [isLoading, isAuthenticated, router]);
 
@@ -67,7 +67,7 @@ export default function LoginPage(): React.ReactElement | null {
         password,
         tenantId: tenantId.trim(),
       });
-      router.replace("/");
+      router.replace("/dashboard");
     } catch (err) {
       setIsSubmitting(false);
       if (err instanceof ApiError) {
