@@ -1,5 +1,6 @@
 """FastAPI API endpoints for Resume Upload and status polling per API Contract §RES-1..RES-4."""
 
+import typing
 import uuid
 from typing import Annotated
 
@@ -11,6 +12,8 @@ from hiron.common.schemas import ResponseEnvelope
 from hiron.core.config import get_settings
 from hiron.core.database import get_db_session
 from hiron.resumes.schemas import (
+    BatchStatusRequest,
+    BatchStatusResponse,
     BulkUploadResumeResponse,
     ResumeStatusResponse,
     UploadResumeResponse,
@@ -57,7 +60,7 @@ async def upload_resume(
     parsed_candidate_id = uuid.UUID(candidateId) if candidateId else None
     parsed_job_id = uuid.UUID(jobId) if jobId else None
 
-    file_bytes = await file.read()
+    file_size = file.size or 0
     filename = file.filename or "resume.pdf"
     content_type = file.content_type or "application/pdf"
 
@@ -68,7 +71,8 @@ async def upload_resume(
         user_role=current_user.role,
         filename=filename,
         content_type=content_type,
-        file_bytes=file_bytes,
+        file_data=file.file,
+        file_size_bytes=file_size,
         candidate_id=parsed_candidate_id,
         job_id=parsed_job_id,
     )
@@ -91,12 +95,11 @@ async def bulk_upload_resumes(
     """Upload up to 500 resumes in a single bulk request per API Contract §RES-2."""
     parsed_job_id = uuid.UUID(jobId) if jobId else None
 
-    file_tuples: list[tuple[str, str, bytes]] = []
+    file_tuples: list[tuple[str, str, bytes | typing.BinaryIO, int]] = []
     for f in files:
-        data = await f.read()
         fname = f.filename or "resume.pdf"
         ctype = f.content_type or "application/pdf"
-        file_tuples.append((fname, ctype, data))
+        file_tuples.append((fname, ctype, f.file, f.size or 0))
 
     result = await resume_service.bulk_upload_resumes(
         session=session,
@@ -128,6 +131,25 @@ async def get_resume_status(
     )
 
     return ResponseEnvelope(data=result)
+
+
+@router.post(
+    "/status/batch",
+    response_model=ResponseEnvelope[BatchStatusResponse],
+)
+async def get_batch_resume_status(
+    request: BatchStatusRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    resume_service: Annotated[ResumeService, Depends(get_resume_service)],
+) -> ResponseEnvelope[BatchStatusResponse]:
+    """Poll for multiple resume parsing statuses in batch."""
+    items = await resume_service.get_batch_resume_status(
+        session=session,
+        tenant_id=current_user.tenant_id,
+        resume_ids=request.resume_ids,
+    )
+    return ResponseEnvelope(data=BatchStatusResponse(items=items))
 
 
 @router.post(

@@ -47,3 +47,15 @@ class ResumeStatusResponse(HironBaseModel):
     parse_error: str | None = None
     parser_model_version: str | None = None
     created_at: datetime
+
+
+class BatchStatusRequest(HironBaseModel):
+    """Request DTO for batch resume parsing status."""
+
+    resume_ids: list[uuid.UUID] = Field(..., max_length=100)
+
+
+class BatchStatusResponse(HironBaseModel):
+    """Response DTO for batch resume parsing status."""
+
+    items: list[ResumeStatusResponse]

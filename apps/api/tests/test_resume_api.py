@@ -111,6 +111,12 @@ def test_upload_single_resume_endpoint_success(
     assert payload["data"]["candidateId"] == str(candidate_id)
     assert payload["data"]["status"] == "pending"
 
+    # Verify that file is passed as a file-like object (streaming), not bytes
+    call_args = mock_resume_service.upload_resume.call_args
+    file_data = call_args.kwargs["file_data"]
+    assert hasattr(file_data, "read")
+    assert not isinstance(file_data, bytes)
+
 
 def test_bulk_upload_resumes_endpoint_success(
     client: TestClient,
@@ -141,6 +147,13 @@ def test_bulk_upload_resumes_endpoint_success(
     payload = response.json()
     assert payload["data"]["totalFiles"] == 2
     assert payload["data"]["accepted"] == 2
+
+    # Verify that files are passed as file-like objects (streaming), not bytes
+    call_args = mock_resume_service.bulk_upload_resumes.call_args
+    files_arg = call_args.kwargs["files"]
+    for _, _, file_data, _ in files_arg:
+        assert hasattr(file_data, "read")
+        assert not isinstance(file_data, bytes)
 
 
 def test_get_resume_status_endpoint_success(
@@ -247,3 +260,78 @@ def test_get_candidate_resumes_endpoint_success(
     assert len(payload["data"]) == 2
     assert payload["data"][0]["resumeId"] == str(resume_id_1)
     assert payload["data"][1]["resumeId"] == str(resume_id_2)
+
+
+def test_get_batch_resume_status_endpoint_success(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    mock_resume_service: AsyncMock,
+) -> None:
+    """Verify POST /api/v1/resumes/status/batch returns mixed statuses."""
+    resume_id_1 = uuid.uuid4()
+    resume_id_2 = uuid.uuid4()
+    mock_resume_service.get_batch_resume_status.return_value = [
+        ResumeStatusResponse(
+            resume_id=resume_id_1,
+            status="parsed",
+            created_at=datetime.now(UTC),
+        ),
+        ResumeStatusResponse(
+            resume_id=resume_id_2,
+            status="failed",
+            created_at=datetime.now(UTC),
+        )
+    ]
+
+    response = client.post(
+        "/api/v1/resumes/status/batch",
+        json={"resumeIds": [str(resume_id_1), str(resume_id_2)]},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    payload = response.json()
+    assert len(payload["data"]["items"]) == 2
+    assert payload["data"]["items"][0]["resumeId"] == str(resume_id_1)
+    assert payload["data"]["items"][1]["status"] == "failed"
+
+
+def test_get_batch_resume_status_empty_list(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    mock_resume_service: AsyncMock,
+) -> None:
+    """Verify empty ID list returns empty items."""
+    mock_resume_service.get_batch_resume_status.return_value = []
+    response = client.post(
+        "/api/v1/resumes/status/batch",
+        json={"resumeIds": []},
+        headers=auth_headers,
+    )
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()["data"]["items"] == []
+
+
+def test_get_batch_resume_status_too_many_ids(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    """Verify >100 IDs is rejected by validation."""
+    resume_ids = [str(uuid.uuid4()) for _ in range(101)]
+    response = client.post(
+        "/api/v1/resumes/status/batch",
+        json={"resumeIds": resume_ids},
+        headers=auth_headers,
+    )
+    assert response.status_code == 422
+
+
+def test_get_batch_resume_status_unauthorized() -> None:
+    """Verify POST /api/v1/resumes/status/batch without auth returns 401."""
+    app = create_app()
+    unauth_client = TestClient(app)
+    response = unauth_client.post(
+        "/api/v1/resumes/status/batch",
+        json={"resumeIds": [str(uuid.uuid4())]},
+    )
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED

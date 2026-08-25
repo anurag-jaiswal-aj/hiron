@@ -173,3 +173,19 @@ class ResumeRepository:
         )
         result = await session.execute(stmt)
         return list(result.scalars().all())
+
+    async def get_resumes_by_ids(
+        self, session: AsyncSession, tenant_id: uuid.UUID, resume_ids: list[uuid.UUID]
+    ) -> list[Resume]:
+        """Fetch multiple resumes by IDs within tenant context."""
+        if not resume_ids:
+            return []
+        stmt = (
+            select(Resume)
+            .where(
+                Resume.id.in_(resume_ids),
+                Resume.tenant_id == tenant_id,
+            )
+        )
+        result = await session.execute(stmt)
+        return list(result.scalars().all())
