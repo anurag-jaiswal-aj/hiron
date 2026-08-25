@@ -2,6 +2,7 @@
 
 import hashlib
 import uuid
+import typing
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,6 +12,7 @@ from hiron.audit.utils import extract_model_changes, sanitize_audit_payload
 from hiron.candidates.models import Candidate
 from hiron.candidates.repository import CandidateRepository
 from hiron.candidates.service import CandidateService
+from hiron.core.config import get_settings
 from hiron.common.exceptions import HironException, ResourceNotFoundException, ValidationException
 from hiron.jobs.repository import JobRepository
 from hiron.resumes.exceptions import (
@@ -65,8 +67,14 @@ class ResumeService:
                 f"User with role '{role}' is not authorized to perform resume operations"
             )
 
-    def validate_file(self, filename: str, content_type: str, file_size_bytes: int) -> None:
-        """Validate file size limit and MIME type / extension."""
+    def validate_file(
+        self,
+        filename: str,
+        content_type: str,
+        file_size_bytes: int,
+        file_data: bytes | typing.BinaryIO | None = None,
+    ) -> None:
+        """Validate file size limit, MIME type / extension, and magic bytes."""
         if file_size_bytes > MAX_FILE_SIZE_BYTES:
             raise FileTooLargeError(
                 f"File '{filename}' exceeds maximum allowed size of 10 MB ({file_size_bytes} bytes)"
@@ -77,6 +85,24 @@ class ResumeService:
             raise UnsupportedFileTypeError(
                 f"File '{filename}' with type '{content_type}' is not supported. Allowed types: PDF, DOCX, TXT."
             )
+
+        if file_data is not None:
+            is_pdf = content_type == "application/pdf" or ext == ".pdf"
+            is_docx = content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document" or ext == ".docx"
+
+            if is_pdf or is_docx:
+                header = b""
+                if isinstance(file_data, bytes):
+                    header = file_data[:5]
+                else:
+                    file_data.seek(0)
+                    header = file_data.read(5)
+                    file_data.seek(0)
+
+                if is_pdf and not header.startswith(b"%PDF-"):
+                    raise UnsupportedFileTypeError("File content does not match the declared file type.")
+                if is_docx and not header.startswith(b"PK\x03\x04"):
+                    raise UnsupportedFileTypeError("File content does not match the declared file type.")
 
     def _determine_content_type(self, filename: str, content_type: str) -> str:
         """Normalize content type based on extension fallback."""
@@ -133,7 +159,7 @@ class ResumeService:
         )
         return task_id or f"task-{uuid.uuid4()}"
 
-    async def upload_resume(
+    async def upload_resume(  # noqa: C901
         self,
         session: AsyncSession,
         tenant_id: uuid.UUID,
@@ -141,16 +167,26 @@ class ResumeService:
         user_role: str,
         filename: str,
         content_type: str,
-        file_bytes: bytes,
+        file_data: bytes | typing.BinaryIO,
+        file_size_bytes: int,
         candidate_id: uuid.UUID | None = None,
         job_id: uuid.UUID | None = None,
     ) -> UploadResumeResponse:
         """Upload a single resume file, create/bind candidate, persist metadata, and trigger parsing pipeline."""
         self._validate_role_permissions(user_role)
-        self.validate_file(filename, content_type, len(file_bytes))
+        self.validate_file(filename, content_type, file_size_bytes, file_data)
         normalized_content_type = self._determine_content_type(filename, content_type)
 
-        checksum_sha256 = hashlib.sha256(file_bytes).hexdigest()
+        sha256_hash = hashlib.sha256()
+        if isinstance(file_data, bytes):
+            sha256_hash.update(file_data)
+        else:
+            file_data.seek(0)
+            while chunk := file_data.read(8192):
+                sha256_hash.update(chunk)
+            file_data.seek(0)
+
+        checksum_sha256 = sha256_hash.hexdigest()
 
         # Idempotency check: if file already exists in tenant, return existing resume response
         existing_file = await self.resume_repo.find_file_by_checksum(
@@ -227,12 +263,12 @@ class ResumeService:
         # 4. Storage upload
         ext = self._get_extension(filename, normalized_content_type)
         storage_key = f"{resume.id}/original.{ext}"
-        bucket_name = "hiron-resumes"
+        bucket_name = get_settings().supabase_storage_bucket
         if self.storage_provider:
             await self.storage_provider.upload_file(
                 tenant_id=tenant_id,
                 key=storage_key,
-                file_data=file_bytes,
+                file_data=file_data,
                 content_type=normalized_content_type,
             )
 
@@ -245,7 +281,7 @@ class ResumeService:
             s3_key=f"{tenant_id}/{storage_key}",
             original_filename=filename,
             content_type=normalized_content_type,
-            file_size_bytes=len(file_bytes),
+            file_size_bytes=file_size_bytes,
             checksum_sha256=checksum_sha256,
         )
 
@@ -294,7 +330,7 @@ class ResumeService:
         tenant_id: uuid.UUID,
         user_id: uuid.UUID,
         user_role: str,
-        files: list[tuple[str, str, bytes]],
+        files: list[tuple[str, str, bytes | typing.BinaryIO, int]],
         job_id: uuid.UUID | None = None,
     ) -> BulkUploadResumeResponse:
         """Batch upload up to 500 resumes per API Contract §RES-2."""
@@ -315,18 +351,12 @@ class ResumeService:
         accepted_count = 0
         rejections: list[BulkRejectionItem] = []
 
-        for filename, content_type, file_bytes in files:
-            file_size = len(file_bytes)
-            if file_size > MAX_FILE_SIZE_BYTES:
+        for filename, content_type, file_data, file_size in files:
+            try:
+                self.validate_file(filename, content_type, file_size, file_data)
+            except Exception as e:
                 rejections.append(
-                    BulkRejectionItem(filename=filename, reason="File exceeds 10 MB limit")
-                )
-                continue
-
-            ext = "." + filename.split(".")[-1].lower() if "." in filename else ""
-            if content_type not in ALLOWED_CONTENT_TYPES and ext not in ALLOWED_EXTENSIONS:
-                rejections.append(
-                    BulkRejectionItem(filename=filename, reason="Unsupported file type")
+                    BulkRejectionItem(filename=filename, reason=getattr(e, "message", str(e)))
                 )
                 continue
 
@@ -338,7 +368,8 @@ class ResumeService:
                     user_role=user_role,
                     filename=filename,
                     content_type=content_type,
-                    file_bytes=file_bytes,
+                    file_data=file_data,
+                    file_size_bytes=file_size,
                     candidate_id=None,
                     job_id=job_id,
                 )
@@ -387,6 +418,38 @@ class ResumeService:
             parser_model_version=resume.parser_model_version,
             created_at=resume.created_at,
         )
+
+    async def get_batch_resume_status(
+        self,
+        session: AsyncSession,
+        tenant_id: uuid.UUID,
+        resume_ids: list[uuid.UUID],
+    ) -> list[ResumeStatusResponse]:
+        """Fetch multiple resume statuses and maintain input order per API Contract."""
+        resumes = await self.resume_repo.get_resumes_by_ids(
+            session=session,
+            tenant_id=tenant_id,
+            resume_ids=resume_ids,
+        )
+
+        resume_map = {r.id: r for r in resumes}
+
+        result = []
+        for rid in resume_ids:
+            if rid in resume_map:
+                r = resume_map[rid]
+                result.append(
+                    ResumeStatusResponse(
+                        resume_id=r.id,
+                        status=r.status,
+                        parse_confidence=r.parse_confidence,
+                        parsed_data=r.parsed_data,
+                        parse_error=r.parse_error,
+                        parser_model_version=r.parser_model_version,
+                        created_at=r.created_at,
+                    )
+                )
+        return result
 
     async def retry_parse(
         self,

@@ -48,7 +48,8 @@ async def test_upload_resume_unauthorized_role_raises_403(member_user_id: uuid.U
             user_role="member",
             filename="resume.pdf",
             content_type="application/pdf",
-            file_bytes=b"dummy",
+            file_data=b"dummy",
+            file_size_bytes=5,
         )
 
 
@@ -68,7 +69,8 @@ async def test_upload_resume_file_too_large_raises_413(recruiter_user_id: uuid.U
             user_role="recruiter",
             filename="resume.pdf",
             content_type="application/pdf",
-            file_bytes=large_bytes,
+            file_data=large_bytes,
+            file_size_bytes=len(large_bytes),
         )
 
 
@@ -87,7 +89,8 @@ async def test_upload_resume_unsupported_type_raises_415(recruiter_user_id: uuid
             user_role="recruiter",
             filename="photo.jpg",
             content_type="image/jpeg",
-            file_bytes=b"dummy",
+            file_data=b"dummy",
+            file_size_bytes=5,
         )
 
 
@@ -141,15 +144,18 @@ async def test_upload_resume_placeholder_candidate_creation(recruiter_user_id: u
     resume_repo.update_resume_status.return_value = mock_resume
     candidate_repo.get_candidate_by_id.return_value = mock_candidate
 
-    response = await service.upload_resume(
-        session=session,
-        tenant_id=tenant_id,
-        user_id=recruiter_user_id,
-        user_role="recruiter",
-        filename="john_doe_resume.pdf",
-        content_type="application/pdf",
-        file_bytes=b"%PDF-1.4 sample text",
-    )
+    with patch("hiron.resumes.service.get_settings") as mock_settings:
+        mock_settings.return_value.supabase_storage_bucket = "test-resumes"
+        response = await service.upload_resume(
+            session=session,
+            tenant_id=tenant_id,
+            user_id=recruiter_user_id,
+            user_role="recruiter",
+            filename="john_doe_resume.pdf",
+            content_type="application/pdf",
+            file_data=b"%PDF-1.4 sample text",
+            file_size_bytes=20,
+        )
 
     assert response.resume_id == resume_id
     assert response.candidate_id == candidate_id
@@ -157,6 +163,12 @@ async def test_upload_resume_placeholder_candidate_creation(recruiter_user_id: u
 
     candidate_repo.create_candidate.assert_called_once()
     resume_repo.create_resume.assert_called_once()
+
+    # Prove that the ResumeFile entity receives the configured bucket name
+    resume_repo.create_resume_file.assert_called_once()
+    create_file_kwargs = resume_repo.create_resume_file.call_args.kwargs
+    assert create_file_kwargs["s3_bucket"] == "test-resumes"
+
     storage_provider.upload_file.assert_called_once()
 
 
@@ -204,7 +216,8 @@ async def test_upload_resume_existing_candidate_and_job_assignment(
         user_role="org_admin",
         filename="sarah_resume.pdf",
         content_type="application/pdf",
-        file_bytes=b"%PDF-1.4 test sarah",
+        file_data=b"%PDF-1.4 test sarah",
+        file_size_bytes=19,
         candidate_id=candidate_id,
         job_id=job_id,
     )
@@ -240,7 +253,8 @@ async def test_upload_resume_idempotent_duplicate(recruiter_user_id: uuid.UUID) 
         user_role="recruiter",
         filename="duplicate.pdf",
         content_type="application/pdf",
-        file_bytes=b"%PDF-1.4 duplicate text",
+        file_data=b"%PDF-1.4 duplicate text",
+        file_size_bytes=23,
     )
 
     assert response.resume_id == resume_id
@@ -270,9 +284,9 @@ async def test_bulk_upload_resumes_rejections(recruiter_user_id: uuid.UUID) -> N
     )
 
     files = [
-        ("valid.pdf", "application/pdf", b"%PDF-1.4 valid"),
-        ("huge.pdf", "application/pdf", b"x" * (10 * 1024 * 1024 + 10)),
-        ("photo.png", "image/png", b"png bytes"),
+        ("valid.pdf", "application/pdf", b"%PDF-1.4 valid", 14),
+        ("huge.pdf", "application/pdf", b"x" * (10 * 1024 * 1024 + 10), 10 * 1024 * 1024 + 10),
+        ("photo.png", "image/png", b"png bytes", 9),
     ]
 
     response = await service.bulk_upload_resumes(
@@ -440,7 +454,8 @@ async def test_upload_resume_qstash_publish_failure_raises_503(
                     user_role="recruiter",
                     filename="resume.pdf",
                     content_type="application/pdf",
-                    file_bytes=b"sample",
+                    file_data=b"%PDF-1.4 sample",
+                    file_size_bytes=15,
                 )
 
         assert exc_info.value.status_code == 503
@@ -453,3 +468,52 @@ async def test_upload_resume_qstash_publish_failure_raises_503(
             parse_error="Queue error: Simulated QStash network failure",
         )
         assert session.commit.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_validate_file_magic_bytes_pdf_valid() -> None:
+    """Verify validate_file accepts valid PDF magic bytes."""
+    service = ResumeService(storage_provider=AsyncMock())
+    service.validate_file("resume.pdf", "application/pdf", 10, b"%PDF-1.4...")
+
+
+@pytest.mark.asyncio
+async def test_validate_file_magic_bytes_pdf_invalid() -> None:
+    """Verify validate_file rejects fake PDF magic bytes."""
+    service = ResumeService(storage_provider=AsyncMock())
+    with pytest.raises(UnsupportedFileTypeError, match=r"File content does not match the declared file type\."):
+        service.validate_file("resume.pdf", "application/pdf", 10, b"fake bytes")
+
+
+@pytest.mark.asyncio
+async def test_validate_file_magic_bytes_docx_valid() -> None:
+    """Verify validate_file accepts valid DOCX/ZIP magic bytes."""
+    service = ResumeService(storage_provider=AsyncMock())
+    service.validate_file("resume.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", 10, b"PK\x03\x04...")
+
+
+@pytest.mark.asyncio
+async def test_validate_file_magic_bytes_docx_invalid() -> None:
+    """Verify validate_file rejects fake DOCX/ZIP magic bytes."""
+    service = ResumeService(storage_provider=AsyncMock())
+    with pytest.raises(UnsupportedFileTypeError, match=r"File content does not match the declared file type\."):
+        service.validate_file("resume.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", 10, b"fake bytes")
+
+
+@pytest.mark.asyncio
+async def test_validate_file_magic_bytes_txt_ignores_magic_bytes() -> None:
+    """Verify validate_file ignores magic bytes for TXT files."""
+    service = ResumeService(storage_provider=AsyncMock())
+    # Should not raise exception
+    service.validate_file("resume.txt", "text/plain", 10, b"fake bytes")
+
+
+@pytest.mark.asyncio
+async def test_validate_file_resets_stream_position() -> None:
+    """Verify validate_file resets the stream position after reading magic bytes."""
+    service = ResumeService(storage_provider=AsyncMock())
+    import io
+    stream = io.BytesIO(b"%PDF-1.4...")
+    stream.seek(0)
+    service.validate_file("resume.pdf", "application/pdf", 10, stream)
+    assert stream.tell() == 0
