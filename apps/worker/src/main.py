@@ -70,7 +70,7 @@ async def parse_resume_webhook(payload: ParseResumePayload) -> dict[str, str]:
             # Transient/unexpected errors (e.g., database timeout).
             # The unhandled exception bubbles up, causing the session context manager to rollback.
             # We re-raise to return 500, instructing QStash to retry.
-            logger.error("Error in parse_resume_webhook", error=str(exc))
+            logger.error("Error in parse_resume_webhook", error_type=type(exc).__name__)
             raise
 
 

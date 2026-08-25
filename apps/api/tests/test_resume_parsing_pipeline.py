@@ -15,7 +15,7 @@ from hiron.resumes.models import Resume, ResumeFile
 @patch("apps.worker.src.pipeline.ResumeRepository")
 @patch("apps.worker.src.pipeline.CandidateRepository")
 @patch("hiron.storage.provider.LocalStorageProvider")
-@patch("apps.worker.src.pipeline.ResumeParser")
+@patch("apps.worker.src.pipeline.GeminiResumeParser")
 @patch("apps.worker.src.pipeline.extract_text_from_file")
 @patch("hiron.ai_usage.repository.AIUsageRepository.create_usage_log")
 @patch("hiron.core.qstash_client.qstash_publisher.publish", new_callable=AsyncMock)
@@ -75,7 +75,7 @@ async def test_parse_resume_pipeline_success_and_candidate_enrichment(
         return_value=b"Jane Smith\njane.smith@example.com\nSenior Backend Engineer at Stripe\nSkills: Python, FastAPI, Docker, PostgreSQL"
     )
 
-    mock_extract_text.return_value = "Jane Smith\njane.smith@example.com\nSenior Backend Engineer at Stripe\nSkills: Python, FastAPI, Docker, PostgreSQL"
+    mock_extract_text.return_value = ("Jane Smith\njane.smith@example.com\nSenior Backend Engineer at Stripe\nSkills: Python, FastAPI, Docker, PostgreSQL", False)
 
     parsed_data = {
         "full_name": "Jane Smith",
@@ -83,8 +83,7 @@ async def test_parse_resume_pipeline_success_and_candidate_enrichment(
         "skills": ["Python", "FastAPI", "Docker", "PostgreSQL"],
     }
     mock_parser = mock_parser_cls.return_value
-    mock_parser.model_version = "v1"
-    mock_parser.parse.return_value = (parsed_data, 1.0, None)
+    mock_parser.parse_async = AsyncMock(return_value=(parsed_data, 1.0, None))
 
     parsed_resume = Resume(
         id=resume_id,
@@ -155,7 +154,7 @@ async def test_parse_resume_pipeline_file_missing_raises_failed(
 @patch("apps.worker.src.pipeline.ResumeRepository")
 @patch("apps.worker.src.pipeline.CandidateRepository")
 @patch("hiron.storage.provider.LocalStorageProvider")
-@patch("apps.worker.src.pipeline.ResumeParser")
+@patch("apps.worker.src.pipeline.GeminiResumeParser")
 @patch("apps.worker.src.pipeline.extract_text_from_file")
 @patch("hiron.ai_usage.repository.AIUsageRepository.create_usage_log")
 @patch("hiron.core.qstash_client.qstash_publisher.publish", new_callable=AsyncMock)
@@ -205,11 +204,10 @@ async def test_parse_resume_pipeline_telemetry_failure_isolation(
 
     mock_storage = mock_storage_cls.return_value
     mock_storage.download_file = AsyncMock(return_value=b"Jane Smith\nSkills: Python")
-    mock_extract_text.return_value = "Jane Smith\nSkills: Python"
+    mock_extract_text.return_value = ("Jane Smith\nSkills: Python", False)
 
     mock_parser = mock_parser_cls.return_value
-    mock_parser.model_version = "v1"
-    mock_parser.parse.return_value = ({"full_name": "Jane Smith", "skills": ["Python"]}, 1.0, None)
+    mock_parser.parse_async = AsyncMock(return_value=({"full_name": "Jane Smith", "skills": ["Python"]}, 1.0, None))
 
     # Make telemetry persistence fail!
     mock_create_log.side_effect = Exception("Simulated PostgreSQL Error during flush")

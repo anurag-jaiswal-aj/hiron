@@ -16,12 +16,12 @@ def test_extract_text_from_txt_success() -> None:
     sample_text = "John Doe\nSoftware Engineer\nPython, FastAPI, Docker"
     utf8_bytes = sample_text.encode("utf-8")
 
-    extracted = extract_text_from_txt(utf8_bytes)
+    extracted, _ = extract_text_from_txt(utf8_bytes, 30_000)
     assert "John Doe" in extracted
     assert "Software Engineer" in extracted
 
     latin1_bytes = sample_text.encode("latin-1")
-    extracted_latin = extract_text_from_txt(latin1_bytes)
+    extracted_latin, _ = extract_text_from_txt(latin1_bytes, 30_000)
     assert "Python" in extracted_latin
 
 
@@ -41,11 +41,11 @@ def test_extract_text_from_pdf_corrupted_raises_error() -> None:
     """Verify corrupted PDF bytes raise ResumeParseFailedError."""
     corrupted_pdf_bytes = b"%PDF-1.4 invalid pdf structure content..."
     with pytest.raises(ResumeParseFailedError):
-        extract_text_from_pdf(corrupted_pdf_bytes)
+        extract_text_from_pdf(corrupted_pdf_bytes, 30_000)
 
 
 def test_extract_text_from_docx_corrupted_raises_error() -> None:
     """Verify corrupted DOCX bytes raise ResumeParseFailedError."""
     corrupted_docx_bytes = b"PK\x03\x04 invalid docx zip content..."
     with pytest.raises(ResumeParseFailedError):
-        extract_text_from_docx(corrupted_docx_bytes)
+        extract_text_from_docx(corrupted_docx_bytes, 30_000)

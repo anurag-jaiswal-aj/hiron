@@ -18,7 +18,9 @@ from hiron.resumes.exceptions import ResumeParseFailedError
 @patch("hiron.core.qstash_client.qstash_publisher")
 @patch("hiron.core.config.get_settings")
 @patch("hiron.ai_usage.repository.AIUsageRepository")
+@patch("apps.worker.src.pipeline.GeminiResumeParser")
 async def test_parse_resume_triggers_candidate_embedding(
+    mock_gemini_parser_cls,
     mock_ai_repo_cls,
     mock_get_settings,
     mock_qstash_publisher,
@@ -58,23 +60,23 @@ async def test_parse_resume_triggers_candidate_embedding(
     )
     mock_resume_repo.get_resume_file_by_resume_id = AsyncMock(return_value=mock_resume_file)
 
-    mock_extract_text_from_file.return_value = "parsed text"
+    mock_extract_text_from_file.return_value = ("parsed text", False)
 
-    mock_parser = mock_parser_cls.return_value
-    mock_parser.model_version = "v1"
-    mock_parser.parse.return_value = (
+    mock_gemini_parser = mock_gemini_parser_cls.return_value
+    mock_gemini_parser.model_version = "gemini-1.5-flash"
+    mock_gemini_parser.parse_async = AsyncMock(return_value=(
         {"skills": ["Python"]},
         1.0,
         {
             "model_version": "gemini-1.5-flash",
-            "input_tokens": 0,
-            "output_tokens": 0,
-            "cost_usd": 0.0,
-            "latency_ms": 100,
+            "input_tokens": 100,
+            "output_tokens": 50,
+            "cost_usd": 0.0000225,
+            "latency_ms": 500,
             "status": "success",
             "error_type": None,
         }
-    )
+    ))
 
     parsed_resume = Resume(
         id=resume_id, tenant_id=tenant_id, candidate_id=candidate_id, status="parsed"
@@ -107,8 +109,9 @@ async def test_parse_resume_triggers_candidate_embedding(
     ai_args = mock_ai_repo.create_usage_log.call_args.kwargs
     assert ai_args["operation"] == "resume_parsing"
     assert ai_args["is_cache_hit"] is False
-    assert ai_args["input_tokens"] == 0
-    assert ai_args["cost_usd"] == 0.0
+    assert ai_args["input_tokens"] == 100
+    assert ai_args["output_tokens"] == 50
+    assert ai_args["cost_usd"] == 0.0000225
 
 @pytest.mark.asyncio
 @patch("apps.worker.src.pipeline.ResumeRepository")
@@ -144,7 +147,9 @@ async def test_parse_resume_idempotent_retry(
 @patch("hiron.storage.provider.LocalStorageProvider")
 @patch("hiron.core.qstash_client.qstash_publisher")
 @patch("hiron.core.config.get_settings")
+@patch("apps.worker.src.pipeline.GeminiResumeParser")
 async def test_parse_resume_trigger_failure_swallowed(
+    mock_gemini_parser_cls,
     mock_get_settings,
     mock_qstash_publisher,
     mock_local_storage_cls,
@@ -174,11 +179,11 @@ async def test_parse_resume_trigger_failure_swallowed(
     )
     mock_resume_repo.get_resume_file_by_resume_id = AsyncMock(return_value=mock_resume_file)
 
-    mock_extract_text_from_file.return_value = "parsed text"
+    mock_extract_text_from_file.return_value = ("parsed text", False)
 
-    mock_parser = mock_parser_cls.return_value
-    mock_parser.model_version = "v1"
-    mock_parser.parse.return_value = ({"skills": ["Python"]}, 1.0, None)
+    mock_gemini_parser = mock_gemini_parser_cls.return_value
+    mock_gemini_parser.model_version = "v1"
+    mock_gemini_parser.parse_async = AsyncMock(return_value=({"skills": ["Python"]}, 1.0, None))
 
     parsed_resume = Resume(
         id=resume_id, tenant_id=tenant_id, candidate_id=candidate_id, status="parsed"
