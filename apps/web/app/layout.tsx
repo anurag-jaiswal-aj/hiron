@@ -1,5 +1,6 @@
 import "./globals.css";
 import { AuthProvider } from "../context/AuthContext";
+import BackgroundGrid from "../components/ui/BackgroundGrid";
 
 export const dynamic = 'force-dynamic';
 
@@ -16,6 +17,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
+        <BackgroundGrid />
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>

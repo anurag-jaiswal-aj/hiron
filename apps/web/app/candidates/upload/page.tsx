@@ -183,39 +183,64 @@ function UploadContent(): React.ReactElement {
     filesStateRef.current = filesState;
   }, [filesState]);
 
+  const isPollingRef = React.useRef(false);
+  const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
-    const intervalId = setInterval(async () => {
-      const currentFiles = filesStateRef.current;
-      const parsingFiles = currentFiles.filter((f) => f.status === "parsing" && f.resumeId);
-      
-      if (parsingFiles.length === 0) return;
+    let isMounted = true;
 
-      // Poll each parsing file
-      await Promise.allSettled(
-        parsingFiles.map(async (file) => {
-          try {
-            const res = await httpClient.get<
-              ResponseEnvelope<{ status: string; parseError?: string; parseConfidence?: number }>
-            >(`/api/v1/resumes/${file.resumeId}/status`);
-            const status = res.data?.status;
-            
-            if (status === "parsed" || status === "failed") {
-              setFilesState((prev) =>
-                prev.map((f) =>
-                  f.id === file.id
-                    ? { ...f, status: status as FileUploadState["status"], error: res.data?.parseError }
-                    : f
-                )
-              );
+    async function poll() {
+      if (!isMounted || isPollingRef.current) return;
+      isPollingRef.current = true;
+
+      try {
+        const currentFiles = filesStateRef.current;
+        const parsingFiles = currentFiles.filter((f) => f.status === "parsing" && f.resumeId);
+
+        if (parsingFiles.length > 0) {
+          const parsingIds = parsingFiles.map(f => f.resumeId!);
+
+          // Chunk into batches of 100
+          const chunkSize = 100;
+          for (let i = 0; i < parsingIds.length; i += chunkSize) {
+            if (!isMounted) break;
+            const batch = parsingIds.slice(i, i + chunkSize);
+            try {
+              const res = await httpClient.post<
+                ResponseEnvelope<{ items: Array<{ resumeId: string; status: string; parseError?: string; parseConfidence?: number }> }>
+              >("/api/v1/resumes/status/batch", { resumeIds: batch });
+
+              const items = res.data?.items || [];
+              const updates = new Map(items.map(item => [item.resumeId, item]));
+
+              setFilesState(prev => prev.map(f => {
+                if (f.resumeId && updates.has(f.resumeId)) {
+                  const update = updates.get(f.resumeId)!;
+                  if (update.status === "parsed" || update.status === "failed") {
+                    return { ...f, status: update.status as FileUploadState["status"], error: update.parseError };
+                  }
+                }
+                return f;
+              }));
+            } catch (err) {
+              // Transient error for this batch - continue to next chunk
             }
-          } catch (err) {
-            // Transient error - keep polling next time
           }
-        })
-      );
-    }, 2000);
+        }
+      } finally {
+        isPollingRef.current = false;
+        if (isMounted) {
+          timeoutRef.current = setTimeout(poll, 2000);
+        }
+      }
+    }
 
-    return () => clearInterval(intervalId);
+    timeoutRef.current = setTimeout(poll, 2000);
+
+    return () => {
+      isMounted = false;
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
   }, []);
 
   const retryParse = async (fileState: FileUploadState): Promise<void> => {
