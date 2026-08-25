@@ -30,6 +30,10 @@ jobs:
       - name: Install uv Package Manager
         uses: astral-sh/setup-uv@v3
 
+      - name: Install Dependencies
+        run: |
+          uv sync --all-extras
+
       - name: Run Database Migrations (Alembic)
         env:
           DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
