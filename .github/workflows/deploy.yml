@@ -38,4 +38,4 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
         run: |
-          uv run alembic upgrade head
+          uv run alembic -c apps/api/alembic.ini upgrade head
