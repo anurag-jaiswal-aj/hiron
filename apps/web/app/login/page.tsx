@@ -119,7 +119,9 @@ export default function LoginPage(): React.ReactElement | null {
           >
             HIRON
           </h1>
-          <p style={{ margin: "0.25rem 0 0", fontSize: "0.875rem", color: "var(--text-secondary)" }}>
+          <p
+            style={{ margin: "0.25rem 0 0", fontSize: "0.875rem", color: "var(--text-secondary)" }}
+          >
             Minimal Monochrome Recruiting Intelligence
           </p>
         </div>
@@ -144,7 +146,11 @@ export default function LoginPage(): React.ReactElement | null {
         )}
 
         {/* Login Form */}
-        <form aria-label="Sign in" onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+        <form
+          aria-label="Sign in"
+          onSubmit={handleSubmit}
+          style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}
+        >
           {/* Email Input */}
           <Input
             id="email"
@@ -227,12 +233,24 @@ export default function LoginPage(): React.ReactElement | null {
           </div>
 
           {/* Submit Button */}
-          <Button type="submit" disabled={isSubmitting} size="lg" style={{ width: "100%", marginTop: "0.5rem" }}>
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            size="lg"
+            style={{ width: "100%", marginTop: "0.5rem" }}
+          >
             {isSubmitting ? "Signing in..." : "Sign In"}
           </Button>
         </form>
 
-        <div style={{ marginTop: "2rem", textAlign: "center", fontSize: "0.8125rem", color: "var(--text-muted)" }}>
+        <div
+          style={{
+            marginTop: "2rem",
+            textAlign: "center",
+            fontSize: "0.8125rem",
+            color: "var(--text-muted)",
+          }}
+        >
           Hiron Enterprise Architecture • Securing Multi-Tenant Workflows
         </div>
       </div>

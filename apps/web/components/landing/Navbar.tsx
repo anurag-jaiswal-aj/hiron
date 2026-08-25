@@ -24,8 +24,8 @@ export function Navbar(): React.ReactElement {
         </div>
 
         <div className="flex items-center min-h-[36px]">
-          {!isLoading && (
-            isAuthenticated ? (
+          {!isLoading &&
+            (isAuthenticated ? (
               <Link
                 href="/dashboard"
                 className="text-[14px] font-medium text-[#a3a3a3] hover:text-[#fafafa] tracking-wide px-3 py-2 rounded transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[#525252]"
@@ -39,8 +39,7 @@ export function Navbar(): React.ReactElement {
               >
                 Log in
               </Link>
-            )
-          )}
+            ))}
         </div>
       </div>
     </nav>
