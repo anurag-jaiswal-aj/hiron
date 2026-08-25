@@ -1,5 +1,6 @@
 """Storage provider abstraction interface and implementations for Supabase storage per Engineering Guidelines §11."""
 
+import typing
 import uuid
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -13,7 +14,7 @@ class StorageProvider(ABC):
         self,
         tenant_id: uuid.UUID,
         key: str,
-        file_data: bytes,
+        file_data: bytes | typing.BinaryIO,
         content_type: str,
     ) -> str:
         """Upload file content and return storage key/URI."""
@@ -62,14 +63,19 @@ class LocalStorageProvider(StorageProvider):
         self,
         tenant_id: uuid.UUID,
         key: str,
-        file_data: bytes,
+        file_data: bytes | typing.BinaryIO,
         content_type: str,
     ) -> str:
         """Save file bytes to local filesystem."""
         _ = content_type
         file_path = self._get_file_path(tenant_id, key)
         file_path.parent.mkdir(parents=True, exist_ok=True)
-        file_path.write_bytes(file_data)
+        if isinstance(file_data, bytes):
+            file_path.write_bytes(file_data)
+        else:
+            with file_path.open("wb") as f:
+                import shutil
+                shutil.copyfileobj(file_data, f)
         return str(file_path)
 
     async def download_file(
@@ -124,14 +130,15 @@ class SupabaseStorageProvider(StorageProvider):
         self.base_url = f"{self.supabase_url}/storage/v1/object"
         self.headers = {
             "apikey": supabase_service_role_key,
-            "Authorization": f"Bearer {supabase_service_role_key}",
         }
+        if not supabase_service_role_key.startswith("sb_secret_"):
+            self.headers["Authorization"] = f"Bearer {supabase_service_role_key}"
 
     async def upload_file(
         self,
         tenant_id: uuid.UUID,
         key: str,
-        file_data: bytes,
+        file_data: bytes | typing.BinaryIO,
         content_type: str,
     ) -> str:
         """Upload file content to Supabase Storage."""

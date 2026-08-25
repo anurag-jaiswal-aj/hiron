@@ -42,6 +42,29 @@ async def test_supabase_storage_provider_initialization_validates_args() -> None
         SupabaseStorageProvider(supabase_url="", supabase_service_role_key="")
 
 
+def test_supabase_storage_provider_headers_legacy_jwt() -> None:
+    """Verify legacy service_role JWT includes Authorization header."""
+    provider = SupabaseStorageProvider(
+        supabase_url="https://xyz.supabase.co",
+        supabase_service_role_key="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.dummy",
+        bucket_name="my-bucket",
+    )
+    assert provider.headers.get("apikey") == "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.dummy"
+    assert provider.headers.get("Authorization") == "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.dummy"
+
+
+def test_supabase_storage_provider_headers_sb_secret() -> None:
+    """Verify new sb_secret keys omit the Authorization header and are not logged."""
+    provider = SupabaseStorageProvider(
+        supabase_url="https://xyz.supabase.co",
+        supabase_service_role_key="sb_secret_dummy_value",
+        bucket_name="my-bucket",
+    )
+    assert provider.headers.get("apikey") == "sb_secret_dummy_value"
+    assert "Authorization" not in provider.headers
+
+
+
 @pytest.mark.asyncio
 async def test_supabase_storage_provider_mock() -> None:
     """Verify SupabaseStorageProvider methods via httpx mocking."""

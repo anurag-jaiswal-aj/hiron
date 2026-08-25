@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     gemini_embedding_model: str = Field(
         default="gemini-embedding-2", description="Gemini text embedding model"
     )
+    gemini_parser_model: str = Field(
+        default="gemini-3.6-flash", description="Gemini structural generative parsing model"
+    )
     qstash_current_signing_key: str | None = Field(default=None, repr=False)
     qstash_next_signing_key: str | None = Field(default=None, repr=False)
     qstash_webhook_url: str | None = Field(default=None)
@@ -37,6 +40,8 @@ class Settings(BaseSettings):
         if self.environment == "production":
             if not self.worker_url:
                 raise ValueError("WORKER_URL is required in production environment")
+            if not self.gemini_api_key:
+                raise ValueError("GEMINI_API_KEY is required in production environment")
         return self
 
     model_config = SettingsConfigDict(
@@ -109,10 +114,10 @@ class Settings(BaseSettings):
     postgres_db: str = Field(default="hiron_dev", description="PostgreSQL database name")
     postgres_user: str = Field(default="hiron_user", description="PostgreSQL user")
     postgres_password: str = Field(
-        default="your_postgres_password_here", description="PostgreSQL password"
+        default="hiron_secure_password", description="PostgreSQL password"
     )
     database_url: str = Field(
-        default="postgresql+asyncpg://hiron_user:your_postgres_password_here@localhost:5432/hiron_dev",
+        default="postgresql+asyncpg://hiron_user:hiron_secure_password@localhost:5432/hiron_dev",
         description="Async SQLAlchemy database connection URL",
     )
 
