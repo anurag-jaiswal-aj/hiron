@@ -59,7 +59,7 @@ async def test_pipeline_gemini_api_failure_fallback(
     mock_extract_text_from_file.return_value = ("parsed text", False)
 
     from google.genai.errors import APIError
-    
+
     # 1. Gemini fails with a permanent error that should trigger fallback
     mock_gemini_parser = mock_gemini_parser_cls.return_value
     mock_gemini_parser.model_version = "gemini-1.5-flash"
@@ -86,12 +86,12 @@ async def test_pipeline_gemini_api_failure_fallback(
         id=resume_id, tenant_id=tenant_id, candidate_id=candidate_id, status="parsed"
     )
     mock_resume_repo.update_resume_status = AsyncMock(return_value=parsed_resume)
-    
+
     mock_settings = mock_get_settings.return_value
     mock_settings.worker_url = "http://worker:8000"
     mock_settings.supabase_url = None
     mock_settings.supabase_service_role_key = None
-    
+
     mock_cand_repo = mock_cand_repo_cls.return_value
     mock_cand_repo.get_candidate_by_id = AsyncMock(return_value=Candidate(
         id=candidate_id, tenant_id=tenant_id, full_name="John Doe"
@@ -103,14 +103,14 @@ async def test_pipeline_gemini_api_failure_fallback(
 
     # AI telemetry should be called TWICE: once for Gemini failure, once for SpaCy success
     assert mock_ai_repo.create_usage_log.call_count == 2
-    
+
     # First call: Gemini failure
     gemini_call = mock_ai_repo.create_usage_log.call_args_list[0].kwargs
     assert gemini_call["model_version"] == "gemini-1.5-flash"
     assert gemini_call["status"] == "error"
     assert gemini_call["error_type"] == "APIError"
     assert gemini_call["input_tokens"] == 0
-    
+
     # Second call: Deterministic success
     spacy_call = mock_ai_repo.create_usage_log.call_args_list[1].kwargs
     assert spacy_call["model_version"] == "spacy-mock"
@@ -168,12 +168,12 @@ async def test_pipeline_empty_text_skips_gemini(
         id=resume_id, tenant_id=tenant_id, candidate_id=candidate_id, status="parsed"
     )
     mock_resume_repo.update_resume_status = AsyncMock(return_value=parsed_resume)
-    
+
     mock_settings = mock_get_settings.return_value
     mock_settings.worker_url = "http://worker:8000"
     mock_settings.supabase_url = None
     mock_settings.supabase_service_role_key = None
-    
+
     mock_cand_repo = mock_cand_repo_cls.return_value
     mock_cand_repo.get_candidate_by_id = AsyncMock(return_value=Candidate(
         id=candidate_id, tenant_id=tenant_id, full_name="John Doe"

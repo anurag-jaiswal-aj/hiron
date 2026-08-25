@@ -125,7 +125,7 @@ async def test_pipeline_gemini_integration_receives_bounded_text(
     assert result.status == "parsed"
     # Ensure Gemini only received the bounded text length
     mock_parser.parse_async.assert_called_once_with("A" * MAX_RESUME_TEXT_CHARS)
-    
+
     # Check that update_resume_status was called with the truncated text
     call_kwargs = mock_resume_repo.update_resume_status.call_args.kwargs
     assert len(call_kwargs["raw_text"]) == MAX_RESUME_TEXT_CHARS
