@@ -228,7 +228,7 @@ export function ProductNarrative(): React.ReactElement {
                     ? "text-[#fafafa]"
                     : isPast
                       ? "text-[#a3a3a3] group-hover:text-[#fafafa] group-focus-visible:text-[#fafafa]"
-                      : "text-[#404040] group-hover:text-[#a3a3a3] group-focus-visible:text-[#a3a3a3]"
+                      : "text-[#8c8c8c] group-hover:text-[#a3a3a3] group-focus-visible:text-[#a3a3a3]"
                 ].join(" ");
 
                 return (
@@ -286,7 +286,7 @@ export function ProductNarrative(): React.ReactElement {
 
       {/* MINIMAL FOOTER BOUNDARY */}
       <div className="w-full border-t border-[#262626] py-10 bg-[#0a0a0a] relative z-10 flex justify-center">
-        <div className="text-[10px] font-bold text-[#404040] uppercase tracking-widest">© 2026 Hiron Intelligence</div>
+        <div className="text-[10px] font-bold text-[#8c8c8c] uppercase tracking-widest">© 2026 Hiron Intelligence</div>
       </div>
 
       {/* CSS animations (removed stageEnter as requested) */}
@@ -447,7 +447,7 @@ function JobStage(): React.ReactElement {
         </button>
       </div>
 
-      <div className="px-6 py-6 md:py-12 space-y-8 flex-1 overflow-y-auto custom-scrollbar">
+      <div className="px-6 py-6 md:py-12 space-y-8 flex-1 overflow-y-auto custom-scrollbar" tabIndex={0}>
         {/* Title Area */}
         <div>
           <div className="text-[#fafafa] text-3xl font-bold mb-2 tracking-tight">Senior Backend Engineer</div>
@@ -1496,7 +1496,7 @@ function OfferStage(): React.ReactElement {
           </div>
 
           <div className="mb-5">
-             <p className="text-[12px] text-[#fafafa] leading-relaxed font-serif italic opacity-90 border-l-2 border-[#404040] pl-3">
+             <p className="text-[12px] text-[#fafafa] leading-relaxed font-serif italic opacity-90 border-l-2 border-[#8c8c8c] pl-3">
                &quot;Offer terms align with the approved role, candidate evaluation, and hiring decision.&quot;
              </p>
           </div>

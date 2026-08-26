@@ -20,3 +20,4 @@ __pycache__
 pnpm-lock.yaml
 package-lock.json
 poetry.lock
+apps/web/components/landing/ProductNarrative.tsx

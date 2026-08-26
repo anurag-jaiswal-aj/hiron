@@ -17,8 +17,20 @@ test.describe("Embedding Status Dashboard", () => {
         status: 200,
         json: {
           data: {
-            candidates: { total: 25, withEmbedding: 20, stale: 3, missing: 2, modelVersion: "gemini-embedding-2" },
-            jobs: { total: 10, withEmbedding: 8, stale: 1, missing: 1, modelVersion: "gemini-embedding-2" },
+            candidates: {
+              total: 25,
+              withEmbedding: 20,
+              stale: 3,
+              missing: 2,
+              modelVersion: "gemini-embedding-2",
+            },
+            jobs: {
+              total: 10,
+              withEmbedding: 8,
+              stale: 1,
+              missing: 1,
+              modelVersion: "gemini-embedding-2",
+            },
           },
         },
       });
@@ -26,14 +38,19 @@ test.describe("Embedding Status Dashboard", () => {
 
     // Intercept individual status calls so they don't fail
     await page.route("**/api/v1/embeddings/candidates/**", async (route) => {
-      await route.fulfill({ status: 200, json: { data: { status: "current", modelVersion: "gemini-embedding-2" } } });
+      await route.fulfill({
+        status: 200,
+        json: { data: { status: "current", modelVersion: "gemini-embedding-2" } },
+      });
     });
     await page.route("**/api/v1/embeddings/jobs/**", async (route) => {
-      await route.fulfill({ status: 200, json: { data: { status: "current", modelVersion: "gemini-embedding-2" } } });
+      await route.fulfill({
+        status: 200,
+        json: { data: { status: "current", modelVersion: "gemini-embedding-2" } },
+      });
     });
 
     await loginAs(page, "admin@acme.com", "SecurePassword123!");
-    await page.goto("/");
     await page.waitForLoadState("networkidle");
 
     // Verify panel renders
@@ -60,9 +77,14 @@ test.describe("Candidate Detail Embedding Status", () => {
         VALUES (gen_random_uuid(), (SELECT id FROM t), 'Emb Cand ${runId}', 'emb-cand-${runId}@example.com', '["Python"]', 'upload');
         `,
       });
-      testCandidateId = execSync(`docker exec -i hiron-postgres psql -v ON_ERROR_STOP=1 -U hiron_user -d hiron_dev -t`, {
-        input: `SELECT id FROM candidates WHERE email = 'emb-cand-${runId}@example.com';`,
-      }).toString().trim();
+      testCandidateId = execSync(
+        `docker exec -i hiron-postgres psql -v ON_ERROR_STOP=1 -U hiron_user -d hiron_dev -t`,
+        {
+          input: `SELECT id FROM candidates WHERE email = 'emb-cand-${runId}@example.com';`,
+        },
+      )
+        .toString()
+        .trim();
     } catch (e) {
       console.error("Seeding failed", e);
       throw e;
@@ -72,16 +94,24 @@ test.describe("Candidate Detail Embedding Status", () => {
   test.afterAll(() => {
     try {
       if (testCandidateId) {
-        execSync(`docker exec -i hiron-postgres psql -v ON_ERROR_STOP=1 -U hiron_user -d hiron_dev`, {
-          input: `DELETE FROM candidates WHERE id = '${testCandidateId}';`,
-        });
+        execSync(
+          `docker exec -i hiron-postgres psql -v ON_ERROR_STOP=1 -U hiron_user -d hiron_dev`,
+          {
+            input: `DELETE FROM candidates WHERE id = '${testCandidateId}';`,
+          },
+        );
       }
-    } catch { /* cleanup best-effort */ }
+    } catch {
+      /* cleanup best-effort */
+    }
   });
 
   test("B1. current status renders correctly", async ({ page }) => {
     await page.route(`**/api/v1/embeddings/candidates/${testCandidateId}`, async (route) => {
-      await route.fulfill({ status: 200, json: { data: { status: "current", modelVersion: "gemini-embedding-2" } } });
+      await route.fulfill({
+        status: 200,
+        json: { data: { status: "current", modelVersion: "gemini-embedding-2" } },
+      });
     });
     await page.route("**/api/v1/resumes/**", async (route) => {
       await route.fulfill({ json: { data: [] } });
@@ -98,7 +128,10 @@ test.describe("Candidate Detail Embedding Status", () => {
 
   test("B2. stale status renders with Generate button", async ({ page }) => {
     await page.route(`**/api/v1/embeddings/candidates/${testCandidateId}`, async (route) => {
-      await route.fulfill({ status: 200, json: { data: { status: "stale", modelVersion: "gemini-embedding-2" } } });
+      await route.fulfill({
+        status: 200,
+        json: { data: { status: "stale", modelVersion: "gemini-embedding-2" } },
+      });
     });
     await page.route("**/api/v1/resumes/**", async (route) => {
       await route.fulfill({ json: { data: [] } });
@@ -118,13 +151,23 @@ test.describe("Candidate Detail Embedding Status", () => {
       statusCallCount++;
       // First 2 calls return stale, then current
       const status = statusCallCount <= 2 ? "stale" : "current";
-      await route.fulfill({ status: 200, json: { data: { status, modelVersion: "gemini-embedding-2" } } });
+      await route.fulfill({
+        status: 200,
+        json: { data: { status, modelVersion: "gemini-embedding-2" } },
+      });
     });
     await page.route(`**/api/v1/candidates/${testCandidateId}/embedding`, async (route) => {
       if (route.request().method() === "POST") {
         await route.fulfill({
           status: 202,
-          json: { data: { candidateId: testCandidateId, taskId: "task-123", status: "QUEUED", modelVersion: "gemini-embedding-2" } },
+          json: {
+            data: {
+              candidateId: testCandidateId,
+              taskId: "task-123",
+              status: "QUEUED",
+              modelVersion: "gemini-embedding-2",
+            },
+          },
         });
       } else {
         await route.continue();
@@ -150,7 +193,10 @@ test.describe("Candidate Detail Embedding Status", () => {
 
   test("D1. hiring_manager can see embedding status badge", async ({ page }) => {
     await page.route(`**/api/v1/embeddings/candidates/${testCandidateId}`, async (route) => {
-      await route.fulfill({ status: 200, json: { data: { status: "stale", modelVersion: "gemini-embedding-2" } } });
+      await route.fulfill({
+        status: 200,
+        json: { data: { status: "stale", modelVersion: "gemini-embedding-2" } },
+      });
     });
     await page.route("**/api/v1/resumes/**", async (route) => {
       await route.fulfill({ json: { data: [] } });
@@ -169,13 +215,23 @@ test.describe("Candidate Detail Embedding Status", () => {
   test("E. polling timeout — status never becomes current", async ({ page }) => {
     await page.route(`**/api/v1/embeddings/candidates/${testCandidateId}`, async (route) => {
       // Always return stale
-      await route.fulfill({ status: 200, json: { data: { status: "stale", modelVersion: "gemini-embedding-2" } } });
+      await route.fulfill({
+        status: 200,
+        json: { data: { status: "stale", modelVersion: "gemini-embedding-2" } },
+      });
     });
     await page.route(`**/api/v1/candidates/${testCandidateId}/embedding`, async (route) => {
       if (route.request().method() === "POST") {
         await route.fulfill({
           status: 202,
-          json: { data: { candidateId: testCandidateId, taskId: "task-timeout", status: "QUEUED", modelVersion: "gemini-embedding-2" } },
+          json: {
+            data: {
+              candidateId: testCandidateId,
+              taskId: "task-timeout",
+              status: "QUEUED",
+              modelVersion: "gemini-embedding-2",
+            },
+          },
         });
       } else {
         await route.continue();
@@ -201,7 +257,10 @@ test.describe("Candidate Detail Embedding Status", () => {
 
   test("F. API error produces graceful state", async ({ page }) => {
     await page.route(`**/api/v1/embeddings/candidates/${testCandidateId}`, async (route) => {
-      await route.fulfill({ status: 500, json: { error: { code: "INTERNAL_ERROR", message: "Server error" } } });
+      await route.fulfill({
+        status: 500,
+        json: { error: { code: "INTERNAL_ERROR", message: "Server error" } },
+      });
     });
     await page.route("**/api/v1/resumes/**", async (route) => {
       await route.fulfill({ json: { data: [] } });
@@ -231,9 +290,14 @@ test.describe("Job Detail Embedding Status", () => {
         VALUES (gen_random_uuid(), (SELECT id FROM t), 'Emb Job ${runId}', 'Test description', 'open', (SELECT id FROM u));
         `,
       });
-      testJobId = execSync(`docker exec -i hiron-postgres psql -v ON_ERROR_STOP=1 -U hiron_user -d hiron_dev -t`, {
-        input: `SELECT id FROM jobs WHERE title = 'Emb Job ${runId}';`,
-      }).toString().trim();
+      testJobId = execSync(
+        `docker exec -i hiron-postgres psql -v ON_ERROR_STOP=1 -U hiron_user -d hiron_dev -t`,
+        {
+          input: `SELECT id FROM jobs WHERE title = 'Emb Job ${runId}';`,
+        },
+      )
+        .toString()
+        .trim();
     } catch (e) {
       console.error("Seeding failed", e);
       throw e;
@@ -243,16 +307,24 @@ test.describe("Job Detail Embedding Status", () => {
   test.afterAll(() => {
     try {
       if (testJobId) {
-        execSync(`docker exec -i hiron-postgres psql -v ON_ERROR_STOP=1 -U hiron_user -d hiron_dev`, {
-          input: `DELETE FROM jobs WHERE id = '${testJobId}';`,
-        });
+        execSync(
+          `docker exec -i hiron-postgres psql -v ON_ERROR_STOP=1 -U hiron_user -d hiron_dev`,
+          {
+            input: `DELETE FROM jobs WHERE id = '${testJobId}';`,
+          },
+        );
       }
-    } catch { /* cleanup best-effort */ }
+    } catch {
+      /* cleanup best-effort */
+    }
   });
 
   test("C1. current status renders on job detail", async ({ page }) => {
     await page.route(`**/api/v1/embeddings/jobs/${testJobId}`, async (route) => {
-      await route.fulfill({ status: 200, json: { data: { status: "current", modelVersion: "gemini-embedding-2" } } });
+      await route.fulfill({
+        status: 200,
+        json: { data: { status: "current", modelVersion: "gemini-embedding-2" } },
+      });
     });
 
     await loginAs(page, "admin@acme.com", "SecurePassword123!");
@@ -264,7 +336,10 @@ test.describe("Job Detail Embedding Status", () => {
 
   test("C2. missing status renders with Generate button", async ({ page }) => {
     await page.route(`**/api/v1/embeddings/jobs/${testJobId}`, async (route) => {
-      await route.fulfill({ status: 200, json: { data: { status: "missing", modelVersion: "gemini-embedding-2" } } });
+      await route.fulfill({
+        status: 200,
+        json: { data: { status: "missing", modelVersion: "gemini-embedding-2" } },
+      });
     });
 
     await loginAs(page, "admin@acme.com", "SecurePassword123!");
@@ -280,13 +355,23 @@ test.describe("Job Detail Embedding Status", () => {
     await page.route(`**/api/v1/embeddings/jobs/${testJobId}`, async (route) => {
       statusCallCount++;
       const status = statusCallCount <= 2 ? "missing" : "current";
-      await route.fulfill({ status: 200, json: { data: { status, modelVersion: "gemini-embedding-2" } } });
+      await route.fulfill({
+        status: 200,
+        json: { data: { status, modelVersion: "gemini-embedding-2" } },
+      });
     });
     await page.route(`**/api/v1/jobs/${testJobId}/embedding`, async (route) => {
       if (route.request().method() === "POST") {
         await route.fulfill({
           status: 202,
-          json: { data: { jobId: testJobId, taskId: "task-456", status: "QUEUED", modelVersion: "gemini-embedding-2" } },
+          json: {
+            data: {
+              jobId: testJobId,
+              taskId: "task-456",
+              status: "QUEUED",
+              modelVersion: "gemini-embedding-2",
+            },
+          },
         });
       } else {
         await route.continue();
@@ -302,9 +387,14 @@ test.describe("Job Detail Embedding Status", () => {
     await expect(page.getByText("Embeddings Ready")).toBeVisible({ timeout: 15000 });
   });
 
-  test("D2. hiring_manager can view job embedding status but cannot regenerate", async ({ page }) => {
+  test("D2. hiring_manager can view job embedding status but cannot regenerate", async ({
+    page,
+  }) => {
     await page.route(`**/api/v1/embeddings/jobs/${testJobId}`, async (route) => {
-      await route.fulfill({ status: 200, json: { data: { status: "stale", modelVersion: "gemini-embedding-2" } } });
+      await route.fulfill({
+        status: 200,
+        json: { data: { status: "stale", modelVersion: "gemini-embedding-2" } },
+      });
     });
 
     await loginAs(page, "manager@acme.com", "SecurePassword123!");
@@ -317,7 +407,10 @@ test.describe("Job Detail Embedding Status", () => {
 
   test("F2. job API error produces graceful state", async ({ page }) => {
     await page.route(`**/api/v1/embeddings/jobs/${testJobId}`, async (route) => {
-      await route.fulfill({ status: 500, json: { error: { code: "INTERNAL_ERROR", message: "Server error" } } });
+      await route.fulfill({
+        status: 500,
+        json: { error: { code: "INTERNAL_ERROR", message: "Server error" } },
+      });
     });
 
     await loginAs(page, "admin@acme.com", "SecurePassword123!");
@@ -338,35 +431,62 @@ test.describe("Responsive Embedding UI — 390px", () => {
         status: 200,
         json: {
           data: {
-            candidates: { total: 10, withEmbedding: 8, stale: 1, missing: 1, modelVersion: "gemini-embedding-2" },
-            jobs: { total: 5, withEmbedding: 5, stale: 0, missing: 0, modelVersion: "gemini-embedding-2" },
+            candidates: {
+              total: 10,
+              withEmbedding: 8,
+              stale: 1,
+              missing: 1,
+              modelVersion: "gemini-embedding-2",
+            },
+            jobs: {
+              total: 5,
+              withEmbedding: 5,
+              stale: 0,
+              missing: 0,
+              modelVersion: "gemini-embedding-2",
+            },
           },
         },
       });
     });
 
     await loginAs(page, "admin@acme.com", "SecurePassword123!");
-    await page.goto("/");
     await page.waitForLoadState("networkidle");
 
     await expect(page.getByText("✨ AI Embedding Status")).toBeVisible();
-
 
     const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
     const clientWidth = await page.evaluate(() => document.documentElement.clientWidth);
     expect(scrollWidth).toBeLessThanOrEqual(clientWidth + 2); // 2px tolerance
   });
 
-  test("G2. candidate detail embedding badge renders at 390px without overflow", async ({ page }) => {
+  test("G2. candidate detail embedding badge renders at 390px without overflow", async ({
+    page,
+  }) => {
     const candId = "00000000-0000-0000-0000-000000000001";
     await page.route(`**/api/v1/candidates/${candId}`, async (route) => {
       await route.fulfill({
         status: 200,
-        json: { data: { id: candId, fullName: "Test", email: null, skills: [], jobs: [], source: "manual", isArchived: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() } },
+        json: {
+          data: {
+            id: candId,
+            fullName: "Test",
+            email: null,
+            skills: [],
+            jobs: [],
+            source: "manual",
+            isArchived: false,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        },
       });
     });
     await page.route(`**/api/v1/embeddings/candidates/${candId}`, async (route) => {
-      await route.fulfill({ status: 200, json: { data: { status: "stale", modelVersion: "gemini-embedding-2" } } });
+      await route.fulfill({
+        status: 200,
+        json: { data: { status: "stale", modelVersion: "gemini-embedding-2" } },
+      });
     });
     await page.route("**/api/v1/resumes/**", async (route) => {
       await route.fulfill({ json: { data: [] } });
@@ -386,17 +506,29 @@ test.describe("Responsive Embedding UI — 390px", () => {
     await page.route(`**/api/v1/jobs/${jobId}`, async (route) => {
       await route.fulfill({
         status: 200,
-        json: { data: { id: jobId, title: "Test Job", description: "Desc", status: "open", candidateCount: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() } },
+        json: {
+          data: {
+            id: jobId,
+            title: "Test Job",
+            description: "Desc",
+            status: "open",
+            candidateCount: 0,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        },
       });
     });
     await page.route(`**/api/v1/embeddings/jobs/${jobId}`, async (route) => {
-      await route.fulfill({ status: 200, json: { data: { status: "missing", modelVersion: "gemini-embedding-2" } } });
+      await route.fulfill({
+        status: 200,
+        json: { data: { status: "missing", modelVersion: "gemini-embedding-2" } },
+      });
     });
 
     await loginAs(page, "admin@acme.com", "SecurePassword123!");
     await page.goto(`/jobs/${jobId}`);
     await page.waitForLoadState("networkidle");
-
 
     const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
     const clientWidth = await page.evaluate(() => document.documentElement.clientWidth);

@@ -205,16 +205,22 @@ function SemanticSearchContent(): React.ReactElement {
     <div className="flex flex-col h-full items-center p-6 lg:p-12">
       <div className="w-full max-w-4xl space-y-8 mt-12 transition-all">
         {/* Header Section */}
-        <div className={`text-center space-y-4 transition-all duration-500 ${results ? 'hidden' : 'block'}`}>
+        <div
+          className={`text-center space-y-4 transition-all duration-500 ${results ? "hidden" : "block"}`}
+        >
           <div className="inline-flex items-center justify-center space-x-2 bg-indigo-50 text-indigo-700 px-4 py-1.5 rounded-full text-sm font-medium border border-indigo-100 shadow-sm">
             <SparklesIcon className="w-4 h-4" />
             <span>Semantic Search</span>
           </div>
-          <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
+          <h1
+            className="text-4xl font-extrabold tracking-tight"
+            style={{ color: "var(--text-primary)" }}
+          >
             Find candidates using natural language
           </h1>
-          <p className="text-lg text-gray-500 max-w-2xl mx-auto">
-            Our AI understands context, skills, and experience to find the perfect match across your talent pool.
+          <p className="text-lg max-w-2xl mx-auto" style={{ color: "var(--text-secondary)" }}>
+            Our AI understands context, skills, and experience to find the perfect match across your
+            talent pool.
           </p>
         </div>
 
@@ -244,7 +250,12 @@ function SemanticSearchContent(): React.ReactElement {
               }}
             />
             <div className="absolute inset-y-2 right-2 flex items-center">
-              <Button type="submit" size="lg" className="h-full rounded-xl px-6 font-semibold" disabled={isLoading || !searchQuery.trim()}>
+              <Button
+                type="submit"
+                size="lg"
+                className="h-full rounded-xl px-6 font-semibold"
+                disabled={isLoading || !searchQuery.trim()}
+              >
                 {isLoading ? "Searching..." : "Search"}
               </Button>
             </div>
@@ -254,7 +265,9 @@ function SemanticSearchContent(): React.ReactElement {
         {/* Filters Section */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-medium text-gray-500 mr-2">Filters:</span>
+            <span className="text-sm font-medium mr-2" style={{ color: "var(--text-muted)" }}>
+              Filters:
+            </span>
             {activeFilters.length === 0 ? (
               <span className="text-sm text-gray-400 italic">No active filters</span>
             ) : (
@@ -278,7 +291,12 @@ function SemanticSearchContent(): React.ReactElement {
             )}
           </div>
 
-          <Button variant="secondary" size="sm" onClick={addDummyFilter} className="shrink-0 rounded-full border-gray-300 text-gray-600">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={addDummyFilter}
+            className="shrink-0 rounded-full border-gray-300 text-gray-600"
+          >
             <span className="mr-1">+</span> Add Filter
           </Button>
         </div>
@@ -287,7 +305,9 @@ function SemanticSearchContent(): React.ReactElement {
         {errorMsg && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex justify-between items-center">
             <span>{errorMsg}</span>
-            <Button variant="secondary" size="sm" onClick={() => handleSearch()}>Retry</Button>
+            <Button variant="secondary" size="sm" onClick={() => handleSearch()}>
+              Retry
+            </Button>
           </div>
         )}
 
@@ -296,7 +316,9 @@ function SemanticSearchContent(): React.ReactElement {
           <div className="space-y-6 pt-4 border-t border-gray-100">
             <div className="flex justify-between items-end">
               <p className="text-sm text-gray-500 font-medium">
-                {isLoading ? "Searching..." : `${results.length} results • Searched in ${(searchTime! / 1000).toFixed(1)}s`}
+                {isLoading
+                  ? "Searching..."
+                  : `${results.length} results • Searched in ${(searchTime! / 1000).toFixed(1)}s`}
               </p>
               {!isLoading && results.length > 0 && (
                 <Button variant="secondary" size="sm" onClick={() => setIsSaveModalOpen(true)}>
@@ -307,8 +329,11 @@ function SemanticSearchContent(): React.ReactElement {
 
             {isLoading ? (
               <div className="space-y-4">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="flex gap-4 p-5 bg-white border border-gray-100 rounded-xl animate-pulse">
+                {[1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="flex gap-4 p-5 bg-white border border-gray-100 rounded-xl animate-pulse"
+                  >
                     <div className="w-16 h-16 rounded-full bg-gray-200 shrink-0"></div>
                     <div className="flex-1 space-y-3 py-1">
                       <div className="h-4 bg-gray-200 rounded w-1/3"></div>
@@ -325,32 +350,39 @@ function SemanticSearchContent(): React.ReactElement {
               />
             ) : (
               <div className="space-y-4">
-                {results.map(item => (
+                {results.map((item) => (
                   <CandidateSearchResultCard key={item.candidate.id} item={item} />
                 ))}
               </div>
             )}
           </div>
         )}
-
       </div>
 
-      <Modal
-        isOpen={isSaveModalOpen}
-        onClose={() => setIsSaveModalOpen(false)}
-        title="Save Search"
-      >
+      <Modal isOpen={isSaveModalOpen} onClose={() => setIsSaveModalOpen(false)} title="Save Search">
         {saveSuccess ? (
           <div className="text-center py-6 text-emerald-600">
-            <svg className="w-12 h-12 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            <svg
+              className="w-12 h-12 mx-auto mb-3"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 13l4 4L19 7"
+              />
             </svg>
             <p className="text-lg font-medium">Search saved successfully!</p>
           </div>
         ) : (
           <form onSubmit={handleSaveSearch} className="space-y-4">
             <div>
-              <label htmlFor="searchName" className="block text-sm font-medium text-gray-700 mb-1">Search Name</label>
+              <label htmlFor="searchName" className="block text-sm font-medium text-gray-700 mb-1">
+                Search Name
+              </label>
               <Input
                 id="searchName"
                 value={saveSearchName}
@@ -359,9 +391,14 @@ function SemanticSearchContent(): React.ReactElement {
               />
             </div>
             <div className="bg-gray-50 p-3 rounded text-sm text-gray-600">
-              <p><span className="font-medium">Query:</span> &quot;{searchQuery}&quot;</p>
+              <p>
+                <span className="font-medium">Query:</span> &quot;{searchQuery}&quot;
+              </p>
               {activeFilters.length > 0 && (
-                <p className="mt-1"><span className="font-medium">Filters:</span> {activeFilters.map(f => `${f.label} (${f.value})`).join(", ")}</p>
+                <p className="mt-1">
+                  <span className="font-medium">Filters:</span>{" "}
+                  {activeFilters.map((f) => `${f.label} (${f.value})`).join(", ")}
+                </p>
               )}
             </div>
             <div className="flex justify-end gap-2 pt-2">
