@@ -141,6 +141,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
     setAccessToken(loginData.accessToken);
     setUser(loginData.user);
     setIsAuthenticated(true);
+    setIsLoading(false);
     return loginData.user;
   };
 

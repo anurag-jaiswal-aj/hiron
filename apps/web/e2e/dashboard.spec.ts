@@ -7,8 +7,8 @@ async function setupAuth(page: Page, role: string = "org_admin") {
       json: {
         data: {
           accessToken: "mock-token",
-        }
-      }
+        },
+      },
     });
   });
 
@@ -21,8 +21,8 @@ async function setupAuth(page: Page, role: string = "org_admin") {
           tenantId: "test-tenant-id",
           email: `${role}@acme.com`,
           role: role,
-        }
-      }
+        },
+      },
     });
   });
 }
@@ -70,14 +70,14 @@ test.describe("Dashboard & Analytics (Phase 12)", () => {
   test("1. Renders loading state and then dashboard for org_admin", async ({ page }) => {
     await page.route("**/api/v1/dashboard/summary", async (route) => {
       // delay to ensure loading state is visible
-      await new Promise(r => setTimeout(r, 500));
+      await new Promise((r) => setTimeout(r, 500));
       await route.fulfill({ json: { data: mockDashboardSummary } });
     });
 
     await setupAuth(page, "org_admin");
-    
+
     // Navigate and check loading state
-    await page.goto("/");
+    await page.goto("/dashboard");
     await expect(page.locator("text=Loading dashboard metrics...")).toBeVisible();
 
     // Check header
@@ -116,8 +116,8 @@ test.describe("Dashboard & Analytics (Phase 12)", () => {
     });
 
     await setupAuth(page, "recruiter");
-    await page.goto("/");
-    
+    await page.goto("/dashboard");
+
     await expect(page.locator("h1", { hasText: "Dashboard" })).toBeVisible();
     await expect(page.locator("text=Pipeline Overview")).toBeVisible();
   });
@@ -128,8 +128,8 @@ test.describe("Dashboard & Analytics (Phase 12)", () => {
     });
 
     await setupAuth(page, "hiring_manager");
-    await page.goto("/");
-    
+    await page.goto("/dashboard");
+
     await expect(page.locator("h1", { hasText: "Dashboard" })).toBeVisible();
     await expect(page.locator("text=Recent Activity")).toBeVisible();
   });
@@ -140,9 +140,11 @@ test.describe("Dashboard & Analytics (Phase 12)", () => {
     });
 
     await setupAuth(page, "org_admin");
-    await page.goto("/");
-    
-    await expect(page.locator("text=Failed to load dashboard data. Please try again.")).toBeVisible();
+    await page.goto("/dashboard");
+
+    await expect(
+      page.locator("text=Failed to load dashboard data. Please try again."),
+    ).toBeVisible();
   });
 
   test("5. Empty/new-tenant onboarding state works", async ({ page }) => {
@@ -162,8 +164,8 @@ test.describe("Dashboard & Analytics (Phase 12)", () => {
     });
 
     await setupAuth(page, "org_admin");
-    await page.goto("/");
-    
+    await page.goto("/dashboard");
+
     await expect(page.locator("text=Welcome to Hiron! 👋")).toBeVisible();
     await expect(page.locator("text=Create your first job")).toBeVisible();
     await expect(page.locator("text=Upload resumes")).toBeVisible();
@@ -177,7 +179,7 @@ test.describe("Dashboard & Analytics (Phase 12)", () => {
     });
 
     await setupAuth(page, "org_admin");
-    await page.goto("/");
+    await page.goto("/dashboard");
 
     // Desktop
     let width = await page.evaluate(() => document.documentElement.scrollWidth);

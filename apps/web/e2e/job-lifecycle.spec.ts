@@ -2,13 +2,18 @@ import { test, expect } from "@playwright/test";
 import { loginAs } from "./helpers/auth";
 
 test.describe("Job Lifecycle Workflows", () => {
-  test("executes open, pause, close, and archive transitions correctly on Job Detail page", async ({ page }) => {
+  test("executes open, pause, close, and archive transitions correctly on Job Detail page", async ({
+    page,
+  }) => {
     await loginAs(page, "admin@acme.com", "SecurePassword123!");
 
     const title = `Lifecycle Job ${Date.now()}`;
 
     // 1. Create a job (defaults to draft status)
-    await page.goto("/jobs/new");
+    await page.getByRole("link", { name: "Jobs", exact: true }).click();
+    await page.waitForURL(/\/jobs$/);
+    await page.getByText("+ Create Job").click();
+    await page.waitForURL(/\/jobs\/new$/);
     await page.waitForLoadState("networkidle");
     await page.fill("#job-title-input", title);
     await page.fill("#job-description-textarea", "Job created for testing lifecycle transitions.");
@@ -78,7 +83,10 @@ test.describe("Job Lifecycle Workflows", () => {
     await loginAs(page, "admin@acme.com", "SecurePassword123!");
 
     const title = `HM ReadOnly Job ${Date.now()}`;
-    await page.goto("/jobs/new");
+    await page.getByRole("link", { name: "Jobs", exact: true }).click();
+    await page.waitForURL(/\/jobs$/);
+    await page.getByText("+ Create Job").click();
+    await page.waitForURL(/\/jobs\/new$/);
     await page.fill("#job-title-input", title);
     await page.fill("#job-description-textarea", "Description for read only test.");
     await page.click('button[type="submit"]');
@@ -93,16 +101,15 @@ test.describe("Job Lifecycle Workflows", () => {
     const jobUrl = page.url();
 
     // Log out first
-    await page.goto("/");
+    await page.goto("/dashboard");
     await page.waitForLoadState("networkidle");
     await page.click('button:has-text("Sign Out"), a:has-text("Sign Out")');
     await page.waitForURL(/\/login/);
-    
+
     // Log in as Hiring Manager
     await loginAs(page, "manager@acme.com", "SecurePassword123!");
     await page.goto(jobUrl);
     await page.waitForLoadState("networkidle");
-
 
     await expect(page.getByRole("heading", { name: title })).toBeVisible();
     await expect(page.getByRole("link", { name: "Edit Job" })).not.toBeVisible();

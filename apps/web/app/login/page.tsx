@@ -67,7 +67,7 @@ export default function LoginPage(): React.ReactElement | null {
         password,
         tenantId: tenantId.trim(),
       });
-      router.replace("/dashboard");
+      // Redirection is handled declaratively by the useEffect observing isAuthenticated
     } catch (err) {
       setIsSubmitting(false);
       if (err instanceof ApiError) {

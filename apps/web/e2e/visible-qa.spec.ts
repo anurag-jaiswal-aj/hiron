@@ -15,8 +15,13 @@ let shotIndex = 0;
 async function snap(page: Page, name: string): Promise<void> {
   shotIndex++;
   const padded = String(shotIndex).padStart(2, "0");
-  // Use Playwright's built-in screenshot attachment mechanism
-  const buffer = await page.screenshot({ fullPage: true });
+  let buffer: Buffer;
+  try {
+    buffer = await page.screenshot({ fullPage: true, timeout: 5000 });
+  } catch (err) {
+    console.warn(`[snap] fullPage timeout for ${name}, capturing viewport...`);
+    buffer = await page.screenshot({ timeout: 5000 });
+  }
   await test.info().attach(`${padded}_${name}`, {
     body: buffer,
     contentType: "image/png",
@@ -55,7 +60,7 @@ test("02 — Invalid credentials show error", async ({ page }) => {
 test("03 — Valid org_admin login to dashboard", async ({ page }) => {
   await loginAs(page, "admin@acme.com", "SecurePassword123!");
   await snap(page, "dashboard_after_login");
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/dashboard$/);
 });
 
 test("04 — Dashboard sidebar, layout, responsive", async ({ page }) => {
@@ -153,7 +158,7 @@ test("08 — Create Job validation (invalid experience)", async ({ page }) => {
   await page.fill("#job-exp-max-input", "5");
   await page.fill(
     "#job-description-textarea",
-    "We are seeking an expert Staff AI Architect to lead generative AI systems."
+    "We are seeking an expert Staff AI Architect to lead generative AI systems.",
   );
   await snap(page, "create_job_filled_invalid_exp");
 
@@ -174,9 +179,7 @@ test("08 — Create Job validation (invalid experience)", async ({ page }) => {
  * jobs only exist within the same SQLAlchemy session. We must perform the
  * full CRUD lifecycle in one continuous test to exercise the flow.
  */
-test("09 — Full Job CRUD lifecycle (create, detail, edit, lifecycle)", async ({
-  page,
-}) => {
+test("09 — Full Job CRUD lifecycle (create, detail, edit, lifecycle)", async ({ page }) => {
   await loginAs(page, "admin@acme.com", "SecurePassword123!");
   await page.goto("/jobs/new");
   await page.waitForLoadState("networkidle");
@@ -193,7 +196,7 @@ test("09 — Full Job CRUD lifecycle (create, detail, edit, lifecycle)", async (
   await page.fill("#job-exp-max-input", "8");
   await page.fill(
     "#job-description-textarea",
-    "QA engineer to build end-to-end test coverage for Hiron."
+    "QA engineer to build end-to-end test coverage for Hiron.",
   );
 
   const reqSkill = page.locator("#job-req-skills-input");
@@ -242,9 +245,7 @@ test("09 — Full Job CRUD lifecycle (create, detail, edit, lifecycle)", async (
     }
 
     // ── EDIT ──
-    const editBtn = page
-      .locator('a:has-text("Edit Job"), button:has-text("Edit Job")')
-      .first();
+    const editBtn = page.locator('a:has-text("Edit Job"), button:has-text("Edit Job")').first();
     if ((await editBtn.count()) > 0) {
       await editBtn.click();
       await page.waitForURL(/\/edit$/);
@@ -268,23 +269,12 @@ test("09 — Full Job CRUD lifecycle (create, detail, edit, lifecycle)", async (
     }
     await snap(page, "lifecycle_initial_state");
 
-    for (const btnText of [
-      "Pause Job",
-      "Reopen Job",
-      "Close Job",
-      "Archive",
-    ]) {
+    for (const btnText of ["Pause Job", "Reopen Job", "Close Job", "Archive"]) {
       const btn = page.locator(`button:has-text("${btnText}")`);
-      if (
-        (await btn.count()) > 0 &&
-        (await btn.isVisible().catch(() => false))
-      ) {
+      if ((await btn.count()) > 0 && (await btn.isVisible().catch(() => false))) {
         await btn.click();
         await page.waitForTimeout(1500);
-        await snap(
-          page,
-          `lifecycle_after_${btnText.replace(/\s+/g, "_").toLowerCase()}`
-        );
+        await snap(page, `lifecycle_after_${btnText.replace(/\s+/g, "_").toLowerCase()}`);
       }
     }
   }
@@ -301,14 +291,13 @@ test("10 — Nonexistent Job Detail error", async ({ page }) => {
 // ── TEAM MANAGEMENT ──────────────────────────────────────────────
 test("11 — Team Management page", async ({ page }) => {
   await loginAs(page, "admin@acme.com", "SecurePassword123!");
-  await page.goto("/users");
+  await page.getByRole("link", { name: "Team" }).click();
+  await page.waitForURL(/\/users/);
   await page.waitForLoadState("networkidle");
   await page.waitForTimeout(1000);
   await snap(page, "team_management_desktop");
 
-  const inviteBtn = page
-    .locator('button:has-text("Invite"), a:has-text("Invite")')
-    .first();
+  const inviteBtn = page.locator('button:has-text("Invite"), a:has-text("Invite")').first();
   if ((await inviteBtn.count()) > 0) {
     await inviteBtn.click();
     await page.waitForTimeout(500);

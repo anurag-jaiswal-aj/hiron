@@ -65,9 +65,16 @@ export async function loginAs(
 
   await page.click('button[type="submit"]');
 
-  // Wait for redirect away from /login to dashboard /
-  await page.waitForURL((url) => url.pathname !== "/login", { timeout: 10000 });
-  await expect(page).not.toHaveURL(/\/login$/);
+  // Wait for redirect away from /login to dashboard and ensure it settles
+  await page.waitForURL(/\/dashboard$/, { timeout: 10000 });
+  await page.waitForLoadState("networkidle");
+  // Wait for the Dashboard page component to mount so Next.js transition is fully finished
+  await expect(page.locator("h1").first()).toContainText("Dashboard", { timeout: 10000 });
+  await expect(page).toHaveURL(/\/dashboard$/);
+
+  // Allow Next.js App Router internal history state to fully settle
+  // WebKit in CI can take several seconds to process the RSC payload and apply history state
+  await page.waitForTimeout(3000);
 
   let token: string | null = null;
   const response = await responsePromise;
