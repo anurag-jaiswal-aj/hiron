@@ -54,8 +54,8 @@ module.exports = {
       {
         tags: [],
         roles: ["tabpanel", "region"],
-        allowExpressionValues: true
-      }
+        allowExpressionValues: true,
+      },
     ],
   },
   settings: {
