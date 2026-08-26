@@ -49,6 +49,14 @@ module.exports = {
     // Accessibility (WCAG 2.2 AA)
     "jsx-a11y/anchor-is-valid": "error",
     "jsx-a11y/click-events-have-key-events": "error",
+    "jsx-a11y/no-noninteractive-tabindex": [
+      "error",
+      {
+        tags: [],
+        roles: ["tabpanel", "region"],
+        allowExpressionValues: true
+      }
+    ],
   },
   settings: {
     react: {

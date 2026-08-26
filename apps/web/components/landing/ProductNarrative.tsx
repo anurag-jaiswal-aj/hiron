@@ -447,7 +447,7 @@ function JobStage(): React.ReactElement {
         </button>
       </div>
 
-      <div className="px-6 py-6 md:py-12 space-y-8 flex-1 overflow-y-auto custom-scrollbar" tabIndex={0}>
+      <div className="px-6 py-6 md:py-12 space-y-8 flex-1 overflow-y-auto custom-scrollbar" tabIndex={0} role="region" aria-label="Job description">
         {/* Title Area */}
         <div>
           <div className="text-[#fafafa] text-3xl font-bold mb-2 tracking-tight">Senior Backend Engineer</div>
