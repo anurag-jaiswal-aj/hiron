@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useAuth } from "../../context/AuthContext";
 
 export function Navbar(): React.ReactElement {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated } = useAuth();
 
   return (
     <nav className="sticky top-0 z-50 bg-[#0a0a0a] border-b border-[#262626]">
@@ -24,22 +24,21 @@ export function Navbar(): React.ReactElement {
         </div>
 
         <div className="flex items-center min-h-[36px]">
-          {!isLoading &&
-            (isAuthenticated ? (
-              <Link
-                href="/dashboard"
-                className="text-[14px] font-medium text-[#a3a3a3] hover:text-[#fafafa] tracking-wide px-3 py-2 rounded transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[#525252]"
-              >
-                Dashboard
-              </Link>
-            ) : (
-              <Link
-                href="/login"
-                className="text-[14px] font-medium text-[#a3a3a3] hover:text-[#fafafa] tracking-wide px-3 py-2 rounded transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[#525252]"
-              >
-                Log in
-              </Link>
-            ))}
+          {isAuthenticated ? (
+            <Link
+              href="/dashboard"
+              className="text-[14px] font-medium text-[#a3a3a3] hover:text-[#fafafa] tracking-wide px-3 py-2 rounded transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[#525252]"
+            >
+              Dashboard
+            </Link>
+          ) : (
+            <Link
+              href="/login"
+              className="text-[14px] font-medium text-[#a3a3a3] hover:text-[#fafafa] tracking-wide px-3 py-2 rounded transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[#525252]"
+            >
+              Log in
+            </Link>
+          )}
         </div>
       </div>
     </nav>
