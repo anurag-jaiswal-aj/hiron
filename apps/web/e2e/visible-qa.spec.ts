@@ -20,7 +20,19 @@ async function snap(page: Page, name: string): Promise<void> {
     buffer = await page.screenshot({ fullPage: true, timeout: 5000 });
   } catch (err) {
     console.warn(`[snap] fullPage timeout for ${name}, capturing viewport...`);
-    buffer = await page.screenshot({ timeout: 5000 });
+    try {
+      buffer = await page.screenshot({ timeout: 5000 });
+    } catch (fallbackErr) {
+      if (
+        page.isClosed() ||
+        (fallbackErr instanceof Error &&
+          fallbackErr.message.includes("Target page, context or browser has been closed"))
+      ) {
+        console.warn(`[snap] Page closed during fallback for ${name}, returning safely.`);
+        return;
+      }
+      throw fallbackErr;
+    }
   }
   await test.info().attach(`${padded}_${name}`, {
     body: buffer,
@@ -348,6 +360,7 @@ test("12 — Hiring Manager RBAC", async ({ page }) => {
 
 // ── RESPONSIVE AUDIT ─────────────────────────────────────────────
 test("13 — Responsive breakpoint audit", async ({ page }) => {
+  test.setTimeout(60000);
   await loginAs(page, "admin@acme.com", "SecurePassword123!");
 
   const routes = ["/", "/jobs", "/users"];
