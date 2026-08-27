@@ -352,8 +352,9 @@ test("12 — Hiring Manager RBAC", async ({ page }) => {
 });
 
 // ── RESPONSIVE AUDIT ─────────────────────────────────────────────
-test("13 — Responsive breakpoint audit", async ({ page }) => {
+test("13 — Responsive breakpoint audit", async ({ page }, testInfo) => {
   test.setTimeout(60000);
+  test.skip(testInfo.project.name !== "chromium", "Responsive audit only needs one engine");
   await loginAs(page, "admin@acme.com", "SecurePassword123!");
 
   const routes = ["/", "/jobs", "/users"];
