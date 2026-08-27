@@ -2,9 +2,6 @@
  * HIRON MONOCHROME REDESIGN — VISIBLE BROWSER QA (Fixed)
  *
  * Run with:  npx playwright test e2e/visible-qa.spec.ts --headed --timeout=120000
- *
- * KNOWN BUG: Job creation does not persist to DB across sessions (missing session.commit).
- * Tests that depend on jobs must create them within the SAME browser session to work via flush().
  */
 import { test, expect, type Page } from "@playwright/test";
 import { loginAs } from "./helpers/auth";
@@ -232,62 +229,58 @@ test("09 — Full Job CRUD lifecycle (create, detail, edit, lifecycle)", async (
   await page.waitForTimeout(2000);
   await snap(page, "after_create_redirect_to_jobs");
 
-  // NOTE: Due to commit bug, job may not appear in list. This is a KNOWN BUG, not a UI defect.
-  // Try to find and click the job link anyway — it may or may not be visible
   const jobLink = page.getByText(jobTitle);
-  const jobVisible = await jobLink.isVisible().catch(() => false);
-  await snap(page, `jobs_list_job_visible_${jobVisible}`);
+  await expect(jobLink).toBeVisible();
+  await snap(page, "jobs_list_job_visible");
 
-  if (jobVisible) {
-    // ── DETAIL ──
-    await jobLink.click();
-    await page.waitForURL(/\/jobs\/[a-f0-9-]+$/);
+  // ── DETAIL ──
+  await jobLink.click();
+  await page.waitForURL(/\/jobs\/[a-f0-9-]+$/);
+  await page.waitForLoadState("networkidle");
+  await page.waitForTimeout(1000);
+  await snap(page, "job_detail_page");
+
+  // Click tabs
+  for (const tab of ["Details", "Kanban", "Candidates", "Scores"]) {
+    const tabBtn = page.locator(`button:has-text("${tab}")`).first();
+    if ((await tabBtn.count()) > 0) {
+      await tabBtn.click();
+      await page.waitForTimeout(500);
+      await snap(page, `job_detail_tab_${tab.toLowerCase()}`);
+    }
+  }
+
+  // ── EDIT ──
+  const editBtn = page.locator('a:has-text("Edit Job"), button:has-text("Edit Job")').first();
+  if ((await editBtn.count()) > 0) {
+    await editBtn.click();
+    await page.waitForURL(/\/edit$/);
     await page.waitForLoadState("networkidle");
     await page.waitForTimeout(1000);
-    await snap(page, "job_detail_page");
+    await snap(page, "edit_job_loaded");
 
-    // Click tabs
-    for (const tab of ["Details", "Kanban", "Candidates", "Scores"]) {
-      const tabBtn = page.locator(`button:has-text("${tab}")`).first();
-      if ((await tabBtn.count()) > 0) {
-        await tabBtn.click();
-        await page.waitForTimeout(500);
-        await snap(page, `job_detail_tab_${tab.toLowerCase()}`);
-      }
-    }
+    await page.fill("#edit-job-location-input", "New York, NY (QA Updated)");
+    await snap(page, "edit_job_modified");
 
-    // ── EDIT ──
-    const editBtn = page.locator('a:has-text("Edit Job"), button:has-text("Edit Job")').first();
-    if ((await editBtn.count()) > 0) {
-      await editBtn.click();
-      await page.waitForURL(/\/edit$/);
-      await page.waitForLoadState("networkidle");
-      await page.waitForTimeout(1000);
-      await snap(page, "edit_job_loaded");
+    await page.click('button[type="submit"]');
+    await page.waitForTimeout(3000);
+    await snap(page, "edit_job_saved");
+  }
 
-      await page.fill("#edit-job-location-input", "New York, NY (QA Updated)");
-      await snap(page, "edit_job_modified");
+  // ── LIFECYCLE ──
+  // Navigate back to detail
+  if (page.url().includes("/edit")) {
+    await page.goBack();
+    await page.waitForTimeout(1000);
+  }
+  await snap(page, "lifecycle_initial_state");
 
-      await page.click('button[type="submit"]');
-      await page.waitForTimeout(3000);
-      await snap(page, "edit_job_saved");
-    }
-
-    // ── LIFECYCLE ──
-    // Navigate back to detail
-    if (page.url().includes("/edit")) {
-      await page.goBack();
-      await page.waitForTimeout(1000);
-    }
-    await snap(page, "lifecycle_initial_state");
-
-    for (const btnText of ["Pause Job", "Reopen Job", "Close Job", "Archive"]) {
-      const btn = page.locator(`button:has-text("${btnText}")`);
-      if ((await btn.count()) > 0 && (await btn.isVisible().catch(() => false))) {
-        await btn.click();
-        await page.waitForTimeout(1500);
-        await snap(page, `lifecycle_after_${btnText.replace(/\s+/g, "_").toLowerCase()}`);
-      }
+  for (const btnText of ["Pause Job", "Reopen Job", "Close Job", "Archive"]) {
+    const btn = page.locator(`button:has-text("${btnText}")`);
+    if ((await btn.count()) > 0 && (await btn.isVisible().catch(() => false))) {
+      await btn.click();
+      await page.waitForTimeout(1500);
+      await snap(page, `lifecycle_after_${btnText.replace(/\s+/g, "_").toLowerCase()}`);
     }
   }
 });

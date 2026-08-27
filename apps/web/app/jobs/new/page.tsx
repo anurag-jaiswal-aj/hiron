@@ -57,10 +57,19 @@ function CreateJobContent(): React.ReactElement {
     return (
       <AppShell>
         <div style={{ maxWidth: "600px", margin: "4rem auto", textAlign: "center" }}>
-          <h2 style={{ color: "var(--text-primary)", fontSize: "1.25rem", fontWeight: 700, marginBottom: "0.5rem" }}>
+          <h2
+            style={{
+              color: "var(--text-primary)",
+              fontSize: "1.25rem",
+              fontWeight: 700,
+              marginBottom: "0.5rem",
+            }}
+          >
             Access Denied
           </h2>
-          <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", marginBottom: "1.5rem" }}>
+          <p
+            style={{ color: "var(--text-secondary)", fontSize: "0.875rem", marginBottom: "1.5rem" }}
+          >
             Only Organization Admins and Recruiters can create new job descriptions.
           </p>
           <Link href="/jobs" style={{ textDecoration: "none" }}>
@@ -73,8 +82,7 @@ function CreateJobContent(): React.ReactElement {
     );
   }
 
-  const effectiveDepartment =
-    department === "Other" ? customDepartment.trim() : department.trim();
+  const effectiveDepartment = department === "Other" ? customDepartment.trim() : department.trim();
 
   function validateForm(): boolean {
     setValidationError(null);
@@ -100,7 +108,9 @@ function CreateJobContent(): React.ReactElement {
     const maxYears = experienceYearsMax === "" ? undefined : Number(experienceYearsMax);
 
     if (minYears !== undefined && maxYears !== undefined && maxYears < minYears) {
-      setValidationError("Maximum experience years must be greater than or equal to minimum experience years.");
+      setValidationError(
+        "Maximum experience years must be greater than or equal to minimum experience years.",
+      );
       return false;
     }
 
@@ -129,6 +139,7 @@ function CreateJobContent(): React.ReactElement {
 
     try {
       await httpClient.post<ResponseEnvelope<object>>("/api/v1/jobs", payload);
+      router.refresh();
       router.push("/jobs");
     } catch (err) {
       if (err instanceof ApiError) {
@@ -254,7 +265,16 @@ function CreateJobContent(): React.ReactElement {
             />
 
             <div>
-              <label htmlFor="job-exp-min-input" style={{ display: "block", fontSize: "0.875rem", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "0.375rem" }}>
+              <label
+                htmlFor="job-exp-min-input"
+                style={{
+                  display: "block",
+                  fontSize: "0.875rem",
+                  fontWeight: 600,
+                  color: "var(--text-secondary)",
+                  marginBottom: "0.375rem",
+                }}
+              >
                 Experience (Years)
               </label>
               <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
@@ -286,11 +306,21 @@ function CreateJobContent(): React.ReactElement {
           </div>
 
           <div>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.375rem" }}>
-              <label htmlFor="job-description-textarea" style={{ fontSize: "0.875rem", fontWeight: 600, color: "var(--text-secondary)" }}>
+            <div
+              style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.375rem" }}
+            >
+              <label
+                htmlFor="job-description-textarea"
+                style={{ fontSize: "0.875rem", fontWeight: 600, color: "var(--text-secondary)" }}
+              >
                 Job Description *
               </label>
-              <span style={{ fontSize: "0.75rem", color: description.length > 9500 ? "#FDE68A" : "var(--text-muted)" }}>
+              <span
+                style={{
+                  fontSize: "0.75rem",
+                  color: description.length > 9500 ? "#FDE68A" : "var(--text-muted)",
+                }}
+              >
                 {description.length}/10000
               </span>
             </div>
@@ -316,7 +346,16 @@ function CreateJobContent(): React.ReactElement {
           </div>
 
           <div>
-            <label htmlFor="job-req-skills-input" style={{ display: "block", fontSize: "0.875rem", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "0.375rem" }}>
+            <label
+              htmlFor="job-req-skills-input"
+              style={{
+                display: "block",
+                fontSize: "0.875rem",
+                fontWeight: 600,
+                color: "var(--text-secondary)",
+                marginBottom: "0.375rem",
+              }}
+            >
               Required Skills
             </label>
             <SkillTagInput
@@ -328,7 +367,16 @@ function CreateJobContent(): React.ReactElement {
           </div>
 
           <div>
-            <label htmlFor="job-pref-skills-input" style={{ display: "block", fontSize: "0.875rem", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "0.375rem" }}>
+            <label
+              htmlFor="job-pref-skills-input"
+              style={{
+                display: "block",
+                fontSize: "0.875rem",
+                fontWeight: 600,
+                color: "var(--text-secondary)",
+                marginBottom: "0.375rem",
+              }}
+            >
               Preferred Skills
             </label>
             <SkillTagInput
@@ -339,7 +387,9 @@ function CreateJobContent(): React.ReactElement {
             />
           </div>
 
-          <div style={{ display: "flex", gap: "1rem", marginTop: "1rem", justifyContent: "flex-end" }}>
+          <div
+            style={{ display: "flex", gap: "1rem", marginTop: "1rem", justifyContent: "flex-end" }}
+          >
             <Link href="/jobs" style={{ textDecoration: "none" }}>
               <Button type="button" variant="secondary">
                 Cancel
@@ -383,11 +433,27 @@ function CreateJobContent(): React.ReactElement {
               padding: "1.25rem",
             }}
           >
-            <h3 style={{ fontSize: "1.25rem", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 0.5rem 0" }}>
+            <h3
+              style={{
+                fontSize: "1.25rem",
+                fontWeight: 700,
+                color: "var(--text-primary)",
+                margin: "0 0 0.5rem 0",
+              }}
+            >
               {title.trim() || "Job Title Preview"}
             </h3>
 
-            <div style={{ fontSize: "0.875rem", color: "var(--text-secondary)", marginBottom: "1rem", display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+            <div
+              style={{
+                fontSize: "0.875rem",
+                color: "var(--text-secondary)",
+                marginBottom: "1rem",
+                display: "flex",
+                flexWrap: "wrap",
+                gap: "0.5rem",
+              }}
+            >
               <span>{effectiveDepartment || "Department"}</span>
               <span>•</span>
               <span>{location.trim() || "Location"}</span>
@@ -405,7 +471,14 @@ function CreateJobContent(): React.ReactElement {
             </div>
 
             <div style={{ marginBottom: "1rem" }}>
-              <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "0.25rem" }}>
+              <div
+                style={{
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                  color: "var(--text-secondary)",
+                  marginBottom: "0.25rem",
+                }}
+              >
                 Description:
               </div>
               <p
@@ -425,7 +498,14 @@ function CreateJobContent(): React.ReactElement {
 
             {requiredSkills.length > 0 && (
               <div style={{ marginBottom: "0.75rem" }}>
-                <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "0.375rem" }}>
+                <div
+                  style={{
+                    fontSize: "0.75rem",
+                    fontWeight: 600,
+                    color: "var(--text-secondary)",
+                    marginBottom: "0.375rem",
+                  }}
+                >
                   Required Skills:
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem" }}>
@@ -451,7 +531,14 @@ function CreateJobContent(): React.ReactElement {
 
             {preferredSkills.length > 0 && (
               <div>
-                <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "0.375rem" }}>
+                <div
+                  style={{
+                    fontSize: "0.75rem",
+                    fontWeight: 600,
+                    color: "var(--text-secondary)",
+                    marginBottom: "0.375rem",
+                  }}
+                >
                   Preferred Skills:
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem" }}>
