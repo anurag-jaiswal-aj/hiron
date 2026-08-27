@@ -245,7 +245,7 @@ We welcome contributions to Hiron! Please follow these guidelines:
    - Run PyTest: `uv run pytest`
    - Run Ruff linter & formatter: `uv run ruff check . && uv run ruff format --check .`
    - Run MyPy strict type checker: `uv run mypy apps/api`
-   - Run Prettier check: `npx prettier --check "**/*.{json,yaml,yml,md}"`
+   - Run Prettier check: `npx prettier --check "**/*.{ts,tsx,js,jsx,json,yaml,yml,md}"`
 3. **Pull Requests**: Submit PRs against `main` with a concise summary of changes and reference any related issues.
 
 ---
