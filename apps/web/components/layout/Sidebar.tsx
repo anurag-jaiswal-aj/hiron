@@ -108,6 +108,25 @@ export function Sidebar(): React.ReactElement {
           </div>
         </div>
 
+        <Link
+          href="/profile"
+          style={{
+            width: "100%",
+            display: "block",
+            backgroundColor: "transparent",
+            border: "1px solid var(--border-subtle)",
+            borderRadius: "var(--radius-md)",
+            color: "var(--text-secondary)",
+            fontSize: "0.8125rem",
+            fontWeight: 500,
+            padding: "0.5rem",
+            cursor: "pointer",
+            textAlign: "center",
+            textDecoration: "none",
+          }}
+        >
+          Profile
+        </Link>
         <button
           type="button"
           onClick={logout}

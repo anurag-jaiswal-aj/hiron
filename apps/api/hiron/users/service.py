@@ -203,7 +203,7 @@ class UserService:
     ) -> None:
         """Verify role-based access permissions for user update operations."""
         is_admin = current_user_role == "org_admin"
-        is_self = user_id == current_user_id
+        is_self = str(user_id) == str(current_user_id)
 
         if not is_admin and not is_self:
             raise InsufficientUserPermissionsError(
