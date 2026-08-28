@@ -43,7 +43,7 @@ function logViolations(violations: AxeViolation[], screenName: string): void {
 
 async function runAxeAudit(
   page: import("@playwright/test").Page,
-  screenName: string
+  screenName: string,
 ): Promise<void> {
   const results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag22aa"])
@@ -56,12 +56,12 @@ async function runAxeAudit(
 
   expect(
     critical,
-    `${screenName}: Found ${critical.length} critical accessibility violation(s):\n${critical.map((v) => `  - ${v.id}: ${v.description}`).join("\n")}`
+    `${screenName}: Found ${critical.length} critical accessibility violation(s):\n${critical.map((v) => `  - ${v.id}: ${v.description}`).join("\n")}`,
   ).toHaveLength(0);
 
   expect(
     serious,
-    `${screenName}: Found ${serious.length} serious accessibility violation(s):\n${serious.map((v) => `  - ${v.id}: ${v.description}`).join("\n")}`
+    `${screenName}: Found ${serious.length} serious accessibility violation(s):\n${serious.map((v) => `  - ${v.id}: ${v.description}`).join("\n")}`,
   ).toHaveLength(0);
 }
 
@@ -104,7 +104,7 @@ test.describe("Accessibility: Authenticated Screens", () => {
     await page.goto("/jobs");
     await page.waitForTimeout(1000);
     const firstJobLink = page.locator("a[href^='/jobs/']").first();
-    if (await firstJobLink.count() > 0) {
+    if ((await firstJobLink.count()) > 0) {
       await firstJobLink.click();
       await page.waitForLoadState("networkidle");
       await page.waitForTimeout(1000);
@@ -118,7 +118,7 @@ test.describe("Accessibility: Authenticated Screens", () => {
     await page.goto("/jobs");
     await page.waitForTimeout(1000);
     const firstJobLink = page.locator("a[href^='/jobs/']").first();
-    if (await firstJobLink.count() > 0) {
+    if ((await firstJobLink.count()) > 0) {
       const href = await firstJobLink.getAttribute("href");
       if (href) {
         await page.goto(`${href}/edit`);
@@ -141,7 +141,7 @@ test.describe("Accessibility: Authenticated Screens", () => {
     await page.goto("/candidates");
     await page.waitForTimeout(1000);
     const firstRow = page.locator("tbody tr").first();
-    if (await firstRow.count() > 0) {
+    if ((await firstRow.count()) > 0) {
       await firstRow.click();
       await page.waitForLoadState("networkidle");
       await page.waitForTimeout(1000);
