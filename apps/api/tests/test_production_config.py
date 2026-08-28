@@ -1,5 +1,6 @@
 """Production deployment configuration, health probes, and readiness validation tests per Phase 18."""
 
+from collections.abc import Generator
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -11,7 +12,12 @@ from hiron.main import create_app
 
 def test_production_settings_defaults() -> None:
     """Verify settings properties and environment detection."""
-    settings = Settings(environment="production", worker_url="https://worker.hiron.dev", gemini_api_key="dummy_key")
+    settings = Settings(
+        environment="production",
+        worker_url="https://worker.hiron.dev",
+        gemini_api_key="dummy_key",
+        app_base_url="https://app.hiron.dev",
+    )
     assert settings.is_production is True
     assert settings.environment == "production"
 
@@ -64,7 +70,12 @@ async def test_health_readiness_endpoint_not_ready() -> None:
 
 def test_openapi_docs_disabled_in_production() -> None:
     """Verify OpenAPI /docs and /redoc are disabled when environment is production."""
-    prod_settings = Settings(environment="production", worker_url="https://worker.hiron.dev", gemini_api_key="dummy_key")
+    prod_settings = Settings(
+        environment="production",
+        worker_url="https://worker.hiron.dev",
+        gemini_api_key="dummy_key",
+        app_base_url="https://app.hiron.dev",
+    )
 
     with patch("hiron.main.get_settings", return_value=prod_settings):
         prod_app = create_app()
@@ -79,7 +90,12 @@ def test_openapi_docs_disabled_in_production() -> None:
 
 def test_production_security_headers() -> None:
     """Verify security headers middleware attaches HSTS, CSP, and framing headers."""
-    prod_settings = Settings(environment="production", worker_url="https://worker.hiron.dev", gemini_api_key="dummy_key")
+    prod_settings = Settings(
+        environment="production",
+        worker_url="https://worker.hiron.dev",
+        gemini_api_key="dummy_key",
+        app_base_url="https://app.hiron.dev",
+    )
     with patch("hiron.security.middleware.get_settings", return_value=prod_settings):
         app = create_app()
         client = TestClient(app)
@@ -91,9 +107,10 @@ def test_production_security_headers() -> None:
 
 
 @pytest.fixture(autouse=True)
-def clear_settings_cache():
+def clear_settings_cache() -> Generator[None, None, None]:
     """Clear the lru_cache on get_settings before and after each test."""
     from hiron.core.config import get_settings
+
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()
@@ -101,7 +118,9 @@ def clear_settings_cache():
 
 def test_production_missing_gemini_key_fails() -> None:
     with pytest.raises(ValueError, match="GEMINI_API_KEY is required in production environment"):
-        Settings(environment="production", worker_url="https://worker.hiron.dev", gemini_api_key=None)
+        Settings(
+            environment="production", worker_url="https://worker.hiron.dev", gemini_api_key=None
+        )
 
 
 def test_production_empty_gemini_key_fails() -> None:
@@ -110,7 +129,12 @@ def test_production_empty_gemini_key_fails() -> None:
 
 
 def test_production_valid_gemini_key_succeeds() -> None:
-    settings = Settings(environment="production", worker_url="https://worker.hiron.dev", gemini_api_key="secret_valid_key")
+    settings = Settings(
+        environment="production",
+        worker_url="https://worker.hiron.dev",
+        gemini_api_key="secret_valid_key",
+        app_base_url="https://app.hiron.dev",
+    )
     assert settings.gemini_api_key == "secret_valid_key"
 
 
