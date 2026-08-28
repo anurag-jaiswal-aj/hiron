@@ -13,6 +13,9 @@ from hiron.embeddings.service import EmbeddingService
 from hiron.scores.schemas import BatchScoreWorkerWebhookPayload
 from hiron.scores.service import ScoreService
 from hiron.webhooks.qstash_auth import verify_qstash_signature
+from hiron.auth.schemas import ForgotPasswordWebhookPayload
+from hiron.auth.service import AuthService
+from hiron.core.email import get_email_adapter
 
 logger = structlog.get_logger("hiron.webhooks.router")
 
@@ -44,7 +47,7 @@ async def qstash_test_webhook(request: Request) -> dict[str, str]:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Malformed payload",
-        )
+        ) from e
 
     logger.info("Received authenticated QStash test webhook", message_id=parsed.message_id)
 
@@ -55,6 +58,50 @@ async def qstash_test_webhook(request: Request) -> dict[str, str]:
 
 
 from typing import Any
+
+
+@router.post("/qstash/auth/forgot-password", dependencies=[Depends(verify_qstash_signature)])
+async def qstash_forgot_password_webhook(
+    request: Request,
+    session: AsyncSession = Depends(get_db_session),
+) -> dict[str, Any]:
+    """Webhook to securely generate a password reset token and send an email."""
+    body_bytes = await request.body()
+    try:
+        parsed = ForgotPasswordWebhookPayload.model_validate_json(body_bytes)
+    except ValidationError as e:
+        logger.warning("Malformed JSON in forgot-password webhook", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Malformed payload",
+        ) from e
+
+    auth_service = AuthService()
+
+    try:
+        raw_token = await auth_service.generate_password_reset_token(
+            session=session,
+            email=parsed.email,
+            tenant_id=parsed.tenant_id,
+        )
+
+        if raw_token:
+            email_adapter = get_email_adapter()
+            await email_adapter.send_password_reset_email(
+                to_email=parsed.email,
+                raw_token=raw_token,
+            )
+
+        return {"status": "success"}
+
+    except Exception as e:
+        from hiron.core.email import EmailDeliveryError
+        if isinstance(e, EmailDeliveryError):
+            logger.error("Email provider failed, QStash will retry", error=str(e))
+            raise HTTPException(status_code=500, detail="Email delivery failed") from e
+
+        logger.error("Failed to process forgot password webhook", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/qstash/embeddings/candidate", dependencies=[Depends(verify_qstash_signature)])
@@ -71,7 +118,7 @@ async def qstash_candidate_embedding_webhook(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Malformed payload",
-        )
+        ) from e
 
     tenant_id = parsed.tenant_id
     candidate_id = parsed.candidate_id
@@ -101,7 +148,7 @@ async def qstash_candidate_embedding_webhook(
         # Reraise so QStash handles retries based on status code
         if isinstance(e, HTTPException):
             raise
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/qstash/embeddings/job", dependencies=[Depends(verify_qstash_signature)])
@@ -118,7 +165,7 @@ async def qstash_job_embedding_webhook(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Malformed payload",
-        )
+        ) from e
 
     tenant_id = parsed.tenant_id
     job_id = parsed.job_id
@@ -146,7 +193,7 @@ async def qstash_job_embedding_webhook(
         # Reraise so QStash handles retries based on status code
         if isinstance(e, HTTPException):
             raise
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/qstash/scores/batch/worker", dependencies=[Depends(verify_qstash_signature)])
@@ -215,10 +262,10 @@ async def qstash_batch_score_worker_webhook(
         if isinstance(e, httpx.HTTPStatusError):
             if e.response.status_code == 429:
                 # Quota limit -> 429 Too Many Requests -> QStash retries
-                raise HTTPException(status_code=429, detail="AI Provider rate limit exceeded")
+                raise HTTPException(status_code=429, detail="AI Provider rate limit exceeded") from e
             if e.response.status_code >= 500:
                 # AI Internal Error / Bad Gateway -> 503 Service Unavailable -> QStash retries
-                raise HTTPException(status_code=503, detail="AI Provider transient error")
+                raise HTTPException(status_code=503, detail="AI Provider transient error") from e
 
             # AI Schema Error / 400 Bad Request -> 200 OK (Ack)
             await service.score_repo.claim_batch_score_worker_failure(
@@ -248,7 +295,7 @@ async def qstash_batch_score_worker_webhook(
             raise
 
         # All other unhandled exceptions: 500 -> QStash retries
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 from hiron.core.config import get_settings
@@ -341,6 +388,6 @@ async def qstash_batch_score_coordinator_webhook(
             # Don't update batch counters, let QStash retry the coordinator
             raise HTTPException(
                 status_code=500, detail=f"Failed to enqueue worker for {candidate_id}"
-            )
+            ) from e
 
     return {"status": "processing", "fan_out_count": len(parsed.candidate_ids)}

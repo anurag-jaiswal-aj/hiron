@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Cookie, Depends, Request, Response, status
+from fastapi import APIRouter, Cookie, Depends, Request, Response, status, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hiron.auth.dependencies import get_current_user
@@ -23,6 +23,7 @@ from hiron.core.config import get_settings
 from hiron.core.database import get_db_session
 from hiron.users.models import User
 from hiron.common.exceptions import RateLimitExceededException
+from hiron.core.qstash_client import qstash_publisher
 import time
 
 router = APIRouter()
@@ -175,6 +176,10 @@ async def forgot_password(
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
 ) -> ResponseEnvelope[MessageData]:
     """Request a password reset token for the given email and tenant."""
+    import structlog
+    logger = structlog.get_logger("hiron.api.auth.router")
+    settings = get_settings()
+
     # Account-level rate limiting
     normalized_email = request_data.email.lower().strip()
     window_duration = 900  # 15 minutes
@@ -194,20 +199,28 @@ async def forgot_password(
             raise
         # Log failure but allow request if Redis fails, to prevent outages
         # RateLimitMiddleware does the same.
-        import structlog
-
-        logger = structlog.get_logger("hiron.api.auth.router")
         logger.error("Account rate limiter failed", error=str(e))
 
-    # Generate token (returns None if user not found, but we pretend it worked to prevent enumeration)
-    raw_token = await auth_service.generate_password_reset_token(
-        session=db,
-        email=request_data.email,
-        tenant_id=request_data.tenant_id,
-    )
+    # Publish webhook payload instead of synchronous token generation
+    if not settings.qstash_webhook_url:
+        logger.error("qstash_webhook_url is required to publish password reset emails")
+        raise HTTPException(status_code=500, detail="QStash webhook URL not configured")
 
-    # TODO: In future phases, dispatch an email here using QStash/Resend.
-    # We do NOT send an email or log the raw token in Phase 10.3.
+    payload = {"email": normalized_email, "tenant_id": str(request_data.tenant_id)}
+
+    webhook_url = (
+        f"{settings.qstash_webhook_url.rstrip('/')}/api/v1/webhooks/qstash/auth/forgot-password"
+    )
+    try:
+        await qstash_publisher.publish(
+            url=webhook_url,
+            payload=payload,
+            deduplication_id=f"forgot-password-{normalized_email}-{window_time}",
+        )
+    except Exception as e:
+        logger.error("Failed to publish forgot password webhook", error=str(e))
+        # Depending on convention, we return 500 if we cannot publish to QStash
+        raise HTTPException(status_code=500, detail="Failed to enqueue forgot password request") from e
 
     return ResponseEnvelope(
         data=MessageData(

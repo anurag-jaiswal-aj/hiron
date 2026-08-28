@@ -52,6 +52,13 @@ class ForgotPasswordRequest(HironBaseModel):
     tenant_id: uuid.UUID = Field(..., description="Tenant primary key UUID")
 
 
+class ForgotPasswordWebhookPayload(HironBaseModel):
+    """Payload for async QStash forgot-password webhook."""
+
+    email: EmailStr = Field(..., description="User email address", max_length=320)
+    tenant_id: uuid.UUID = Field(..., description="Tenant primary key UUID")
+
+
 class ResetPasswordRequest(HironBaseModel):
     """Request payload for POST /api/v1/auth/reset-password."""
 

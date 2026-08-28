@@ -42,6 +42,10 @@ class Settings(BaseSettings):
                 raise ValueError("WORKER_URL is required in production environment")
             if not self.gemini_api_key:
                 raise ValueError("GEMINI_API_KEY is required in production environment")
+            if self.email_provider == "resend" and not self.resend_api_key:
+                raise ValueError("RESEND_API_KEY is required in production when using resend")
+            if self.app_base_url == "http://localhost:3000" or self.app_base_url == "":
+                raise ValueError("APP_BASE_URL must be a real domain in production")
         return self
 
     model_config = SettingsConfigDict(
@@ -160,6 +164,21 @@ class Settings(BaseSettings):
     def is_production(self) -> bool:
         """Return True if running in production environment."""
         return self.environment == "production"
+
+    # 7. Email Configuration
+    email_provider: Literal["console", "resend"] = Field(
+        default="console", description="Email delivery adapter to use"
+    )
+    resend_api_key: str | None = Field(
+        default=None, repr=False, description="Resend API Key for transactional emails"
+    )
+    email_from_address: str = Field(
+        default="noreply@localhost", description="Default sender email address"
+    )
+    email_from_name: str = Field(default="Hiron Support", description="Default sender name")
+    app_base_url: str = Field(
+        default="http://localhost:3000", description="Base URL of the frontend application"
+    )
 
 
 @lru_cache

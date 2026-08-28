@@ -38,57 +38,74 @@ def client(
     mock_auth_service: AsyncMock, mock_redis: AsyncMock
 ) -> Generator[TestClient, None, None]:
     app.dependency_overrides[get_auth_service] = lambda: mock_auth_service
-    with patch.object(app_cache, "_get_redis", return_value=mock_redis), TestClient(app) as client:
+    from hiron.core.config import get_settings
+
+    settings = get_settings()
+    original_url = settings.qstash_webhook_url
+    settings.qstash_webhook_url = "http://localhost:8000"
+
+    with patch("hiron.core.cache.CacheManager._get_redis", return_value=mock_redis), TestClient(app) as client:
         yield client
+
+    settings.qstash_webhook_url = original_url
     app.dependency_overrides.clear()
 
 
-def test_forgot_password_success(client: TestClient, mock_auth_service: AsyncMock) -> None:
-    """Test forgot-password below rate limit succeeds and returns generic response."""
-    mock_auth_service.generate_password_reset_token.return_value = "fake_token"
+def test_forgot_password_success(client: TestClient) -> None:
+    """Test forgot-password below rate limit succeeds and publishes to QStash."""
 
-    response = client.post(
-        "/api/v1/auth/forgot-password",
-        json={"email": "user@example.com", "tenant_id": str(uuid.uuid4())},
-    )
-
-    assert response.status_code == status.HTTP_202_ACCEPTED
-    assert "password reset link" in response.json()["data"]["message"]
-    mock_auth_service.generate_password_reset_token.assert_called_once()
-
-
-def test_forgot_password_nonexistent_user(client: TestClient, mock_auth_service: AsyncMock) -> None:
-    """Test forgot-password for nonexistent user does not enumerate."""
-    mock_auth_service.generate_password_reset_token.return_value = None
-
-    response = client.post(
-        "/api/v1/auth/forgot-password",
-        json={"email": "nobody@example.com", "tenant_id": str(uuid.uuid4())},
-    )
+    with patch(
+        "hiron.auth.router.qstash_publisher.publish", new_callable=AsyncMock
+    ) as mock_publish:
+        response = client.post(
+            "/api/v1/auth/forgot-password",
+            json={"email": "user@example.com", "tenant_id": str(uuid.uuid4())},
+            headers={"X-Forwarded-For": "1.1.1.1"},
+        )
 
     assert response.status_code == status.HTTP_202_ACCEPTED
     assert "password reset link" in response.json()["data"]["message"]
-    mock_auth_service.generate_password_reset_token.assert_called_once()
+    mock_publish.assert_called_once()
+    payload = mock_publish.call_args.kwargs["payload"]
+    assert payload["email"] == "user@example.com"
+    assert "tenant_id" in payload
+    assert "token" not in payload
 
 
-def test_forgot_password_rate_limit_exceeded(
-    client: TestClient, mock_auth_service: AsyncMock, mock_redis: AsyncMock
-) -> None:
+def test_forgot_password_publish_failure(client: TestClient) -> None:
+    """Test forgot-password handles publish failures securely."""
+    with patch(
+        "hiron.auth.router.qstash_publisher.publish", new_callable=AsyncMock
+    ) as mock_publish:
+        mock_publish.side_effect = Exception("QStash is down")
+
+        response = client.post(
+            "/api/v1/auth/forgot-password",
+            json={"email": "nobody@example.com", "tenant_id": str(uuid.uuid4())},
+            headers={"X-Forwarded-For": "1.1.1.2"},
+        )
+
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    mock_publish.assert_called_once()
+
+
+def test_forgot_password_rate_limit_exceeded(client: TestClient, mock_redis: AsyncMock) -> None:
     """Test forgot-password rejects request over limit."""
-    mock_auth_service.generate_password_reset_token.return_value = "fake_token"
 
     # Mock redis to simulate exceeding the limit
     pipe_mock = AsyncMock()
     pipe_mock.execute.return_value = [6]  # over 5
     mock_redis.pipeline = MagicMock(return_value=pipe_mock)
 
-    response = client.post(
-        "/api/v1/auth/forgot-password",
-        json={"email": "spammer@example.com", "tenant_id": str(uuid.uuid4())},
-    )
+    with patch(
+        "hiron.auth.router.qstash_publisher.publish", new_callable=AsyncMock
+    ) as mock_publish:
+        response = client.post(
+            "/api/v1/auth/forgot-password",
+            json={"email": "spammer@example.com", "tenant_id": str(uuid.uuid4())},
+            headers={"X-Forwarded-For": "1.1.1.3"},
+        )
 
     assert response.status_code == status.HTTP_429_TOO_MANY_REQUESTS
     assert response.json()["error"]["code"] == "RATE_LIMIT_EXCEEDED"
-
-    # Should block before calling the service
-    mock_auth_service.generate_password_reset_token.assert_not_called()
+    mock_publish.assert_not_called()
