@@ -43,3 +43,23 @@ class RefreshTokenData(HironBaseModel):
     access_token: str
     token_type: str = "Bearer"
     expires_in: int
+
+
+class ForgotPasswordRequest(HironBaseModel):
+    """Request payload for POST /api/v1/auth/forgot-password."""
+
+    email: EmailStr = Field(..., description="User email address", max_length=320)
+    tenant_id: uuid.UUID = Field(..., description="Tenant primary key UUID")
+
+
+class ResetPasswordRequest(HironBaseModel):
+    """Request payload for POST /api/v1/auth/reset-password."""
+
+    token: str = Field(..., description="Raw password reset token", min_length=32)
+    new_password: str = Field(..., description="New candidate password", min_length=8)
+
+
+class MessageData(HironBaseModel):
+    """Data payload for generic message responses."""
+
+    message: str

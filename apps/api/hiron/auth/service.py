@@ -2,6 +2,7 @@
 
 import hashlib
 import uuid
+import secrets
 from datetime import UTC, datetime, timedelta
 
 import structlog
@@ -10,11 +11,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from hiron.common.exceptions import HironException
 from hiron.core.config import get_settings
 from hiron.core.jwt import create_access_token, create_refresh_token, verify_token
-from hiron.core.security import verify_password
+from hiron.core.security import verify_password, hash_password
 from hiron.tokens.models import RefreshToken
 from hiron.tokens.repository import RefreshTokenRepository
 from hiron.users.models import User
 from hiron.users.repository import UserRepository
+from hiron.auth.models import PasswordResetToken
+from hiron.auth.repository import PasswordResetTokenRepository
 
 logger = structlog.get_logger("hiron.api.auth.service")
 
@@ -48,10 +51,12 @@ class AuthService:
         self,
         user_repo: UserRepository | None = None,
         token_repo: RefreshTokenRepository | None = None,
+        reset_token_repo: PasswordResetTokenRepository | None = None,
     ) -> None:
         """Initialize AuthService with injected repositories."""
         self.user_repo = user_repo or UserRepository()
         self.token_repo = token_repo or RefreshTokenRepository()
+        self.reset_token_repo = reset_token_repo or PasswordResetTokenRepository()
 
     async def authenticate_user(
         self,
@@ -237,3 +242,74 @@ class AuthService:
             token_hash = hashlib.sha256(raw_refresh_token.encode("utf-8")).hexdigest()
             await self.token_repo.revoke_by_token_hash(session, token_hash)
             await session.commit()
+
+    async def generate_password_reset_token(
+        self, session: AsyncSession, email: str, tenant_id: uuid.UUID
+    ) -> str | None:
+        """Generate a password reset token for a given email and tenant if the user exists.
+
+        Args:
+            session: Active AsyncSession database handle.
+            email: Candidate user email.
+            tenant_id: Target tenant UUID context.
+
+        Returns:
+            The raw URL-safe reset token string if the user exists and is active, else None.
+        """
+        user = await self.user_repo.get_by_email_and_tenant(
+            session=session,
+            email=email,
+            tenant_id=tenant_id,
+        )
+
+        if not user or not user.is_active:
+            return None
+
+        raw_token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+
+        reset_token_entity = PasswordResetToken(
+            user_id=user.id,
+            token_hash=token_hash,
+            expires_at=datetime.now(UTC) + timedelta(minutes=30),
+        )
+
+        await self.reset_token_repo.create(session=session, token=reset_token_entity)
+        await session.commit()
+
+        return raw_token
+
+    async def reset_password(self, session: AsyncSession, token: str, new_password: str) -> None:
+        """Validate a reset token and update the user's password.
+
+        Args:
+            session: Active AsyncSession database handle.
+            token: Raw password reset token string.
+            new_password: New candidate password.
+
+        Raises:
+            AuthenticationError: On missing, expired, or used token, or user inactive.
+        """
+        token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+        stored_token = await self.reset_token_repo.get_by_token_hash(session, token_hash)
+        if not stored_token or stored_token.used_at or stored_token.expires_at < datetime.now(UTC):
+            raise AuthenticationError("Invalid or expired password reset token")
+
+        # Atomically mark token as used to prevent race conditions/replay
+        marked = await self.reset_token_repo.mark_used(session, token_hash)
+        if not marked:
+            raise AuthenticationError("Invalid or expired password reset token")
+
+        # Get user
+        user = await session.get(User, stored_token.user_id)
+        if not user or not user.is_active:
+            raise AccountDisabledError("User account is deactivated")
+
+        # Hash and update password
+        user.password_hash = hash_password(new_password)
+
+        # Revoke all active refresh tokens for the user
+        await self.token_repo.revoke_all_for_user(session, user.id)
+
+        await session.commit()

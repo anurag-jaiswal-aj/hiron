@@ -173,9 +173,16 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         ]:
             return await call_next(request)
 
-        limit = settings.rate_limit_requests_per_minute
-        if limit <= 0:
-            return await call_next(request)
+        path = request.url.path
+
+        if path == "/api/v1/auth/forgot-password":
+            limit = 5
+            window_duration = 900  # 15 minutes
+        else:
+            limit = settings.rate_limit_requests_per_minute
+            window_duration = 60  # 1 minute
+            if limit <= 0:
+                return await call_next(request)
 
         # Resolve direct peer IP
         direct_ip = request.client.host if request.client else "127.0.0.1"
@@ -188,8 +195,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 # The true client IP is usually the first in the comma-separated list
                 client_ip = forwarded.split(",")[0].strip()
 
-        current_minute = int(time.time() / 60)
-        window_key = f"rate_limit:ip:{client_ip}:{current_minute}"
+        window_time = int(time.time() / window_duration)
+        if path == "/api/v1/auth/forgot-password":
+            window_key = f"rate_limit:forgot_pwd:ip:{client_ip}:{window_time}"
+        else:
+            window_key = f"rate_limit:ip:{client_ip}:{window_time}"
 
         try:
             cache = CacheManager()
@@ -197,7 +207,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
             pipe = redis_client.pipeline()
             pipe.incr(window_key)
-            pipe.expire(window_key, 60)
+            pipe.expire(window_key, window_duration)
             result = await pipe.execute()
 
             request_count = result[0]
@@ -218,7 +228,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                             "message": "Rate limit exceeded. Try again later.",
                         }
                     },
-                    headers={"Retry-After": "60"},
+                    headers={"Retry-After": str(window_duration)},
                 )
         except Exception as e:
             logger.error("Rate limiter failed", error=str(e))

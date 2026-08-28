@@ -19,6 +19,8 @@ if str(api_root) not in sys.path:
 from hiron.common.models import Base
 from hiron.core.config import get_settings
 
+from hiron.auth.models import PasswordResetToken
+
 # ==============================================================================
 # MODEL DISCOVERY REGISTRY FOR ALEMBIC AUTOGENERATE
 # ==============================================================================

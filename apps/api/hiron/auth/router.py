@@ -6,13 +6,24 @@ from fastapi import APIRouter, Cookie, Depends, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hiron.auth.dependencies import get_current_user
-from hiron.auth.schemas import LoginData, LoginRequest, RefreshTokenData, UserAuthPayload
+from hiron.auth.schemas import (
+    LoginData,
+    LoginRequest,
+    RefreshTokenData,
+    UserAuthPayload,
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
+    MessageData,
+)
 from hiron.auth.service import AuthService
 from hiron.common.exceptions import ValidationException
 from hiron.common.schemas import ResponseEnvelope
+from hiron.core.cache import app_cache
 from hiron.core.config import get_settings
 from hiron.core.database import get_db_session
 from hiron.users.models import User
+from hiron.common.exceptions import RateLimitExceededException
+import time
 
 router = APIRouter()
 
@@ -150,3 +161,81 @@ async def get_me(
 ) -> ResponseEnvelope[UserAuthPayload]:
     """Return currently authenticated user profile per API Contract §AUTH-4."""
     return ResponseEnvelope(data=UserAuthPayload.model_validate(current_user))
+
+
+@router.post(
+    "/forgot-password",
+    response_model=ResponseEnvelope[MessageData],
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Request a password reset link",
+)
+async def forgot_password(
+    request_data: ForgotPasswordRequest,
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+    auth_service: Annotated[AuthService, Depends(get_auth_service)],
+) -> ResponseEnvelope[MessageData]:
+    """Request a password reset token for the given email and tenant."""
+    # Account-level rate limiting
+    normalized_email = request_data.email.lower().strip()
+    window_duration = 900  # 15 minutes
+    window_time = int(time.time() / window_duration)
+    email_key = f"rate_limit:forgot_pwd:email:{normalized_email}:{window_time}"
+
+    redis_client = app_cache._get_redis()
+    pipe = redis_client.pipeline()
+    pipe.incr(email_key)
+    pipe.expire(email_key, window_duration)
+    try:
+        result = await pipe.execute()
+        if result[0] > 5:
+            raise RateLimitExceededException()
+    except Exception as e:
+        if isinstance(e, RateLimitExceededException):
+            raise
+        # Log failure but allow request if Redis fails, to prevent outages
+        # RateLimitMiddleware does the same.
+        import structlog
+
+        logger = structlog.get_logger("hiron.api.auth.router")
+        logger.error("Account rate limiter failed", error=str(e))
+
+    # Generate token (returns None if user not found, but we pretend it worked to prevent enumeration)
+    raw_token = await auth_service.generate_password_reset_token(
+        session=db,
+        email=request_data.email,
+        tenant_id=request_data.tenant_id,
+    )
+
+    # TODO: In future phases, dispatch an email here using QStash/Resend.
+    # We do NOT send an email or log the raw token in Phase 10.3.
+
+    return ResponseEnvelope(
+        data=MessageData(
+            message="If an account exists for that email, a password reset link has been sent."
+        )
+    )
+
+
+@router.post(
+    "/reset-password",
+    response_model=ResponseEnvelope[MessageData],
+    status_code=status.HTTP_200_OK,
+    summary="Reset password using a valid token",
+)
+async def reset_password(
+    request_data: ResetPasswordRequest,
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+    auth_service: Annotated[AuthService, Depends(get_auth_service)],
+) -> ResponseEnvelope[MessageData]:
+    """Validate reset token and update password."""
+    await auth_service.reset_password(
+        session=db,
+        token=request_data.token,
+        new_password=request_data.new_password,
+    )
+
+    return ResponseEnvelope(
+        data=MessageData(
+            message="Password has been reset successfully. Please log in with your new password."
+        )
+    )
