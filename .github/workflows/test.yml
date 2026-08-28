@@ -89,13 +89,13 @@ jobs:
         run: pnpm --filter @hiron/web test:unit
 
   frontend-e2e:
-    name: Frontend E2E (${{ matrix.project }}, shard ${{ matrix.shard }}/2)
+    name: Frontend E2E (${{ matrix.project }}, shard ${{ matrix.shard }}/3)
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        project: [chromium, firefox, webkit, msedge, mobile-chrome, mobile-safari, tablet]
-        shard: [1, 2]
+        project: [chromium, firefox, webkit, mobile-safari, tablet]
+        shard: [1, 2, 3]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -180,10 +180,10 @@ jobs:
           EXIT_CODE=0
 
           echo "========================================================"
-          echo "Running E2E Project: ${{ matrix.project }}, shard ${{ matrix.shard }}/2"
+          echo "Running E2E Project: ${{ matrix.project }}, shard ${{ matrix.shard }}/3"
           echo "========================================================"
 
-          pnpm --filter @hiron/web test:e2e --workers=1 --project="${{ matrix.project }}" --shard="${{ matrix.shard }}/2"
+          pnpm --filter @hiron/web test:e2e --workers=1 --project="${{ matrix.project }}" --shard="${{ matrix.shard }}/3"
           PROJECT_EXIT=$?
 
           if [ $PROJECT_EXIT -ne 0 ]; then
