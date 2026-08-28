@@ -12,6 +12,7 @@ export function Sidebar(): React.ReactElement {
 
   const canViewAuditLogs = user?.role === "org_admin" || user?.role === "recruiter";
   const canViewAiUsage = user?.role === "org_admin";
+  const canViewSettings = user?.role === "org_admin";
 
   const navItems = [
     { label: "Overview", href: "/" },
@@ -20,6 +21,7 @@ export function Sidebar(): React.ReactElement {
     { label: "Team", href: "/users" },
     ...(canViewAuditLogs ? [{ label: "Audit Logs", href: "/audit-logs" }] : []),
     ...(canViewAiUsage ? [{ label: "AI Usage", href: "/ai-usage" }] : []),
+    ...(canViewSettings ? [{ label: "Settings", href: "/settings" }] : []),
   ];
 
   return (

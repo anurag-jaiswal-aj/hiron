@@ -138,9 +138,11 @@ def test_list_tenants_endpoint_success(client: TestClient, mock_tenant_service: 
     assert data[0]["slug"] == "t1"
 
 
-def test_get_tenant_endpoint_success(client: TestClient, mock_tenant_service: AsyncMock) -> None:
+def test_get_tenant_endpoint_success(
+    client: TestClient, mock_tenant_service: AsyncMock, mock_admin_user: User
+) -> None:
     """Verify GET /api/v1/tenants/{id} returns tenant details for authenticated user."""
-    tenant_id = uuid.uuid4()
+    tenant_id = mock_admin_user.tenant_id
     now = datetime.now(UTC)
     mock_tenant = Tenant(
         id=tenant_id,
@@ -161,20 +163,24 @@ def test_get_tenant_endpoint_success(client: TestClient, mock_tenant_service: As
     assert data["id"] == str(tenant_id)
 
 
-def test_get_tenant_not_found(client: TestClient, mock_tenant_service: AsyncMock) -> None:
+def test_get_tenant_not_found(
+    client: TestClient, mock_tenant_service: AsyncMock, mock_admin_user: User
+) -> None:
     """Verify GET /api/v1/tenants/{id} returns 404 when tenant is missing."""
     mock_tenant_service.get_tenant_by_id.side_effect = TenantNotFoundError()
 
-    response = client.get(f"/api/v1/tenants/{uuid.uuid4()}")
+    response = client.get(f"/api/v1/tenants/{mock_admin_user.tenant_id}")
 
     assert response.status_code == 404
     payload = response.json()
     assert payload["error"]["code"] == "TENANT_NOT_FOUND"
 
 
-def test_update_tenant_endpoint_success(client: TestClient, mock_tenant_service: AsyncMock) -> None:
+def test_update_tenant_endpoint_success(
+    client: TestClient, mock_tenant_service: AsyncMock, mock_admin_user: User
+) -> None:
     """Verify PATCH /api/v1/tenants/{id} updates tenant and returns 200 OK for org_admin user."""
-    tenant_id = uuid.uuid4()
+    tenant_id = mock_admin_user.tenant_id
     now = datetime.now(UTC)
     updated = Tenant(
         id=tenant_id,
@@ -197,9 +203,11 @@ def test_update_tenant_endpoint_success(client: TestClient, mock_tenant_service:
     assert data["name"] == "Acme Inc"
 
 
-def test_delete_tenant_endpoint_success(client: TestClient, mock_tenant_service: AsyncMock) -> None:
+def test_delete_tenant_endpoint_success(
+    client: TestClient, mock_tenant_service: AsyncMock, mock_admin_user: User
+) -> None:
     """Verify DELETE /api/v1/tenants/{id} returns 204 No Content for org_admin user."""
-    tenant_id = uuid.uuid4()
+    tenant_id = mock_admin_user.tenant_id
 
     response = client.delete(f"/api/v1/tenants/{tenant_id}")
 
@@ -229,3 +237,28 @@ def test_tenant_api_rbac_forbidden_for_non_admin(
         assert response.status_code == 403
         payload = response.json()
         assert payload["error"]["code"] == "INSUFFICIENT_PERMISSIONS"
+
+
+def test_tenant_api_cross_tenant_forbidden(client: TestClient, mock_tenant_service: AsyncMock) -> None:
+    """Verify that an org_admin cannot access or update another tenant's data."""
+    other_tenant_id = uuid.uuid4()
+
+    # 1. Test GET cross-tenant
+    response = client.get(f"/api/v1/tenants/{other_tenant_id}")
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "INSUFFICIENT_PERMISSIONS"
+
+    # 2. Test PATCH cross-tenant
+    response = client.patch(
+        f"/api/v1/tenants/{other_tenant_id}",
+        json={"name": "Hacked Tenant"},
+    )
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "INSUFFICIENT_PERMISSIONS"
+    mock_tenant_service.update_tenant.assert_not_awaited()
+
+    # 3. Test DELETE cross-tenant
+    response = client.delete(f"/api/v1/tenants/{other_tenant_id}")
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "INSUFFICIENT_PERMISSIONS"
+    mock_tenant_service.delete_tenant.assert_not_awaited()

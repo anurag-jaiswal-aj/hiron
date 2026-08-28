@@ -1,25 +1,27 @@
 import { Page, expect } from "@playwright/test";
 import { execSync } from "child_process";
 
-let cachedTenantId: string | null = null;
-
-async function getTenantId(): Promise<string> {
-  if (cachedTenantId) return cachedTenantId;
-
+async function getTenantId(email: string): Promise<string> {
+  // Try to use a known tenant if we can't reliably get the user's tenant
   let output = "";
   try {
     output = execSync(
-      'docker exec hiron-postgres psql -U hiron_user -d hiron_dev -t -c "SELECT id FROM tenants LIMIT 1;"',
+      `docker exec hiron-postgres psql -U hiron_user -d hiron_dev -t -c "SELECT tenant_id FROM users WHERE email = '${email}' LIMIT 1;"`,
     ).toString();
 
     const match = output.match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i);
 
     if (!match) {
+      // Fallback
+      output = execSync(
+        'docker exec hiron-postgres psql -U hiron_user -d hiron_dev -t -c "SELECT id FROM tenants WHERE slug = \'acme\' LIMIT 1;"',
+      ).toString();
+      const fallbackMatch = output.match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i);
+      if (fallbackMatch) return fallbackMatch[0];
       throw new Error(`Failed to extract tenant UUID from docker/psql output: ${output}`);
     }
 
-    cachedTenantId = match[0];
-    return cachedTenantId;
+    return match[0];
   } catch (error) {
     console.error("Failed to fetch tenant ID from DB:", error);
     throw new Error(`Could not determine tenant ID. Original output was: ${output}`);
@@ -32,7 +34,7 @@ export async function loginAs(
   password: string = "SecurePassword123!",
   tenantId?: string,
 ): Promise<string | null> {
-  const effectiveTenantId = tenantId || (await getTenantId());
+  const effectiveTenantId = tenantId || (await getTenantId(email));
 
   await page.context().clearCookies();
   await page.goto("/login");

@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hiron.auth.dependencies import get_current_user, require_role
+from hiron.common.exceptions import PermissionDeniedException
 from hiron.common.schemas import ResponseEnvelope
 from hiron.core.database import get_db_session
 from hiron.tenants.schemas import TenantCreateRequest, TenantResponse, TenantUpdateRequest
@@ -73,10 +74,14 @@ async def list_tenants(
 )
 async def get_tenant(
     tenant_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
     tenant_service: Annotated[TenantService, Depends(get_tenant_service)],
 ) -> ResponseEnvelope[TenantResponse]:
     """Fetch tenant details by ID. Requires authentication."""
+    if str(tenant_id) != str(current_user.tenant_id):
+        raise PermissionDeniedException("You do not have permission to access this tenant")
+
     tenant = await tenant_service.get_tenant_by_id(session=db, tenant_id=tenant_id)
     return ResponseEnvelope(data=TenantResponse.model_validate(tenant))
 
@@ -96,6 +101,9 @@ async def update_tenant(
     tenant_service: Annotated[TenantService, Depends(get_tenant_service)],
 ) -> ResponseEnvelope[TenantResponse]:
     """Update tenant organization attributes. Requires org_admin role."""
+    if str(tenant_id) != str(current_user.tenant_id):
+        raise PermissionDeniedException("You do not have permission to modify this tenant")
+
     tenant = await tenant_service.update_tenant(
         session=db,
         tenant_id=tenant_id,
@@ -122,5 +130,8 @@ async def delete_tenant(
     tenant_service: Annotated[TenantService, Depends(get_tenant_service)],
 ) -> None:
     """Hard-delete tenant organization. Requires org_admin role."""
+    if str(tenant_id) != str(current_user.tenant_id):
+        raise PermissionDeniedException("You do not have permission to delete this tenant")
+
     await tenant_service.delete_tenant(session=db, tenant_id=tenant_id, user_id=current_user.id)
     return
