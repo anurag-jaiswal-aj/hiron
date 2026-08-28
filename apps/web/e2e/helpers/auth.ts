@@ -14,9 +14,11 @@ async function getTenantId(email: string): Promise<string> {
     if (!match) {
       // Fallback
       output = execSync(
-        'docker exec hiron-postgres psql -U hiron_user -d hiron_dev -t -c "SELECT id FROM tenants WHERE slug = \'acme\' LIMIT 1;"',
+        "docker exec hiron-postgres psql -U hiron_user -d hiron_dev -t -c \"SELECT id FROM tenants WHERE slug = 'acme' LIMIT 1;\"",
       ).toString();
-      const fallbackMatch = output.match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i);
+      const fallbackMatch = output.match(
+        /[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i,
+      );
       if (fallbackMatch) return fallbackMatch[0];
       throw new Error(`Failed to extract tenant UUID from docker/psql output: ${output}`);
     }
