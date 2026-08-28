@@ -12,6 +12,31 @@ import { loginAs } from "./helpers/auth";
 
 test.describe("Embedding Status Dashboard", () => {
   test("A. renders aggregate embedding metrics on the dashboard", async ({ page }) => {
+    await page.route("**/api/v1/dashboard/summary", async (route) => {
+      await route.fulfill({
+        status: 200,
+        json: {
+          data: {
+            metrics: {
+              openJobsCount: 1,
+              totalCandidatesCount: 1,
+              scoredCandidatesCount: 0,
+              shortlistedCandidatesCount: 0,
+              hiredCandidatesCount: 0,
+            },
+            pipelineOverview: [],
+            scoreDistribution: {
+              highFitCount: 0,
+              mediumFitCount: 0,
+              lowFitCount: 0,
+              totalScored: 0,
+            },
+            recentActivity: [],
+          },
+        },
+      });
+    });
+
     await page.route("**/api/v1/embeddings/status", async (route) => {
       await route.fulfill({
         status: 200,
@@ -426,6 +451,31 @@ test.describe("Responsive Embedding UI — 390px", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
   test("G1. dashboard embedding panel has no horizontal overflow", async ({ page }) => {
+    await page.route("**/api/v1/dashboard/summary", async (route) => {
+      await route.fulfill({
+        status: 200,
+        json: {
+          data: {
+            metrics: {
+              openJobsCount: 1,
+              totalCandidatesCount: 1,
+              scoredCandidatesCount: 0,
+              shortlistedCandidatesCount: 0,
+              hiredCandidatesCount: 0,
+            },
+            pipelineOverview: [],
+            scoreDistribution: {
+              highFitCount: 0,
+              mediumFitCount: 0,
+              lowFitCount: 0,
+              totalScored: 0,
+            },
+            recentActivity: [],
+          },
+        },
+      });
+    });
+
     await page.route("**/api/v1/embeddings/status", async (route) => {
       await route.fulfill({
         status: 200,

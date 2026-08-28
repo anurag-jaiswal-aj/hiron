@@ -38,6 +38,33 @@ async function snap(page: Page, name: string): Promise<void> {
 }
 
 // ── 1. LOGIN & AUTH ──────────────────────────────────────────────
+test.beforeEach(async ({ page }) => {
+  await page.route("**/api/v1/dashboard/summary", async (route) => {
+    await route.fulfill({
+      status: 200,
+      json: {
+        data: {
+          metrics: {
+            openJobsCount: 1,
+            totalCandidatesCount: 1,
+            scoredCandidatesCount: 0,
+            shortlistedCandidatesCount: 0,
+            hiredCandidatesCount: 0,
+          },
+          pipelineOverview: [],
+          scoreDistribution: {
+            highFitCount: 0,
+            mediumFitCount: 0,
+            lowFitCount: 0,
+            totalScored: 0,
+          },
+          recentActivity: [],
+        },
+      },
+    });
+  });
+});
+
 test("01 — Login page renders", async ({ page }) => {
   await page.goto("/login");
   await page.waitForLoadState("networkidle");
