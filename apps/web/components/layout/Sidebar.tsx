@@ -42,7 +42,14 @@ export function Sidebar(): React.ReactElement {
       <div>
         {/* Brand Header */}
         <div style={{ padding: "0.5rem 0.75rem", marginBottom: "2rem" }}>
-          <div style={{ fontSize: "1.125rem", fontWeight: 700, letterSpacing: "-0.02em", color: "var(--text-primary)" }}>
+          <div
+            style={{
+              fontSize: "1.125rem",
+              fontWeight: 700,
+              letterSpacing: "-0.02em",
+              color: "var(--text-primary)",
+            }}
+          >
             HIRON
           </div>
           <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>
@@ -103,7 +110,9 @@ export function Sidebar(): React.ReactElement {
           >
             {user?.fullName || user?.email}
           </div>
-          <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", textTransform: "capitalize" }}>
+          <div
+            style={{ fontSize: "0.75rem", color: "var(--text-muted)", textTransform: "capitalize" }}
+          >
             {user?.role ? user.role.replace("_", " ") : "Member"}
           </div>
         </div>
