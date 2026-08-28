@@ -89,8 +89,12 @@ jobs:
         run: pnpm --filter @hiron/web test:unit
 
   frontend-e2e:
-    name: Frontend E2E (Playwright)
+    name: Frontend E2E (${{ matrix.project }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [chromium, firefox, webkit, msedge, mobile-chrome, mobile-safari, tablet]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -172,30 +176,27 @@ jobs:
       - name: Run Playwright E2E Tests
         run: |
           set +e
-          PROJECTS=("chromium" "firefox" "webkit" "msedge" "mobile-chrome" "mobile-safari" "tablet")
           EXIT_CODE=0
 
-          for PROJECT in "${PROJECTS[@]}"; do
-            echo "========================================================"
-            echo "Running E2E Project: $PROJECT"
-            echo "========================================================"
+          echo "========================================================"
+          echo "Running E2E Project: ${{ matrix.project }}"
+          echo "========================================================"
 
-            pnpm --filter @hiron/web test:e2e --workers=1 --project="$PROJECT"
-            PROJECT_EXIT=$?
+          pnpm --filter @hiron/web test:e2e --workers=1 --project="${{ matrix.project }}"
+          PROJECT_EXIT=$?
 
-            if [ $PROJECT_EXIT -ne 0 ]; then
-              echo "::error::Project $PROJECT failed!"
-              echo "--- API LOGS ---"
-              docker compose logs api
-              echo "----------------"
-              EXIT_CODE=$PROJECT_EXIT
-            fi
+          if [ $PROJECT_EXIT -ne 0 ]; then
+            echo "::error::Project ${{ matrix.project }} failed!"
+            echo "--- API LOGS ---"
+            docker compose logs api
+            echo "----------------"
+            EXIT_CODE=$PROJECT_EXIT
+          fi
 
-            echo "Restarting Celery worker to release accumulated memory..."
-            docker compose restart worker
+          echo "Restarting Celery worker to release accumulated memory..."
+          docker compose restart worker
 
-            # Brief pause to ensure worker is ready
-            sleep 2
-          done
+          # Brief pause to ensure worker is ready
+          sleep 2
 
           exit $EXIT_CODE
