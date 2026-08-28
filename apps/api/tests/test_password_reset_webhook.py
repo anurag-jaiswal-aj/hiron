@@ -1,6 +1,8 @@
 """Tests for async password reset dispatch via QStash webhooks."""
 
 import uuid
+from collections.abc import Generator
+from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -19,14 +21,14 @@ def mock_auth_service() -> AsyncMock:
 
 
 @pytest.fixture
-def mock_verify_qstash_signature():
+def mock_verify_qstash_signature() -> Generator[AsyncMock, None, None]:
     """Mock the QStash signature verification dependency."""
     with patch("hiron.webhooks.qstash_auth.QStashSignatureVerifier.verify") as mock_verify:
         yield mock_verify
 
 
 def test_qstash_webhook_success_existing_user(
-    mock_verify_qstash_signature, mock_auth_service
+    mock_verify_qstash_signature: Any, mock_auth_service: AsyncMock
 ) -> None:
     """Test webhook succeeds for existing user, generating token and emailing."""
     tenant_id = uuid.uuid4()
@@ -63,7 +65,7 @@ def test_qstash_webhook_success_existing_user(
 
 
 def test_qstash_webhook_success_nonexistent_user(
-    mock_verify_qstash_signature, mock_auth_service
+    mock_verify_qstash_signature: Any, mock_auth_service: AsyncMock
 ) -> None:
     """Test webhook succeeds without sending email if user doesn't exist."""
     tenant_id = uuid.uuid4()
@@ -92,7 +94,7 @@ def test_qstash_webhook_success_nonexistent_user(
 
 
 def test_qstash_webhook_email_failure_propagate(
-    mock_verify_qstash_signature, mock_auth_service
+    mock_verify_qstash_signature: Any, mock_auth_service: AsyncMock
 ) -> None:
     """Test webhook propagates EmailDeliveryError as 500 so QStash retries."""
     tenant_id = uuid.uuid4()
