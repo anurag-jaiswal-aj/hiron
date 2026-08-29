@@ -77,7 +77,7 @@ def test_qstash_invitation_webhook_success(
         assert response.status_code == status.HTTP_200_OK
 
         # Verify old tokens revoked
-        mock_revoke.assert_called_once_with(mock_revoke.call_args.args[0], base_payload["user_id"])
+        mock_revoke.assert_called_once_with(mock_revoke.call_args.args[0], uuid.UUID(base_payload["user_id"]))
 
         # Verify new token created
         mock_create.assert_called_once()
@@ -328,7 +328,7 @@ def test_qstash_invitation_webhook_db_failure(
         mock_get_tenant.return_value = mock_tenant
         mock_get_user.return_value = mock_user
 
-        mock_create.side_effect = IntegrityError("fake stmt", "fake params", "fake orig")
+        mock_create.side_effect = IntegrityError("fake stmt", "fake params", Exception("fake orig"))
 
         mock_adapter = AsyncMock()
         mock_get_adapter.return_value = mock_adapter

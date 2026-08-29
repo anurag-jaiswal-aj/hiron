@@ -131,39 +131,43 @@ async def qstash_user_invitation_webhook(
     import secrets
     import hashlib
     from datetime import datetime, UTC, timedelta
+    from uuid import UUID
 
     user_repo = UserRepository()
     tenant_repo = TenantRepository()
     invitation_repo = UserInvitationTokenRepository()
 
+    user_id = UUID(parsed.user_id)
+    tenant_id = UUID(parsed.tenant_id)
+
     # 1. Validate Tenant
-    tenant = await tenant_repo.get_by_id(session, parsed.tenant_id)
+    tenant = await tenant_repo.get_by_id(session, tenant_id)
     if not tenant:
-        logger.warning("Invitation aborted: Tenant not found", tenant_id=str(parsed.tenant_id))
+        logger.warning("Invitation aborted: Tenant not found", tenant_id=str(tenant_id))
         return {"status": "ignored", "reason": "Tenant not found"}
 
     # 2. Validate User
-    user = await user_repo.get_by_id_and_tenant(session, parsed.user_id, parsed.tenant_id)
+    user = await user_repo.get_by_id_and_tenant(session, user_id, tenant_id)
     if not user:
-        logger.warning("Invitation aborted: User not found", user_id=str(parsed.user_id))
+        logger.warning("Invitation aborted: User not found", user_id=str(user_id))
         return {"status": "ignored", "reason": "User not found"}
 
     if user.email != parsed.email:
-        logger.warning("Invitation aborted: Email mismatch", user_id=str(parsed.user_id))
+        logger.warning("Invitation aborted: Email mismatch", user_id=str(user_id))
         return {"status": "ignored", "reason": "Email mismatch"}
 
     if not user.is_active:
-        logger.warning("Invitation aborted: User inactive", user_id=str(parsed.user_id))
+        logger.warning("Invitation aborted: User inactive", user_id=str(user_id))
         return {"status": "ignored", "reason": "User inactive"}
 
     if user.is_email_verified:
-        logger.warning("Invitation aborted: User already verified", user_id=str(parsed.user_id))
+        logger.warning("Invitation aborted: User already verified", user_id=str(user_id))
         return {"status": "ignored", "reason": "User already verified"}
 
     # 3. Token Generation and Persistence
     try:
         # Revoke old tokens
-        await invitation_repo.revoke_pending_for_user(session, parsed.user_id)
+        await invitation_repo.revoke_pending_for_user(session, user_id)
 
         # Generate new
         raw_token = secrets.token_urlsafe(32)
@@ -171,7 +175,7 @@ async def qstash_user_invitation_webhook(
         expires_at = datetime.now(UTC) + timedelta(days=7)
 
         token = UserInvitationToken(
-            user_id=parsed.user_id,
+            user_id=user_id,
             token_hash=token_hash,
             expires_at=expires_at,
         )
