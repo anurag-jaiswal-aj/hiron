@@ -56,3 +56,18 @@ class UserListResponse(HironBaseModel):
     total: int
     limit: int
     offset: int
+
+
+class UserInvitationWebhookPayload(HironBaseModel):
+    """Payload for QStash webhook delivering user invitations."""
+
+    user_id: str = Field(..., description="Target User UUID")
+    tenant_id: str = Field(..., description="Target Tenant UUID")
+    email: str = Field(..., description="Target email address")
+
+
+class AcceptInvitationRequest(HironBaseModel):
+    """Payload for POST /api/v1/users/invite/accept."""
+
+    token: str = Field(..., description="Raw invitation token", min_length=32)
+    password: str = Field(..., description="New user password", min_length=8, max_length=320)

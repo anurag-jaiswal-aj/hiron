@@ -5,12 +5,16 @@ import { Badge } from "../ui/Badge";
 
 interface UserStatusBadgeProps {
   isActive: boolean;
+  isEmailVerified?: boolean;
 }
 
-export function UserStatusBadge({ isActive }: UserStatusBadgeProps): React.ReactElement {
-  return (
-    <Badge variant={isActive ? "active" : "muted"}>
-      {isActive ? "Active" : "Inactive"}
-    </Badge>
-  );
+export function UserStatusBadge({
+  isActive,
+  isEmailVerified,
+}: UserStatusBadgeProps): React.ReactElement {
+  if (isEmailVerified === false) {
+    return <Badge variant="warning">Pending</Badge>;
+  }
+
+  return <Badge variant={isActive ? "active" : "muted"}>{isActive ? "Active" : "Inactive"}</Badge>;
 }

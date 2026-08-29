@@ -22,6 +22,7 @@ interface UserItem {
   fullName: string;
   role: string;
   isActive: boolean;
+  isEmailVerified: boolean;
   createdAt: string;
 }
 
@@ -36,6 +37,7 @@ function UserManagementContent(): React.ReactElement {
   const [users, setUsers] = useState<UserItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   // Filters & Pagination
   const [roleFilter, setRoleFilter] = useState<string>("");
@@ -60,7 +62,7 @@ function UserManagementContent(): React.ReactElement {
       params.append("offset", String((page - 1) * limit));
 
       const response = await httpClient.get<ResponseEnvelope<UserItem[]>>(
-        `/api/v1/users?${params.toString()}`
+        `/api/v1/users?${params.toString()}`,
       );
       if (response && response.data) {
         setUsers(response.data);
@@ -85,13 +87,14 @@ function UserManagementContent(): React.ReactElement {
   async function handleToggleStatus(targetUser: UserItem): Promise<void> {
     setActionLoadingId(targetUser.id);
     setErrorMsg(null);
+    setSuccessMsg(null);
 
     const action = targetUser.isActive ? "deactivate" : "reactivate";
 
     try {
       await httpClient.post<ResponseEnvelope<UserItem>>(
         `/api/v1/users/${targetUser.id}/${action}`,
-        {}
+        {},
       );
       await fetchUsers();
     } catch (err) {
@@ -99,6 +102,33 @@ function UserManagementContent(): React.ReactElement {
         setErrorMsg(err.message);
       } else {
         setErrorMsg(`Failed to ${action} user. Please try again.`);
+      }
+    } finally {
+      setActionLoadingId(null);
+    }
+  }
+
+  async function handleResendInvite(targetUser: UserItem): Promise<void> {
+    setActionLoadingId(targetUser.id);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    try {
+      await httpClient.post<ResponseEnvelope<{ status: string }>>(
+        `/api/v1/users/${targetUser.id}/invite/resend`,
+        {},
+      );
+      setSuccessMsg(`Invitation resent successfully to ${targetUser.email}.`);
+      await fetchUsers(); // Optional, but keeps UI state fresh if needed
+    } catch (err) {
+      if (err instanceof ApiError) {
+        if (err.status === 409) {
+          setErrorMsg("Cannot resend invitation. The user may be already verified or inactive.");
+        } else {
+          setErrorMsg(err.message);
+        }
+      } else {
+        setErrorMsg(`Failed to resend invitation. Please try again.`);
       }
     } finally {
       setActionLoadingId(null);
@@ -133,6 +163,23 @@ function UserManagementContent(): React.ReactElement {
           }}
         >
           {errorMsg}
+        </div>
+      )}
+
+      {/* Global Success Notice */}
+      {successMsg && (
+        <div
+          style={{
+            marginBottom: "1.5rem",
+            padding: "0.875rem 1.25rem",
+            borderRadius: "var(--radius-md)",
+            backgroundColor: "#064E3B",
+            border: "1px solid #065F46",
+            color: "#A7F3D0",
+            fontSize: "0.875rem",
+          }}
+        >
+          {successMsg}
         </div>
       )}
 
@@ -235,10 +282,22 @@ function UserManagementContent(): React.ReactElement {
                   >
                     {/* User info */}
                     <td style={{ padding: "1rem 1.25rem" }}>
-                      <div style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: "0.875rem" }}>
+                      <div
+                        style={{
+                          fontWeight: 600,
+                          color: "var(--text-primary)",
+                          fontSize: "0.875rem",
+                        }}
+                      >
                         {u.fullName || "Unnamed User"}
                       </div>
-                      <div style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", marginTop: "0.125rem" }}>
+                      <div
+                        style={{
+                          fontSize: "0.8125rem",
+                          color: "var(--text-secondary)",
+                          marginTop: "0.125rem",
+                        }}
+                      >
                         {u.email}
                       </div>
                     </td>
@@ -250,11 +309,17 @@ function UserManagementContent(): React.ReactElement {
 
                     {/* Status Badge */}
                     <td style={{ padding: "1rem 1.25rem" }}>
-                      <UserStatusBadge isActive={u.isActive} />
+                      <UserStatusBadge isActive={u.isActive} isEmailVerified={u.isEmailVerified} />
                     </td>
 
                     {/* Created Date */}
-                    <td style={{ padding: "1rem 1.25rem", color: "var(--text-secondary)", fontSize: "0.875rem" }}>
+                    <td
+                      style={{
+                        padding: "1rem 1.25rem",
+                        color: "var(--text-secondary)",
+                        fontSize: "0.875rem",
+                      }}
+                    >
                       {new Date(u.createdAt).toLocaleDateString("en-US", {
                         month: "short",
                         day: "numeric",
@@ -266,6 +331,17 @@ function UserManagementContent(): React.ReactElement {
                     {isAdmin && (
                       <td style={{ padding: "1rem 1.25rem", textAlign: "right" }}>
                         <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
+                          {u.isActive && !u.isEmailVerified && (
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => handleResendInvite(u)}
+                              disabled={isActioning}
+                            >
+                              Resend Invite
+                            </Button>
+                          )}
                           <Button
                             type="button"
                             variant="secondary"
@@ -284,11 +360,7 @@ function UserManagementContent(): React.ReactElement {
                             disabled={isActioning || isSelf}
                             title={isSelf ? "You cannot deactivate your own account" : undefined}
                           >
-                            {isActioning
-                              ? "Updating..."
-                              : u.isActive
-                              ? "Deactivate"
-                              : "Reactivate"}
+                            {isActioning ? "Updating..." : u.isActive ? "Deactivate" : "Reactivate"}
                           </Button>
                         </div>
                       </td>

@@ -9,7 +9,12 @@ export interface BadgeProps {
   title?: string;
 }
 
-export function Badge({ children, variant = "neutral", style, title }: BadgeProps): React.ReactElement {
+export function Badge({
+  children,
+  variant = "neutral",
+  style,
+  title,
+}: BadgeProps): React.ReactElement {
   let bg = "var(--bg-surface-secondary)";
   let color = "var(--text-secondary)";
   let border = "1px solid var(--border-subtle)";
@@ -22,6 +27,10 @@ export function Badge({ children, variant = "neutral", style, title }: BadgeProp
     bg = "var(--bg-app)";
     color = "var(--text-muted)";
     border = "1px solid var(--border-subtle)";
+  } else if (variant === "warning") {
+    bg = "#422006"; // dark amber/orange background
+    color = "#FCD34D"; // amber-300 text
+    border = "1px solid #78350F"; // amber-900 border
   } else if (variant === "error") {
     bg = "#451A03";
     color = "#FDE68A";

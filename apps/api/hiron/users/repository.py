@@ -9,7 +9,7 @@ from sqlalchemy import delete, func, select, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from hiron.users.models import User
+from hiron.users.models import User, UserInvitationToken
 
 
 class UserRepository:
@@ -166,3 +166,56 @@ class UserRepository:
         )
         cursor_result = cast(CursorResult[Any], result)
         return bool(cursor_result.rowcount > 0)
+
+
+class UserInvitationTokenRepository:
+    """Async SQLAlchemy repository for UserInvitationToken entities."""
+
+    async def create(
+        self, session: AsyncSession, token: UserInvitationToken
+    ) -> UserInvitationToken:
+        session.add(token)
+        await session.flush()
+        return token
+
+    async def get_by_token_hash(
+        self, session: AsyncSession, token_hash: str
+    ) -> UserInvitationToken | None:
+        result = await session.execute(
+            select(UserInvitationToken).where(UserInvitationToken.token_hash == token_hash)
+        )
+        return result.scalar_one_or_none()
+
+    async def mark_used(self, session: AsyncSession, token_hash: str) -> bool:
+        stmt = (
+            update(UserInvitationToken)
+            .where(
+                UserInvitationToken.token_hash == token_hash,
+                UserInvitationToken.used_at.is_(None),
+            )
+            .values(used_at=datetime.now(UTC))
+        )
+        result = await session.execute(stmt)
+        return cast(CursorResult[Any], result).rowcount > 0
+
+    async def revoke_pending_for_user(self, session: AsyncSession, user_id: uuid.UUID) -> int:
+        stmt = (
+            delete(UserInvitationToken)
+            .where(
+                UserInvitationToken.user_id == user_id,
+                UserInvitationToken.used_at.is_(None),
+            )
+        )
+        result = await session.execute(stmt)
+        return cast(CursorResult[Any], result).rowcount
+
+    async def get_pending_for_user(
+        self, session: AsyncSession, user_id: uuid.UUID
+    ) -> Sequence[UserInvitationToken]:
+        result = await session.execute(
+            select(UserInvitationToken).where(
+                UserInvitationToken.user_id == user_id,
+                UserInvitationToken.used_at.is_(None),
+            )
+        )
+        return result.scalars().all()

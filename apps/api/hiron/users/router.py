@@ -10,10 +10,52 @@ from hiron.auth.dependencies import get_current_user, require_role
 from hiron.common.schemas import ResponseEnvelope
 from hiron.core.database import get_db_session
 from hiron.users.models import User
-from hiron.users.schemas import UserCreateRequest, UserResponse, UserUpdateRequest
+from hiron.users.schemas import (
+    UserCreateRequest,
+    UserResponse,
+    UserUpdateRequest,
+    AcceptInvitationRequest,
+)
 from hiron.users.service import UserService
+import time
+import structlog
+from fastapi import HTTPException
+from hiron.core.config import get_settings
+from hiron.core.qstash_client import qstash_publisher
+
+logger = structlog.get_logger("hiron.api.users.router")
 
 router = APIRouter()
+
+
+async def _publish_invitation_webhook(user: User) -> None:
+    """Helper to construct and publish the QStash invitation webhook payload."""
+    settings = get_settings()
+    if not settings.qstash_webhook_url:
+        logger.warning(
+            "QStash webhook URL not configured, skipping invitation publish", user_id=str(user.id)
+        )
+        return
+
+    payload = {
+        "user_id": str(user.id),
+        "tenant_id": str(user.tenant_id),
+        "email": user.email,
+    }
+
+    # Use current timestamp for deduplication to allow resends
+    dedup_id = f"invite-{user.id}-{int(time.time())}"
+
+    webhook_url = f"{settings.qstash_webhook_url.rstrip('/')}/api/v1/webhooks/qstash/users/invite"
+    try:
+        await qstash_publisher.publish(
+            url=webhook_url,
+            payload=payload,
+            deduplication_id=dedup_id,
+        )
+    except Exception as e:
+        logger.error("Failed to publish invitation webhook", error=str(e), user_id=str(user.id))
+        raise HTTPException(status_code=500, detail="Failed to enqueue invitation request") from e
 
 
 def get_user_service() -> UserService:
@@ -103,7 +145,66 @@ async def create_user(
         role=request_data.role,
         password=request_data.password,
     )
+
+    await _publish_invitation_webhook(user)
+
     return ResponseEnvelope(data=UserResponse.model_validate(user))
+
+
+@router.post(
+    "/{user_id}/invite/resend",
+    response_model=ResponseEnvelope[dict[str, str]],
+    status_code=status.HTTP_200_OK,
+    summary="Resend user invitation",
+    dependencies=[Depends(require_role("org_admin"))],
+)
+async def resend_invitation(
+    user_id: uuid.UUID,
+    current_user: Annotated[User, Depends(require_role("org_admin"))],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+    user_service: Annotated[UserService, Depends(get_user_service)],
+) -> ResponseEnvelope[dict[str, str]]:
+    """Resend a pending invitation to an unverified, active user."""
+    from hiron.users.service import UserNotFoundError
+
+    try:
+        user = await user_service.get_user_by_id(
+            session=db,
+            user_id=user_id,
+            tenant_id=current_user.tenant_id,
+        )
+    except UserNotFoundError:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if not user.is_active:
+        raise HTTPException(status_code=409, detail="Cannot resend invitation to deactivated user")
+
+    if user.is_email_verified:
+        raise HTTPException(status_code=409, detail="User is already verified")
+
+    await _publish_invitation_webhook(user)
+
+    return ResponseEnvelope(data={"status": "invitation_queued"})
+
+
+@router.post(
+    "/invite/accept",
+    response_model=ResponseEnvelope[dict[str, str]],
+    status_code=status.HTTP_200_OK,
+    summary="Accept user invitation",
+)
+async def accept_invitation(
+    request_data: AcceptInvitationRequest,
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+    user_service: Annotated[UserService, Depends(get_user_service)],
+) -> ResponseEnvelope[dict[str, str]]:
+    """Accept an invitation, set a new password, and verify email. Unauthenticated endpoint."""
+    await user_service.accept_invitation(
+        session=db,
+        token=request_data.token,
+        password=request_data.password,
+    )
+    return ResponseEnvelope(data={"status": "invitation_accepted"})
 
 
 @router.patch(

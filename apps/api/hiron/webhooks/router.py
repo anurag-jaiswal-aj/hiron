@@ -96,11 +96,108 @@ async def qstash_forgot_password_webhook(
 
     except Exception as e:
         from hiron.core.email import EmailDeliveryError
+
         if isinstance(e, EmailDeliveryError):
             logger.error("Email provider failed, QStash will retry", error=str(e))
             raise HTTPException(status_code=500, detail="Email delivery failed") from e
 
         logger.error("Failed to process forgot password webhook", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+from hiron.users.schemas import UserInvitationWebhookPayload
+
+
+@router.post("/qstash/users/invite", dependencies=[Depends(verify_qstash_signature)])
+async def qstash_user_invitation_webhook(
+    request: Request,
+    session: AsyncSession = Depends(get_db_session),
+) -> dict[str, Any]:
+    """Webhook to securely generate an invitation token and send an email."""
+    body_bytes = await request.body()
+    try:
+        parsed = UserInvitationWebhookPayload.model_validate_json(body_bytes)
+    except ValidationError as e:
+        logger.warning("Malformed JSON in user invitation webhook", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Malformed payload",
+        ) from e
+
+    from hiron.users.repository import UserRepository, UserInvitationTokenRepository
+    from hiron.tenants.repository import TenantRepository
+    from hiron.users.models import UserInvitationToken
+    from hiron.core.email import get_email_adapter, EmailDeliveryError
+    import secrets
+    import hashlib
+    from datetime import datetime, UTC, timedelta
+
+    user_repo = UserRepository()
+    tenant_repo = TenantRepository()
+    invitation_repo = UserInvitationTokenRepository()
+
+    # 1. Validate Tenant
+    tenant = await tenant_repo.get_by_id(session, parsed.tenant_id)
+    if not tenant:
+        logger.warning("Invitation aborted: Tenant not found", tenant_id=str(parsed.tenant_id))
+        return {"status": "ignored", "reason": "Tenant not found"}
+
+    # 2. Validate User
+    user = await user_repo.get_by_id_and_tenant(session, parsed.user_id, parsed.tenant_id)
+    if not user:
+        logger.warning("Invitation aborted: User not found", user_id=str(parsed.user_id))
+        return {"status": "ignored", "reason": "User not found"}
+
+    if user.email != parsed.email:
+        logger.warning("Invitation aborted: Email mismatch", user_id=str(parsed.user_id))
+        return {"status": "ignored", "reason": "Email mismatch"}
+
+    if not user.is_active:
+        logger.warning("Invitation aborted: User inactive", user_id=str(parsed.user_id))
+        return {"status": "ignored", "reason": "User inactive"}
+
+    if user.is_email_verified:
+        logger.warning("Invitation aborted: User already verified", user_id=str(parsed.user_id))
+        return {"status": "ignored", "reason": "User already verified"}
+
+    # 3. Token Generation and Persistence
+    try:
+        # Revoke old tokens
+        await invitation_repo.revoke_pending_for_user(session, parsed.user_id)
+
+        # Generate new
+        raw_token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+        expires_at = datetime.now(UTC) + timedelta(days=7)
+
+        token = UserInvitationToken(
+            user_id=parsed.user_id,
+            token_hash=token_hash,
+            expires_at=expires_at,
+        )
+        await invitation_repo.create(session, token)
+
+        # Must commit before sending email to guarantee atomicity of the token
+        await session.commit()
+    except Exception as e:
+        logger.error("Database failure while creating invitation token", error=str(e))
+        raise HTTPException(status_code=500, detail="Database failure") from e
+
+    # 4. Dispatch Email
+    try:
+        email_adapter = get_email_adapter()
+        await email_adapter.send_invitation_email(
+            to_email=parsed.email,
+            raw_token=raw_token,
+            organization_name=tenant.name,
+        )
+        return {"status": "success"}
+    except EmailDeliveryError as e:
+        logger.error("Email provider failed, QStash will retry", error=str(e))
+        # Throw 500 so QStash retries. On retry, the old pending token will be revoked!
+        raise HTTPException(status_code=500, detail="Email delivery failed") from e
+    except Exception as e:
+        logger.error("Failed to process user invitation webhook", error=str(e))
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -262,7 +359,9 @@ async def qstash_batch_score_worker_webhook(
         if isinstance(e, httpx.HTTPStatusError):
             if e.response.status_code == 429:
                 # Quota limit -> 429 Too Many Requests -> QStash retries
-                raise HTTPException(status_code=429, detail="AI Provider rate limit exceeded") from e
+                raise HTTPException(
+                    status_code=429, detail="AI Provider rate limit exceeded"
+                ) from e
             if e.response.status_code >= 500:
                 # AI Internal Error / Bad Gateway -> 503 Service Unavailable -> QStash retries
                 raise HTTPException(status_code=503, detail="AI Provider transient error") from e

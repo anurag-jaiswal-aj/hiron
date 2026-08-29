@@ -175,7 +175,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         path = request.url.path
 
-        if path == "/api/v1/auth/forgot-password":
+        if path == "/api/v1/auth/forgot-password" or path == "/api/v1/users/invite/accept":
             limit = 5
             window_duration = 900  # 15 minutes
         else:
@@ -198,6 +198,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         window_time = int(time.time() / window_duration)
         if path == "/api/v1/auth/forgot-password":
             window_key = f"rate_limit:forgot_pwd:ip:{client_ip}:{window_time}"
+        elif path == "/api/v1/users/invite/accept":
+            window_key = f"rate_limit:invite_accept:ip:{client_ip}:{window_time}"
         else:
             window_key = f"rate_limit:ip:{client_ip}:{window_time}"
 

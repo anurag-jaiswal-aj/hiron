@@ -38,6 +38,28 @@ class BaseEmailAdapter(ABC):
         query = urllib.parse.urlencode({"token": raw_token})
         return f"{base}/reset-password?{query}"
 
+    @abstractmethod
+    async def send_invitation_email(
+        self, to_email: str, raw_token: str, organization_name: str
+    ) -> None:
+        """Send an invitation email.
+
+        Args:
+            to_email: The recipient's email address.
+            raw_token: The raw cryptographic invitation token.
+            organization_name: The name of the organization inviting the user.
+
+        Raises:
+            EmailDeliveryError: If the provider rejects the message or times out.
+        """
+
+    def _build_invitation_url(self, raw_token: str) -> str:
+        """Safely construct the invitation URL using the configured APP_BASE_URL."""
+        settings = get_settings()
+        base = settings.app_base_url.rstrip("/")
+        query = urllib.parse.urlencode({"token": raw_token})
+        return f"{base}/accept-invite?{query}"
+
 
 class ConsoleEmailAdapter(BaseEmailAdapter):
     """Development-only adapter that safely logs the reset link to the console."""
@@ -53,6 +75,18 @@ class ConsoleEmailAdapter(BaseEmailAdapter):
             reset_url=reset_url,
         )
 
+    async def send_invitation_email(
+        self, to_email: str, raw_token: str, organization_name: str
+    ) -> None:
+        invitation_url = self._build_invitation_url(raw_token)
+        logger.info(
+            "*** DEVELOPMENT EMAIL INTERCEPTED ***",
+            to_email=to_email,
+            subject="You've been invited to join Hiron",
+            organization_name=organization_name,
+            invitation_url=invitation_url,
+        )
+
 
 class ResendEmailAdapter(BaseEmailAdapter):
     """Production adapter for the Resend transactional email API."""
@@ -66,6 +100,34 @@ class ResendEmailAdapter(BaseEmailAdapter):
         self.sender = f"{self.settings.email_from_name} <{self.settings.email_from_address}>"
         # 10 second timeout for external API
         self.timeout = httpx.Timeout(10.0)
+
+    async def _send_resend_email(self, payload: dict, to_email: str) -> None:
+        """Internal helper to dispatch email and handle network/provider errors uniformly."""
+        headers = {
+            "Authorization": f"Bearer {self.settings.resend_api_key}",
+            "Content-Type": "application/json",
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.post(self.api_url, json=payload, headers=headers)
+
+                # Check for HTTP errors without logging the request payload (which contains the token)
+                if not response.is_success:
+                    # Do not log the raw response content if it risks echoing back the payload
+                    # Resend error messages are typically static, but we use a generic error safely.
+                    logger.error(
+                        "Resend API rejected email",
+                        status_code=response.status_code,
+                        to_email=to_email,
+                    )
+                    raise EmailDeliveryError(
+                        f"Provider rejected request with status {response.status_code}"
+                    )
+
+        except httpx.RequestError as e:
+            logger.error("Network error communicating with Resend", to_email=to_email)
+            raise EmailDeliveryError("Network communication failed") from e
 
     async def send_password_reset_email(self, to_email: str, raw_token: str) -> None:
         import html
@@ -105,32 +167,50 @@ If you did not request this password reset, you can safely ignore this email.
             "html": html_body,
             "text": text_body,
         }
+        await self._send_resend_email(payload, to_email)
 
-        headers = {
-            "Authorization": f"Bearer {self.settings.resend_api_key}",
-            "Content-Type": "application/json",
+    async def send_invitation_email(
+        self, to_email: str, raw_token: str, organization_name: str
+    ) -> None:
+        import html
+
+        invitation_url = self._build_invitation_url(raw_token)
+        safe_url = html.escape(invitation_url)
+        safe_org_name = html.escape(organization_name)
+
+        html_body = f"""
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>You've been invited to join Hiron</h2>
+            <p>You have been invited to join <strong>{safe_org_name}</strong> on Hiron.</p>
+            <p>Click the button below to accept the invitation and set up your account. This invitation will expire in 7 days.</p>
+            <p style="margin: 30px 0;">
+                <a href="{safe_url}" style="background-color: #0070f3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">
+                    Accept Invitation
+                </a>
+            </p>
+            <p style="color: #666; font-size: 14px;">If you were not expecting this invitation, you can safely ignore this email or contact your administrator.</p>
+        </div>
+        """
+
+        text_body = f"""You've been invited to join Hiron
+
+You have been invited to join {organization_name} on Hiron.
+
+Please copy and paste the following link into your browser to accept the invitation. This invitation will expire in 7 days.
+
+{invitation_url}
+
+If you were not expecting this invitation, you can safely ignore this email or contact your administrator.
+"""
+
+        payload = {
+            "from": self.sender,
+            "to": [to_email],
+            "subject": "You've been invited to join Hiron",
+            "html": html_body,
+            "text": text_body,
         }
-
-        try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.post(self.api_url, json=payload, headers=headers)
-
-                # Check for HTTP errors without logging the request payload (which contains the token)
-                if not response.is_success:
-                    # Do not log the raw response content if it risks echoing back the payload
-                    # Resend error messages are typically static, but we use a generic error safely.
-                    logger.error(
-                        "Resend API rejected email",
-                        status_code=response.status_code,
-                        to_email=to_email,
-                    )
-                    raise EmailDeliveryError(
-                        f"Provider rejected request with status {response.status_code}"
-                    )
-
-        except httpx.RequestError as e:
-            logger.error("Network error communicating with Resend", to_email=to_email)
-            raise EmailDeliveryError("Network communication failed") from e
+        await self._send_resend_email(payload, to_email)
 
 
 def get_email_adapter() -> BaseEmailAdapter:

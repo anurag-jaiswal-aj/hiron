@@ -103,3 +103,38 @@ class User(BaseModel):
         Index("ix_users_tenant_id_email", "tenant_id", "email"),
         Index("ix_users_tenant_id_role", "tenant_id", "role"),
     )
+
+
+class UserInvitationToken(BaseModel):
+    """Stores user invitation tokens per Phase 10.5 requirements.
+
+    Tokens are stored as SHA-256 hashes to prevent plaintext leakage.
+    """
+
+    __tablename__ = "user_invitation_tokens"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE", name="fk_user_invitation_tokens_user_id_users"),
+        nullable=False,
+    )
+
+    token_hash: Mapped[str] = mapped_column(
+        String(64),
+        nullable=False,
+    )
+
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+
+    used_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    __table_args__ = (
+        Index("ix_user_invitation_tokens_token_hash", "token_hash", unique=True),
+        Index("ix_user_invitation_tokens_user_id", "user_id"),
+    )

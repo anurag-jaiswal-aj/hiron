@@ -19,8 +19,21 @@ if str(api_root) not in sys.path:
 from hiron.common.models import Base
 from hiron.core.config import get_settings
 
+from hiron.tenants.models import Tenant
+from hiron.users.models import User, UserInvitationToken
 from hiron.auth.models import PasswordResetToken
-
+from hiron.tokens.models import RefreshToken
+from hiron.jobs.models import Job, PipelineStage
+from hiron.candidates.models import Candidate, JobCandidate
+from hiron.resumes.models import Resume, ResumeFile
+from hiron.embeddings.models import CandidateEmbedding, JobEmbedding
+from hiron.pipeline.models import CandidateStageHistory
+from hiron.scores.models import Score, BatchScoreJob
+from hiron.tags.models import CandidateTag
+from hiron.search.models import SavedSearch
+from hiron.notes.models import CandidateNote
+from hiron.audit.models import AuditLog
+from hiron.ai_usage.models import AIUsageLog
 # ==============================================================================
 # MODEL DISCOVERY REGISTRY FOR ALEMBIC AUTOGENERATE
 # ==============================================================================

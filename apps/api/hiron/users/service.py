@@ -78,6 +78,19 @@ class InsufficientUserPermissionsError(HironException):
         )
 
 
+class InvalidInvitationTokenError(HironException):
+    """Raised when an invitation token is missing, expired, or invalid."""
+
+    def __init__(
+        self, message: str = "Invalid or expired invitation token."
+    ) -> None:
+        super().__init__(
+            message=message,
+            code="INVALID_INVITATION_TOKEN",
+            status_code=400,
+        )
+
+
 class UserService:
     """Core user management business logic and repository orchestration service."""
 
@@ -181,6 +194,54 @@ class UserService:
             role=created.role,
         )
         return created
+
+    async def accept_invitation(
+        self, session: AsyncSession, token: str, password: str
+    ) -> None:
+        """Accept user invitation by verifying token and setting a new password."""
+        import hashlib
+        from datetime import UTC, datetime
+        from hiron.users.repository import UserInvitationTokenRepository
+        from hiron.auth.service import hash_password
+
+        # 1. Hash the supplied raw token with SHA-256.
+        token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+        # 2. Look up the invitation token by hash.
+        token_repo = UserInvitationTokenRepository()
+        inv_token = await token_repo.get_by_token_hash(session, token_hash)
+
+        # 3, 4, 5. Verify token exists, not used, not expired
+        if not inv_token or inv_token.used_at or inv_token.expires_at < datetime.now(UTC):
+            raise InvalidInvitationTokenError()
+
+        # 6. Retrieve the associated user.
+        user = await self.user_repo.get_by_id(session, inv_token.user_id)
+
+        # 7, 8, 9. Verify user exists, is active, is not email verified
+        if not user or not user.is_active or user.is_email_verified:
+            raise InvalidInvitationTokenError()
+
+        # 10, 11, 12, 13.
+        # Mark used atomically FIRST
+        marked = await token_repo.mark_used(session, token_hash)
+        if not marked:
+            raise InvalidInvitationTokenError()
+
+        pwd_hash = hash_password(password)
+        await self.user_repo.update(
+            session,
+            user_id=user.id,
+            tenant_id=user.tenant_id,
+            password_hash=pwd_hash,
+            is_email_verified=True,
+        )
+
+        # 14. Revoke existing refresh sessions
+        await self.token_repo.revoke_all_for_user(session, user.id)
+
+        # 15. Commit the transaction
+        await session.commit()
 
     async def _check_last_admin_protection(
         self,
