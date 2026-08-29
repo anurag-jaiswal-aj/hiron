@@ -155,6 +155,8 @@ jobs:
           echo "POSTGRES_USER=hiron_user" >> .env.local
           echo "POSTGRES_PASSWORD=hiron_secure_password" >> .env.local
           echo "POSTGRES_DB=hiron_dev" >> .env.local
+          echo "QSTASH_CURRENT_SIGNING_KEY=sig_test_key_12345678901234567890" >> .env.local
+          echo "QSTASH_NEXT_SIGNING_KEY=sig_test_key_12345678901234567890" >> .env.local
 
       - name: Start backend infrastructure
         run: docker compose up -d postgres redis api
