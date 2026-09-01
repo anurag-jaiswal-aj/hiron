@@ -77,6 +77,7 @@ async def get_current_user(
     # 3. Lookup user with strict tenant context validation
     cache_key = f"user:{tenant_id}:{user_id}:profile"
     cached_user = await app_cache.get(cache_key)
+    user: User | None = None
     if cached_user:
         cached_user["id"] = uuid.UUID(cached_user["id"])
         cached_user["tenant_id"] = uuid.UUID(cached_user["tenant_id"])
