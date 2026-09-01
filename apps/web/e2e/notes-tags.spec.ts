@@ -194,7 +194,8 @@ test.describe("Phase 11 Notes & Tags (Validation Corrections)", () => {
     // Clear and re-type
     const editEditor = page.locator(".ProseMirror").first();
     await editEditor.click();
-    await page.keyboard.press("Meta+a");
+    const modifier = process.platform === "darwin" ? "Meta" : "Control";
+    await page.keyboard.press(`${modifier}+a`);
     await page.keyboard.press("Backspace");
     await page.keyboard.type("Updated public note content");
 
