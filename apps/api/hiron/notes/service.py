@@ -175,7 +175,10 @@ class NoteService:
             )
 
         await session.commit()
-        return NoteResponse(data=self._build_note_data(updated))
+        refetched = await self.note_repo.get_note_by_id(
+            session=session, tenant_id=tenant_id, note_id=updated.id
+        )
+        return NoteResponse(data=self._build_note_data(refetched or updated))
 
     async def archive_note(
         self,
