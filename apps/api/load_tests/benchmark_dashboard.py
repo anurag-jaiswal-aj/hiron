@@ -1,3 +1,4 @@
+# ruff: noqa: T201
 import asyncio
 import os
 import time
@@ -8,7 +9,7 @@ import numpy as np
 import psycopg
 
 
-def get_loadtest_tenant_and_token(base_url: str):
+def get_loadtest_tenant_and_token(base_url: str) -> tuple[str, str]:
     db_url = os.getenv(
         "DATABASE_URL", "postgresql://hiron_user:hiron_secure_password@localhost:5432/hiron_dev"
     )
@@ -31,16 +32,16 @@ def get_loadtest_tenant_and_token(base_url: str):
         raise RuntimeError(f"Login failed: {response.text}")
 
     token = response.json().get("data", {}).get("accessToken")
-    return tenant_id, token
+    return tenant_id, str(token)
 
 
 async def benchmark_dashboard(
     base_url: str, token: str, iterations: int = 100, concurrency: int = 10
-):
+) -> None:
     headers = {"Authorization": f"Bearer {token}"}
-    latencies = []
+    latencies: list[float] = []
 
-    async def fetch(client):
+    async def fetch(client: httpx.AsyncClient) -> None:
         start = time.perf_counter()
         res = await client.get("/api/v1/dashboard/summary")
         end = time.perf_counter()
@@ -60,7 +61,7 @@ async def benchmark_dashboard(
             tasks.append(fetch(client))
             if len(tasks) >= concurrency:
                 await asyncio.gather(*tasks)
-                tasks = []
+                tasks.clear()
         if tasks:
             await asyncio.gather(*tasks)
 

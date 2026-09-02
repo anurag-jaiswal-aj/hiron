@@ -1,3 +1,4 @@
+# ruff: noqa: S602
 """Multi-Tenant Isolation E2E test verifying zero cross-tenant data leakage for Dashboard API."""
 
 import subprocess
