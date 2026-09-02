@@ -15,7 +15,7 @@ export function Sidebar(): React.ReactElement {
   const canViewSettings = user?.role === "org_admin";
 
   const navItems = [
-    { label: "Overview", href: "/" },
+    { label: "Overview", href: "/dashboard" },
     { label: "Jobs", href: "/jobs" },
     { label: "Candidates", href: "/candidates" },
     { label: "Team", href: "/users" },

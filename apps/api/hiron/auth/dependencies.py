@@ -79,9 +79,10 @@ async def get_current_user(
     cached_user = await app_cache.get(cache_key)
     user: User | None = None
     if cached_user:
-        cached_user["id"] = uuid.UUID(cached_user["id"])
-        cached_user["tenant_id"] = uuid.UUID(cached_user["tenant_id"])
-        user = User(**cached_user)
+        user_kwargs = dict(cached_user)
+        user_kwargs["id"] = uuid.UUID(str(user_kwargs["id"]))
+        user_kwargs["tenant_id"] = uuid.UUID(str(user_kwargs["tenant_id"]))
+        user = User(**user_kwargs)
     else:
         user = await user_repo.get_by_id_and_tenant(
             session=db, user_id=user_id, tenant_id=tenant_id

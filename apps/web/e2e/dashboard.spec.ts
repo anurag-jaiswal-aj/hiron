@@ -1,4 +1,12 @@
 import { test, expect, Page } from "@playwright/test";
+import { loginAs } from "./helpers/auth";
+import { execSync } from "child_process";
+
+const queryDB = (query: string): string => {
+  return execSync(`docker exec hiron-postgres psql -U hiron_user -d hiron_dev -t -c "${query}"`)
+    .toString()
+    .trim();
+};
 
 async function setupAuth(page: Page, role: string = "org_admin") {
   await page.route("**/api/v1/auth/refresh", async (route) => {
@@ -199,5 +207,117 @@ test.describe("Dashboard & Analytics (Phase 12)", () => {
     width = await page.evaluate(() => document.documentElement.scrollWidth);
     viewWidth = await page.evaluate(() => window.innerWidth);
     expect(width).toBeLessThanOrEqual(viewWidth);
+  });
+
+  test("7. Real backend data is correctly aggregated and rendered", async ({ page }) => {
+    // We will NOT use setupAuth or mock any routes. We use the real backend.
+
+    // Create unique tenant and user to ensure fresh dashboard metrics
+    const timestamp = Date.now();
+    const tenantId = `d0000000-0000-0000-0000-000000${timestamp.toString().slice(-6)}`;
+    const userEmail = `dash-${timestamp}@acme.com`;
+
+    // Hash for 'SecurePassword123!'
+    const rawPwdHash = queryDB(
+      "SELECT password_hash FROM users WHERE email = 'admin@acme.com' LIMIT 1;",
+    );
+    const pwdHash = rawPwdHash.replace(/'/g, "''").replace(/\$/g, "\\$");
+
+    // Provision Tenant and User
+    queryDB(
+      `INSERT INTO tenants (id, name, slug, created_at, updated_at) VALUES ('${tenantId}', 'Dash E2E', 'dash-${timestamp}', NOW(), NOW());`,
+    );
+    queryDB(
+      `INSERT INTO users (id, tenant_id, email, password_hash, full_name, role, is_active, is_email_verified, created_at, updated_at) VALUES (gen_random_uuid(), '${tenantId}', '${userEmail}', '${pwdHash}', 'Dash Admin', 'org_admin', true, true, NOW(), NOW());`,
+    );
+
+    // Initial Dashboard check (should be onboarding)
+    await loginAs(page, userEmail, "SecurePassword123!", tenantId);
+    await expect(page.locator("text=Welcome to Hiron! 👋")).toBeVisible();
+
+    // Provision real data: 1 Open Job, 2 Candidates (1 scored, 1 hired)
+    const jobId = `e0000000-0000-0000-0000-000000${timestamp.toString().slice(-6)}`;
+    const cand1Id = `c1000000-0000-0000-0000-000000${timestamp.toString().slice(-6)}`;
+    const cand2Id = `c2000000-0000-0000-0000-000000${timestamp.toString().slice(-6)}`;
+    const stageHiredId = `d1000000-0000-0000-0000-000000${timestamp.toString().slice(-6)}`;
+    const stageAppliedId = `d2000000-0000-0000-0000-000000${timestamp.toString().slice(-6)}`;
+
+    // Insert Job and Stages
+    queryDB(
+      `INSERT INTO jobs (id, tenant_id, title, description, status, created_at, updated_at) VALUES ('${jobId}', '${tenantId}', 'Real E2E Job', 'Test', 'open', NOW(), NOW());`,
+    );
+    queryDB(
+      `INSERT INTO pipeline_stages (id, tenant_id, job_id, name, position) VALUES ('${stageAppliedId}', '${tenantId}', '${jobId}', 'Applied', 1);`,
+    );
+    queryDB(
+      `INSERT INTO pipeline_stages (id, tenant_id, job_id, name, position) VALUES ('${stageHiredId}', '${tenantId}', '${jobId}', 'Hired', 2);`,
+    );
+
+    // Insert Candidates
+    queryDB(
+      `INSERT INTO candidates (id, tenant_id, full_name, email) VALUES ('${cand1Id}', '${tenantId}', 'Cand One', 'c1@test.com');`,
+    );
+    queryDB(
+      `INSERT INTO candidates (id, tenant_id, full_name, email) VALUES ('${cand2Id}', '${tenantId}', 'Cand Two', 'c2@test.com');`,
+    );
+
+    // Insert Job Candidates (Cand 1 is Applied, Cand 2 is Hired)
+    queryDB(
+      `INSERT INTO job_candidates (id, tenant_id, job_id, candidate_id, current_stage_id) VALUES (gen_random_uuid(), '${tenantId}', '${jobId}', '${cand1Id}', '${stageAppliedId}');`,
+    );
+    queryDB(
+      `INSERT INTO job_candidates (id, tenant_id, job_id, candidate_id, current_stage_id) VALUES (gen_random_uuid(), '${tenantId}', '${jobId}', '${cand2Id}', '${stageHiredId}');`,
+    );
+
+    // Insert 1 Score for Cand 1
+    queryDB(
+      `INSERT INTO scores (id, tenant_id, job_candidate_id, fit_score, confidence, breakdown, explanation, prompt_name, prompt_version, model_version, is_current) SELECT gen_random_uuid(), '${tenantId}', id, 85, 0.9, '{}'::jsonb, 'Test', 'test', 'v1', 'gpt-4', true FROM job_candidates WHERE candidate_id = '${cand1Id}';`,
+    );
+
+    // Insert Audit Activity
+    queryDB(
+      `INSERT INTO audit_logs (id, tenant_id, actor_id, action, entity_type, entity_id, created_at) SELECT gen_random_uuid(), '${tenantId}', id, 'create', 'job', '${jobId}', NOW() FROM users WHERE email = '${userEmail}';`,
+    );
+
+    // Reload Dashboard via client-side routing to preserve in-memory auth state
+    await page.locator("nav a", { hasText: "Jobs" }).click();
+    await page.waitForURL(/\/jobs/);
+    await page.locator("nav a", { hasText: "Overview" }).click();
+    await page.waitForURL(/\/dashboard/);
+    await page.waitForTimeout(1000); // Wait for API response
+
+    // Verify Metric Cards using real backend aggregations
+    // Expect 1 Open Job
+    await expect(page.locator("text=Open Jobs")).toBeVisible();
+    await expect(page.locator("text=1").first()).toBeVisible();
+
+    // Expect 2 Total Candidates
+    await expect(page.locator("text=Total Candidates")).toBeVisible();
+    await expect(page.locator("text=2").first()).toBeVisible();
+
+    // Expect 1 Scored Candidate
+    await expect(page.locator("text=AI Scored")).toBeVisible();
+    await expect(page.locator("text=1").nth(1)).toBeVisible(); // .nth(1) because '1' appears multiple times, let's be robust
+
+    // Expect 1 Hired Candidate
+    await expect(page.locator("text=Hired")).toBeVisible();
+    await expect(page.locator("text=1").nth(2)).toBeVisible();
+
+    // Verify Pipeline
+    await expect(page.locator("text=Real E2E Job")).toBeVisible();
+    await expect(page.locator("text=2 cands")).toBeVisible();
+
+    // Verify Recent Activity
+    await expect(page.locator("text=Dash Admin")).toBeVisible();
+
+    // Cleanup
+    queryDB(`DELETE FROM audit_logs WHERE tenant_id = '${tenantId}'`);
+    queryDB(`DELETE FROM scores WHERE tenant_id = '${tenantId}'`);
+    queryDB(`DELETE FROM job_candidates WHERE tenant_id = '${tenantId}'`);
+    queryDB(`DELETE FROM pipeline_stages WHERE tenant_id = '${tenantId}'`);
+    queryDB(`DELETE FROM candidates WHERE tenant_id = '${tenantId}'`);
+    queryDB(`DELETE FROM jobs WHERE tenant_id = '${tenantId}'`);
+    queryDB(`DELETE FROM users WHERE tenant_id = '${tenantId}'`);
+    queryDB(`DELETE FROM tenants WHERE id = '${tenantId}'`);
   });
 });
