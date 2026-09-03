@@ -1,9 +1,9 @@
-# ruff: noqa: S602
 """Multi-Tenant Isolation E2E test verifying zero cross-tenant data leakage for Dashboard API."""
 
-import subprocess
+import os
 import uuid
 import pytest
+import psycopg
 from httpx import ASGITransport, AsyncClient
 
 from hiron.core.jwt import create_access_token
@@ -11,9 +11,16 @@ from hiron.main import app
 
 
 def query_db(query: str) -> str:
-    """Helper to provision test data using the existing E2E docker exec pattern."""
-    cmd = f'docker exec hiron-postgres psql -U hiron_user -d hiron_dev -t -c "{query}"'
-    return subprocess.check_output(cmd, shell=True).decode("utf-8").strip()
+    """Helper to provision test data using native psycopg connection."""
+    db_url = os.getenv(
+        "DATABASE_URL", "postgresql://hiron_user:hiron_secure_password@localhost:5432/hiron_dev"
+    ).replace("+asyncpg", "")
+    with psycopg.connect(db_url, autocommit=True) as conn, conn.cursor() as cur:
+        cur.execute(query)
+        if query.strip().upper().startswith("SELECT"):
+            result = cur.fetchone()
+            return str(result[0]) if result else ""
+        return ""
 
 
 @pytest.mark.asyncio
