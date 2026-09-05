@@ -20,7 +20,7 @@
     "@tiptap/starter-kit": "^3.29.2",
     "@tiptap/suggestion": "^3.29.2",
     "dompurify": "^3.4.13",
-    "next": "^14.2.3",
+    "next": "^16.3.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-dropzone": "^20.0.0",
