@@ -451,16 +451,28 @@ class GeminiResumeParser:
             "Return only the requested structured schema."
         )
 
-        response = await client.aio.models.generate_content(
-            model=self.model_version,
-            contents=f"<resume_text>\n{text}\n</resume_text>",
-            config=genai.types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=ResumeSchema,
-                system_instruction=system_instruction,
-                temperature=0.1,
+        try:
+            response = await client.aio.models.generate_content(
+                model=self.model_version,
+                contents=f"<resume_text>\n{text}\n</resume_text>",
+                config=genai.types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=ResumeSchema,
+                    system_instruction=system_instruction,
+                    temperature=0.1,
+                )
             )
-        )
+        except Exception as e:
+            latency_ms = int((time.time() - start_time) * 1000)
+            logger.error(
+                "ai_request_error",
+                provider="gemini",
+                operation="generate_content",
+                model=self.model_version,
+                error_type=e.__class__.__name__,
+                duration_ms=latency_ms,
+            )
+            raise
 
         latency_ms = int((time.time() - start_time) * 1000)
 

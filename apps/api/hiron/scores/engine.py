@@ -118,6 +118,16 @@ class AIScoringEngine:
                 response = await client.post(url, headers=headers, json=payload, timeout=7.5)
                 response.raise_for_status()
         except httpx.HTTPStatusError as e:
+            latency_ms = int((time.time() - start_time) * 1000)
+            logger.error(
+                "ai_request_error",
+                provider="gemini",
+                operation="generate_content",
+                model=self.model_version,
+                error_type="HTTPStatusError",
+                status_code=e.response.status_code,
+                duration_ms=latency_ms,
+            )
             # Propagate 429 and 5xx so QStash retries
             if e.response.status_code in (429, 503, 500, 502, 504):
                 raise
@@ -127,6 +137,15 @@ class AIScoringEngine:
                 detail=f"Terminal Gemini error: {e.response.text}",
             ) from e
         except httpx.TimeoutException as e:
+            latency_ms = int((time.time() - start_time) * 1000)
+            logger.error(
+                "ai_request_error",
+                provider="gemini",
+                operation="generate_content",
+                model=self.model_version,
+                error_type="TimeoutException",
+                duration_ms=latency_ms,
+            )
             # Propagate timeout
             raise HTTPException(status_code=504, detail="Gemini API timeout") from e
 

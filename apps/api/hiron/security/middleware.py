@@ -9,6 +9,7 @@ from typing import Any
 import structlog
 from fastapi import Request, Response, status
 from fastapi.responses import JSONResponse
+import sentry_sdk
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -261,8 +262,12 @@ class TenantIsolationMiddleware(BaseHTTPMiddleware):
                 pass
 
         set_tenant_context(tenant_id)
+        if tenant_id:
+            sentry_sdk.set_tag("tenant_id", tenant_id)
+
         try:
             return await call_next(request)
         finally:
             # Clear context so it doesn't leak to background tasks or subsequent requests in async workers
             set_tenant_context(None)
+            sentry_sdk.set_tag("tenant_id", None)

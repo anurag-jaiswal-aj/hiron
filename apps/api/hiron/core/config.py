@@ -180,6 +180,11 @@ class Settings(BaseSettings):
         default="http://localhost:3000", description="Base URL of the frontend application"
     )
 
+    # 8. Observability & Telemetry
+    sentry_dsn: str | None = Field(
+        default=None, repr=False, description="Sentry DSN for error tracking"
+    )
+
 
 @lru_cache
 def get_settings() -> Settings:

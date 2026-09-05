@@ -176,7 +176,23 @@ def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(Exception)
     async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
         request_id = request.headers.get("X-Request-ID")
-        logger.error("Unhandled server exception", error=str(exc), exc_info=exc)
+
+        duration_ms = None
+        if hasattr(request.state, "start_time"):
+            import time
+            duration_ms = round((time.perf_counter() - request.state.start_time) * 1000, 2)
+
+        logger.error(
+            "api_error",
+            error_type=type(exc).__name__,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            path=request.url.path,
+            method=request.method,
+            request_id=request_id,
+            duration_ms=duration_ms,
+            error=str(exc),
+        )
+
         payload = ErrorEnvelope(
             error=ErrorBody(
                 code="INTERNAL_ERROR",

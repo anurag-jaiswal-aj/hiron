@@ -14,6 +14,7 @@ class RequestTracingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         request_id = request.headers.get("X-Request-ID") or f"req-{uuid.uuid4().hex[:12]}"
         start_time = time.perf_counter()
+        request.state.start_time = start_time
 
         # Bind structlog context variables for the duration of the request
         structlog.contextvars.clear_contextvars()
@@ -31,9 +32,9 @@ class RequestTracingMiddleware(BaseHTTPMiddleware):
 
         logger = structlog.get_logger("hiron.api.access")
         logger.info(
-            "HTTP request processed",
+            "api_request",
             status_code=response.status_code,
-            latency_ms=process_time_ms,
+            duration_ms=process_time_ms,
         )
 
         return response

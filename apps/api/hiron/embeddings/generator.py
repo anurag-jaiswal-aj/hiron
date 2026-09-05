@@ -123,14 +123,24 @@ class EmbeddingGenerator:
                     error_type=None,
                 )
             except Exception as exc:
+                latency_ms = int((time.time() - start_time) * 1000)
+                error_type = exc.__class__.__name__
+
+                logger.error(
+                    "ai_request_error",
+                    provider="gemini",
+                    operation="embed_content",
+                    model=self.model_version,
+                    error_type=error_type,
+                    duration_ms=latency_ms,
+                )
+
                 if settings.is_production:
                     raise
 
                 logger.warning(
                     "Gemini API call failed, falling back to mock generator", error=str(exc)
                 )
-                latency_ms = int((time.time() - start_time) * 1000)
-                error_type = exc.__class__.__name__
         else:
             latency_ms = int((time.time() - start_time) * 1000)
             error_type = None
