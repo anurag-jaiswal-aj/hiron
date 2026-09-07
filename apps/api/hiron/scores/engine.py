@@ -9,6 +9,7 @@ from fastapi import HTTPException
 
 from hiron.candidates.models import Candidate
 from hiron.core.config import get_settings
+from hiron.core.metrics import ai_errors_counter, ai_requests_counter
 from hiron.jobs.models import Job
 from hiron.scores.schemas import AIGeneratedScore
 from hiron.security.prompt_builder import PromptBuilder
@@ -54,7 +55,7 @@ class AIScoringEngine:
 
         return warnings
 
-    async def evaluate(
+    async def evaluate(  # noqa: C901
         self,
         candidate: Candidate,
         job: Job,
@@ -114,11 +115,22 @@ class AIScoringEngine:
 
         start_time = time.time()
         try:
+            try:
+                ai_requests_counter.add(1, {"provider": "gemini", "operation": "generate_content", "model": self.model_version})
+            except Exception as e:
+                logger.warning("metric_recording_failed", error=str(e))
+
             async with httpx.AsyncClient() as client:
                 response = await client.post(url, headers=headers, json=payload, timeout=7.5)
                 response.raise_for_status()
         except httpx.HTTPStatusError as e:
             latency_ms = int((time.time() - start_time) * 1000)
+
+            try:
+                ai_errors_counter.add(1, {"provider": "gemini", "operation": "generate_content", "model": self.model_version, "error_type": "HTTPStatusError"})
+            except Exception as metric_e:
+                logger.warning("metric_recording_failed", error=str(metric_e))
+
             logger.error(
                 "ai_request_error",
                 provider="gemini",
@@ -138,6 +150,12 @@ class AIScoringEngine:
             ) from e
         except httpx.TimeoutException as e:
             latency_ms = int((time.time() - start_time) * 1000)
+
+            try:
+                ai_errors_counter.add(1, {"provider": "gemini", "operation": "generate_content", "model": self.model_version, "error_type": "TimeoutException"})
+            except Exception as metric_e:
+                logger.warning("metric_recording_failed", error=str(metric_e))
+
             logger.error(
                 "ai_request_error",
                 provider="gemini",
@@ -148,6 +166,12 @@ class AIScoringEngine:
             )
             # Propagate timeout
             raise HTTPException(status_code=504, detail="Gemini API timeout") from e
+        except httpx.RequestError as e:
+            try:
+                ai_errors_counter.add(1, {"provider": "gemini", "operation": "generate_content", "model": self.model_version, "error_type": e.__class__.__name__})
+            except Exception as metric_e:
+                logger.warning("metric_recording_failed", error=str(metric_e))
+            raise
 
         latency_ms = int((time.time() - start_time) * 1000)
 

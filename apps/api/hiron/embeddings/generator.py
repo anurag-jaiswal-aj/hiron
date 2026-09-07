@@ -9,6 +9,7 @@ from dataclasses import dataclass
 import structlog
 
 from hiron.core.config import get_settings
+from hiron.core.metrics import ai_errors_counter, ai_requests_counter
 
 logger = structlog.get_logger("hiron.embeddings.generator")
 
@@ -59,7 +60,7 @@ class EmbeddingGenerator:
         magnitude = math.sqrt(squared_sum) if squared_sum > 0 else 1.0
         return [round(v / magnitude, 6) for v in raw_values]
 
-    async def generate_embedding(self, text: str) -> EmbeddingGenerationResult:
+    async def generate_embedding(self, text: str) -> EmbeddingGenerationResult:  # noqa: C901
         """Generate 768-dim float vector and SHA-256 hash for given text input."""
         max_chars = 30000
         if text and len(text) > max_chars:
@@ -86,6 +87,12 @@ class EmbeddingGenerator:
                 from google.genai import types
 
                 client = genai.Client(api_key=self.gemini_api_key)
+
+                try:
+                    ai_requests_counter.add(1, {"provider": "gemini", "operation": "embed_content", "model": self.model_version})
+                except Exception as e:
+                    logger.warning("metric_recording_failed", error=str(e))
+
                 response = await client.aio.models.embed_content(
                     model=self.model_version,
                     contents=text if text else "",
@@ -125,6 +132,11 @@ class EmbeddingGenerator:
             except Exception as exc:
                 latency_ms = int((time.time() - start_time) * 1000)
                 error_type = exc.__class__.__name__
+
+                try:
+                    ai_errors_counter.add(1, {"provider": "gemini", "operation": "embed_content", "model": self.model_version, "error_type": error_type})
+                except Exception as e:
+                    logger.warning("metric_recording_failed", error=str(e))
 
                 logger.error(
                     "ai_request_error",
