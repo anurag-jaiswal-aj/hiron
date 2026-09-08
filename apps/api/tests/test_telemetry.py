@@ -159,3 +159,36 @@ async def test_ai_sentry_capture_scoring_terminal():
         mock_capture.assert_called_once_with(test_exception)
         mock_scope.set_tag.assert_any_call("ai.provider", "gemini")
         mock_scope.set_tag.assert_any_call("ai.operation", "scoring")
+
+@pytest.mark.asyncio
+async def test_vercel_sentry_flush_middleware():
+    """Verify VercelSentryFlushMiddleware flushes on HTTP and handles exceptions."""
+    from api.index import VercelSentryFlushMiddleware
+    from unittest.mock import AsyncMock, patch
+
+    mock_app = AsyncMock()
+    middleware = VercelSentryFlushMiddleware(mock_app)
+
+    with patch("api.index.sentry_sdk.flush") as mock_flush:
+        # 1. HTTP scope
+        await middleware({"type": "http"}, {}, {})
+        mock_app.assert_awaited_once_with({"type": "http"}, {}, {})
+        mock_flush.assert_called_once_with(timeout=2.0)
+
+        mock_app.reset_mock()
+        mock_flush.reset_mock()
+
+        # 2. Non-HTTP scope (e.g. lifespan)
+        await middleware({"type": "lifespan"}, {}, {})
+        mock_app.assert_awaited_once_with({"type": "lifespan"}, {}, {})
+        mock_flush.assert_not_called()
+
+        mock_app.reset_mock()
+        mock_flush.reset_mock()
+
+        # 3. Exception propagation
+        mock_app.side_effect = ValueError("App crash")
+        with pytest.raises(ValueError, match="App crash"):
+            await middleware({"type": "http"}, {}, {})
+
+        mock_flush.assert_called_once_with(timeout=2.0)
