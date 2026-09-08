@@ -7,6 +7,7 @@ import time
 from dataclasses import dataclass
 
 import structlog
+import sentry_sdk
 
 from hiron.core.config import get_settings
 from hiron.core.metrics import ai_errors_counter, ai_requests_counter
@@ -146,6 +147,11 @@ class EmbeddingGenerator:
                     error_type=error_type,
                     duration_ms=latency_ms,
                 )
+
+                with sentry_sdk.push_scope() as scope:
+                    scope.set_tag("ai.provider", "gemini")
+                    scope.set_tag("ai.operation", "embedding")
+                    sentry_sdk.capture_exception(exc)
 
                 if settings.is_production:
                     raise

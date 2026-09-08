@@ -45,33 +45,9 @@ configure_logging(log_level=settings.log_level, environment=settings.environment
 logger = structlog.get_logger("hiron.api.main")
 
 
-def sentry_before_send(event: dict, hint: dict) -> dict:
-    """Strictly strip sensitive PII and AI prompts from Sentry events."""
-    if "request" in event:
-        request = event["request"]
-        if "headers" in request:
-            headers = request["headers"]
-            if "authorization" in headers:
-                headers["authorization"] = "[Filtered]"
-            if "cookie" in headers:
-                headers["cookie"] = "[Filtered]"
+from hiron.core.sentry import init_sentry
 
-        # Scrub raw request bodies to prevent leaking resumes or candidate notes
-        if "data" in request:
-            request["data"] = "[Filtered payload]"
-
-    return event
-
-
-if settings.sentry_dsn:
-    sentry_sdk.init(
-        dsn=settings.sentry_dsn,
-        environment=settings.environment,
-        traces_sample_rate=0.1,  # Conservative sample rate
-        send_default_pii=False,
-        before_send=sentry_before_send,
-    )
-
+init_sentry(settings.sentry_dsn, settings.environment)
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:

@@ -16,7 +16,13 @@ from apps.worker.src.embeddings import (
 )
 from hiron.resumes.exceptions import ResumeParseFailedError
 
+from hiron.core.config import get_settings
+from hiron.core.sentry import init_sentry
+
 logger = structlog.get_logger("hiron.worker.main")
+
+settings = get_settings()
+init_sentry(settings.sentry_dsn, settings.environment)
 
 app = FastAPI(title="Hiron Worker API")
 

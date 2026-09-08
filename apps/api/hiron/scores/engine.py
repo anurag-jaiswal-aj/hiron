@@ -5,6 +5,7 @@ from typing import Any
 
 import httpx
 import structlog
+import sentry_sdk
 from fastapi import HTTPException
 
 from hiron.candidates.models import Candidate
@@ -144,6 +145,11 @@ class AIScoringEngine:
             if e.response.status_code in (429, 503, 500, 502, 504):
                 raise
             # Terminal invalid 4xx
+            with sentry_sdk.push_scope() as scope:
+                scope.set_tag("ai.provider", "gemini")
+                scope.set_tag("ai.operation", "scoring")
+                sentry_sdk.capture_exception(e)
+
             raise HTTPException(
                 status_code=e.response.status_code,
                 detail=f"Terminal Gemini error: {e.response.text}",
@@ -165,6 +171,11 @@ class AIScoringEngine:
                 duration_ms=latency_ms,
             )
             # Propagate timeout
+            with sentry_sdk.push_scope() as scope:
+                scope.set_tag("ai.provider", "gemini")
+                scope.set_tag("ai.operation", "scoring")
+                sentry_sdk.capture_exception(e)
+
             raise HTTPException(status_code=504, detail="Gemini API timeout") from e
         except httpx.RequestError as e:
             try:
