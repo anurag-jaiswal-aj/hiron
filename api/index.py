@@ -9,9 +9,10 @@ sys.path.insert(0, str(api_dir))
 # Import the FastAPI application instance
 from hiron.main import app
 import sentry_sdk
+from opentelemetry import metrics
 
-class VercelSentryFlushMiddleware:
-    """Delays the final HTTP response body until Sentry flushes, keeping the Vercel container alive."""
+class VercelTelemetryFlushMiddleware:
+    """Delays the final HTTP response body until Sentry and OTEL flush, keeping the Vercel container alive."""
 
     def __init__(self, app):
         self.app = app
@@ -35,11 +36,16 @@ class VercelSentryFlushMiddleware:
             with contextlib.suppress(Exception):
                 sentry_sdk.flush(timeout=2.0)
 
+            with contextlib.suppress(Exception):
+                provider = metrics.get_meter_provider()
+                if hasattr(provider, "force_flush"):
+                    provider.force_flush(timeout_millis=2000)
+
             if final_message is not None:
                 await send(final_message)
 
 # Replace the exported app instance for Vercel
-app = VercelSentryFlushMiddleware(app)
+app = VercelTelemetryFlushMiddleware(app)
 
 # Export the app instance for the @vercel/python builder
 __all__ = ["app"]

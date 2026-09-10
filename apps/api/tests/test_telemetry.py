@@ -161,13 +161,13 @@ async def test_ai_sentry_capture_scoring_terminal():
         mock_scope.set_tag.assert_any_call("ai.operation", "scoring")
 
 @pytest.mark.asyncio
-async def test_vercel_sentry_flush_middleware():
-    """Verify VercelSentryFlushMiddleware delays final body, flushes on HTTP, and handles exceptions safely."""
-    from api.index import VercelSentryFlushMiddleware
-    from unittest.mock import AsyncMock, patch
+async def test_vercel_telemetry_flush_middleware():
+    """Verify VercelTelemetryFlushMiddleware delays final body, flushes Sentry/OTEL on HTTP, and handles exceptions safely."""
+    from api.index import VercelTelemetryFlushMiddleware
+    from unittest.mock import AsyncMock, patch, MagicMock
 
     mock_app = AsyncMock()
-    middleware = VercelSentryFlushMiddleware(mock_app)
+    middleware = VercelTelemetryFlushMiddleware(mock_app)
     mock_send = AsyncMock()
 
     # Helper for normal app behavior
@@ -179,66 +179,100 @@ async def test_vercel_sentry_flush_middleware():
     mock_app.side_effect = app_normal
     events = []
 
-    def mock_flush_success(*args, **kwargs):
-        events.append("flush")
+    def mock_sentry_flush_success(*args, **kwargs):
+        events.append("sentry_flush")
+
+    mock_provider = MagicMock()
+    def mock_otel_flush_success(*args, **kwargs):
+        events.append("otel_flush")
+    mock_provider.force_flush.side_effect = mock_otel_flush_success
 
     async def tracking_send(message):
         events.append(f"send_{message['type']}")
 
-    with patch("api.index.sentry_sdk.flush") as mock_flush:
-        mock_flush.side_effect = mock_flush_success
+    with patch("api.index.sentry_sdk.flush") as mock_sentry_flush, \
+         patch("api.index.metrics.get_meter_provider", return_value=mock_provider):
+        mock_sentry_flush.side_effect = mock_sentry_flush_success
         await middleware({"type": "http"}, {}, tracking_send)
 
         assert events == [
             "send_http.response.start",
-            "flush",
+            "sentry_flush",
+            "otel_flush",
             "send_http.response.body"
         ]
 
-    # Test B: App success + flush raises
+    # Test B: App success + sentry raises, otel succeeds
     mock_app.side_effect = app_normal
     events = []
 
-    def mock_flush_raises(*args, **kwargs):
-        events.append("flush_raises")
+    def mock_sentry_flush_raises(*args, **kwargs):
+        events.append("sentry_flush_raises")
         raise RuntimeError("Sentry network error")
 
     async def tracking_send_b(message):
         events.append(f"send_{message['type']}")
 
-    with patch("api.index.sentry_sdk.flush") as mock_flush:
-        mock_flush.side_effect = mock_flush_raises
+    with patch("api.index.sentry_sdk.flush") as mock_sentry_flush, \
+         patch("api.index.metrics.get_meter_provider", return_value=mock_provider):
+        mock_sentry_flush.side_effect = mock_sentry_flush_raises
         # The flush exception should be swallowed and NOT mask the response
         await middleware({"type": "http"}, {}, tracking_send_b)
 
         assert events == [
             "send_http.response.start",
-            "flush_raises",
+            "sentry_flush_raises",
+            "otel_flush",
             "send_http.response.body"
         ]
 
-    # Test C: App raises + flush succeeds
+    # Test B2: App success + sentry succeeds, otel raises
+    mock_app.side_effect = app_normal
+    events = []
+
+    def mock_otel_flush_raises(*args, **kwargs):
+        events.append("otel_flush_raises")
+        raise RuntimeError("OTEL network error")
+
+    mock_provider2 = MagicMock()
+    mock_provider2.force_flush.side_effect = mock_otel_flush_raises
+
+    with patch("api.index.sentry_sdk.flush") as mock_sentry_flush, \
+         patch("api.index.metrics.get_meter_provider", return_value=mock_provider2):
+        mock_sentry_flush.side_effect = mock_sentry_flush_success
+        await middleware({"type": "http"}, {}, tracking_send_b)
+
+        assert events == [
+            "send_http.response.start",
+            "sentry_flush",
+            "otel_flush_raises",
+            "send_http.response.body"
+        ]
+
+    # Test C: App raises + both flushes succeed
     events = []
     mock_app.side_effect = ValueError("App crash")
 
-    with patch("api.index.sentry_sdk.flush") as mock_flush:
-        mock_flush.side_effect = mock_flush_success
+    with patch("api.index.sentry_sdk.flush") as mock_sentry_flush, \
+         patch("api.index.metrics.get_meter_provider", return_value=mock_provider):
+        mock_sentry_flush.side_effect = mock_sentry_flush_success
         with pytest.raises(ValueError, match="App crash"):
             await middleware({"type": "http"}, {}, mock_send)
 
-        assert events == ["flush"]
+        assert events == ["sentry_flush", "otel_flush"]
 
-    # Test D: App raises + flush also raises
+    # Test D: App raises + both flushes also raise
     events = []
     mock_app.side_effect = ValueError("App crash")
 
-    with patch("api.index.sentry_sdk.flush") as mock_flush:
-        mock_flush.side_effect = mock_flush_raises
-        # The original exception MUST propagate, and flush exception is swallowed
+    with patch("api.index.sentry_sdk.flush") as mock_sentry_flush, \
+         patch("api.index.metrics.get_meter_provider", return_value=mock_provider2):
+        mock_sentry_flush.side_effect = mock_sentry_flush_raises
+        # The original exception MUST propagate, and flush exceptions are swallowed
         with pytest.raises(ValueError, match="App crash"):
             await middleware({"type": "http"}, {}, mock_send)
 
-        assert events == ["flush_raises"]
+        assert events == ["sentry_flush_raises", "otel_flush_raises"]
 
     # Test E: Streaming behavior remains unchanged
     events = []
@@ -249,8 +283,9 @@ async def test_vercel_sentry_flush_middleware():
 
     mock_app.side_effect = app_streaming
 
-    with patch("api.index.sentry_sdk.flush") as mock_flush:
-        mock_flush.side_effect = mock_flush_success
+    with patch("api.index.sentry_sdk.flush") as mock_sentry_flush, \
+         patch("api.index.metrics.get_meter_provider", return_value=mock_provider):
+        mock_sentry_flush.side_effect = mock_sentry_flush_success
 
         async def streaming_send(message):
             events.append(f"send_{message.get('body', b'start').decode()}")
@@ -260,15 +295,19 @@ async def test_vercel_sentry_flush_middleware():
         assert events == [
             "send_start",
             "send_chunk1",
-            "flush",
+            "sentry_flush",
+            "otel_flush",
             "send_chunk2",
         ]
 
     # Test F: Non-HTTP scope
     mock_app.reset_mock()
     mock_app.side_effect = None
+    mock_provider.reset_mock()
 
-    with patch("api.index.sentry_sdk.flush") as mock_flush:
+    with patch("api.index.sentry_sdk.flush") as mock_sentry_flush, \
+         patch("api.index.metrics.get_meter_provider", return_value=mock_provider):
         await middleware({"type": "lifespan"}, {}, mock_send)
         mock_app.assert_awaited_once_with({"type": "lifespan"}, {}, mock_send)
-        mock_flush.assert_not_called()
+        mock_sentry_flush.assert_not_called()
+        mock_provider.force_flush.assert_not_called()
