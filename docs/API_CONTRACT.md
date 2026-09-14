@@ -655,6 +655,50 @@ Per Engineering Guidelines §7.1:
 
 ---
 
+## 21. Internal Serverless Task Webhooks (QStash)
+
+These endpoints receive tasks from Upstash QStash for asynchronous processing. They are protected by cryptographic signature validation (the `Upstash-Signature` header).
+
+### Task Payloads
+
+#### 1. Resume Parsing
+```json
+{
+  "tenant_id": "uuid-string",
+  "resume_id": "uuid-string"
+}
+```
+
+#### 2. Candidate Embedding Generation
+```json
+{
+  "tenant_id": "uuid-string",
+  "candidate_id": "uuid-string",
+  "model_version": "models/gemini-embedding-001"
+}
+```
+
+#### 3. Job Embedding Generation
+```json
+{
+  "tenant_id": "uuid-string",
+  "job_id": "uuid-string",
+  "model_version": "models/gemini-embedding-001"
+}
+```
+
+#### 4. Batch Scoring
+```json
+{
+  "tenant_id": "uuid-string",
+  "job_id": "uuid-string",
+  "candidate_ids": ["uuid-string-1", "uuid-string-2"],
+  "force_rescore": false
+}
+```
+
+---
+
 # Endpoint Specifications
 
 ---

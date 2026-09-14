@@ -160,15 +160,30 @@ uv run uvicorn ai.main:app --reload --host 0.0.0.0 --port 8001
 
 ---
 
-## 9. Background Worker Startup (Celery)
+## 9. Background Worker Startup (QStash Serverless)
 
-To run Celery asynchronous task workers locally:
+Hiron uses Upstash QStash for serverless background tasks. To test QStash webhooks locally, use a Cloudflare Tunnel to forward public traffic to your local API.
 
-```bash
-# Set PYTHONPATH and start Celery worker
-export PYTHONPATH=apps/api:$PYTHONPATH
-uv run celery -A hiron.core.celery worker --loglevel=info
-```
+1. **Install Cloudflared**
+   - **macOS:** `brew install cloudflare/cloudflare/cloudflared`
+   - **Linux:** Follow official Cloudflare repository instructions.
+
+2. **Start the Cloudflare tunnel**
+   ```bash
+   cloudflared tunnel --url http://localhost:8000
+   ```
+   *Copy the generated `https://<random-id>.trycloudflare.com` URL.*
+
+3. **Configure Environment Variables**
+   In your `.env.local`, set:
+   ```env
+   BACKGROUND_TASK_ENGINE=qstash
+   QSTASH_WEBHOOK_URL=https://<random-id>.trycloudflare.com
+   QSTASH_TOKEN="<your-qstash-token>"
+   QSTASH_CURRENT_SIGNING_KEY="<your-current-signing-key>"
+   QSTASH_NEXT_SIGNING_KEY="<your-next-signing-key>"
+   ```
+   *(Note: You must restart the FastAPI service after modifying these variables).*
 
 ---
 

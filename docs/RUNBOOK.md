@@ -50,6 +50,28 @@ Deployments to `production` are triggered automatically on push to the `main` or
 | AI Service Errors   | > 2% over 5m   | High (P2)     | Slack (`#ops-alerts`) | Check OpenAI API quota, status, and retry queues  |
 | Disk Storage Free   | < 15%          | High (P2)     | Slack (`#ops-alerts`) | Expand Supabase storage or clean old temp files     |
 
+### Serverless Background Tasks (QStash) Retry Semantics & Error Matrix
+
+Hiron relies on Upstash QStash for asynchronous background execution. QStash retry behavior is strictly controlled by the HTTP status codes returned from our webhook endpoints:
+
+- **2xx (Success/Ack)**: QStash marks the message as delivered.
+- **4xx / 5xx (Retry)**: QStash enters a retry loop with exponential backoff (e.g., rate limits, timeouts).
+
+#### Error Matrix
+
+| Scenario | Application Event / Error | Webhook Response | QStash Behavior | DB State Transition | Logging |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Success** | Task completes successfully | `200 OK` | Mark Delivered | Success state (`status="parsed"`) | `INFO` |
+| **Idempotency** | Claimed by other worker / Duplicate | `200 OK` | Mark Delivered | None (skip execution) | `INFO` |
+| **Quota limit** | Provider HTTP 429 (Too Many Requests) | `429 Too Many Requests` | Retry with backoff | None (retain `processing`) | `WARNING` |
+| **AI Internal Error** | Provider HTTP 500/502/503/504 | `503 Service Unavailable` | Retry with backoff | None (retain `processing`) | `WARNING` |
+| **Timeout** | Webhook exceeds timeout (15-30s) | *(No response)* | Retry with backoff | Check DB state consistency | `ERROR` |
+| **Invalid Payload** | Missing tenant_id / Invalid Schema | `200 OK` (Ack) | Mark Delivered | Update entity `status="failed"` | `ERROR` |
+| **Invalid Entity** | Invalid UUID / Entity Not Found | `200 OK` (Ack) | Mark Delivered | None | `ERROR` |
+| **AI Schema Error** | Unparsable JSON from AI Provider | `200 OK` (Ack) | Mark Delivered | Update entity `status="failed"` | `ERROR` |
+
+**Important**: For fatal, non-retryable errors (Invalid UUID, Bad JSON Schema from AI), the API **must** return `200 OK` to acknowledge receipt and terminate the QStash retry loop, while concurrently saving the `failed` status to PostgreSQL. Returning a 400-level error would cause unnecessary retries.
+
 ### Liveness and Readiness Probes
 
 - **Liveness Probe**: `GET /api/v1/health` (Returns HTTP 200 `{"status": "healthy"}`)
