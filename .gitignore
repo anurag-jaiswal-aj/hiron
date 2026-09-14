@@ -116,6 +116,7 @@ test_resume.txt
 logs/
 tmp/
 temp/
+supabase/.temp/
 scratch/
 celerybeat-schedule
 celerybeat.pid

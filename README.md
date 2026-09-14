@@ -140,7 +140,7 @@ All architectural and engineering decisions in this repository are strictly gove
 2. **Database Design**: Production PostgreSQL + `pgvector` multi-tenant database design ([`docs/DATABASE_DESIGN.md`](./docs/DATABASE_DESIGN.md))
 3. **API Contract**: REST API endpoints, schemas, status codes, and security contracts ([`docs/API_CONTRACT.md`](./docs/API_CONTRACT.md))
 4. **UI/UX Design Specification**: Design tokens, component hierarchy, accessibility, and 17 screen wireframes ([`docs/UI_UX_DESIGN.md`](./docs/UI_UX_DESIGN.md))
-5. **Implementation Roadmap**: 20-phase execution plan and sprint schedule ([`docs/IMPLEMENTATION_ROADMAP.md`](./docs/IMPLEMENTATION_ROADMAP.md))
+5. **Implementation Roadmap**: 20-phase execution plan and sprint schedule ([`docs/historical/IMPLEMENTATION_ROADMAP.md`](./docs/historical/IMPLEMENTATION_ROADMAP.md))
 6. **Operations Runbook**: Production deployment, zero-downtime database migrations, and incident response ([`docs/RUNBOOK.md`](./docs/RUNBOOK.md))
 7. **Maintenance & LTS Manual**: Routine database vacuuming, LRU cache flushing, and AI prompt tuning ([`docs/MAINTENANCE_AND_LTS.md`](./docs/MAINTENANCE_AND_LTS.md))
 8. **Versioned Release Notes**: Release notes for tag v1.0.0 ([`docs/releases/v1.0.0.md`](./docs/releases/v1.0.0.md))
