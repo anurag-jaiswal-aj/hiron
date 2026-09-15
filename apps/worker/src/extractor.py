@@ -1,6 +1,7 @@
 """Resume text extraction module supporting PDF, DOCX, and TXT files per Engineering Guidelines §6."""
 
 import io
+from typing import Any
 
 import docx
 import pdfplumber
@@ -54,7 +55,7 @@ def extract_text_from_pdf(file_bytes: bytes, max_chars: int) -> tuple[str, bool]
 
 
 def _extract_docx_tables(
-    tables: list, text_parts: list[str], total_chars: int, max_chars: int
+    tables: list[Any], text_parts: list[str], total_chars: int, max_chars: int
 ) -> tuple[int, bool]:
     """Helper to extract text from DOCX tables while respecting the max_chars limit."""
     is_truncated = False
