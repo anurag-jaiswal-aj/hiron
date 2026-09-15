@@ -268,7 +268,7 @@ async def test_batch_score_worker_webhook_malformed_payload(async_client):
 
 
 @pytest.mark.asyncio
-async def test_batch_score_worker_webhook_invalid_signature(async_client):
+async def test_batch_score_worker_webhook_invalid_signature(async_client: AsyncClient) -> None:
     payload = {
         "batch_id": str(uuid.uuid4()),
         "tenant_id": str(uuid.uuid4()),
@@ -293,7 +293,7 @@ async def test_batch_score_worker_webhook_invalid_signature(async_client):
 
 
 @pytest.mark.asyncio
-async def test_batch_score_worker_webhook_cross_tenant_isolation(async_client):
+async def test_batch_score_worker_webhook_cross_tenant_isolation(async_client: AsyncClient) -> None:
     from hiron.scores.repository import ScoreRepository
     from hiron.security.context import set_tenant_context
 
@@ -332,7 +332,7 @@ async def test_batch_score_worker_webhook_cross_tenant_isolation(async_client):
 
 
 @pytest.mark.asyncio
-async def test_batch_score_worker_webhook_clears_tenant_context(async_client):
+async def test_batch_score_worker_webhook_clears_tenant_context(async_client: AsyncClient) -> None:
     from hiron.security.context import get_tenant_context
 
     payload = {
