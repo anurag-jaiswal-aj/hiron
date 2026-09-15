@@ -495,8 +495,8 @@ async def qstash_batch_score_coordinator_webhook(
 
     return {"status": "processing", "fan_out_count": len(parsed.candidate_ids)}
 
-from apps.worker.src.pipeline import parse_resume_pipeline
-from apps.worker.src.embeddings import (
+from hiron.worker.pipeline import parse_resume_pipeline
+from hiron.worker.embeddings import (
     generate_candidate_embedding_worker_pipeline,
     generate_job_embedding_worker_pipeline,
 )

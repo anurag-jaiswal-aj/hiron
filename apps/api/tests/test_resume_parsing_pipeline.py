@@ -4,7 +4,7 @@ import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from apps.worker.src.pipeline import parse_resume_pipeline
+from hiron.worker.pipeline import parse_resume_pipeline
 
 from hiron.candidates.models import Candidate
 from hiron.resumes.exceptions import ResumeNotFoundError, ResumeParseFailedError
@@ -12,11 +12,11 @@ from hiron.resumes.models import Resume, ResumeFile
 
 
 @pytest.mark.asyncio
-@patch("apps.worker.src.pipeline.ResumeRepository")
-@patch("apps.worker.src.pipeline.CandidateRepository")
+@patch("hiron.worker.pipeline.ResumeRepository")
+@patch("hiron.worker.pipeline.CandidateRepository")
 @patch("hiron.storage.provider.LocalStorageProvider")
-@patch("apps.worker.src.pipeline.GeminiResumeParser")
-@patch("apps.worker.src.pipeline.extract_text_from_file")
+@patch("hiron.worker.pipeline.GeminiResumeParser")
+@patch("hiron.worker.pipeline.extract_text_from_file")
 @patch("hiron.ai_usage.repository.AIUsageRepository.create_usage_log")
 @patch("hiron.core.qstash_client.qstash_publisher.publish", new_callable=AsyncMock)
 async def test_parse_resume_pipeline_success_and_candidate_enrichment(
@@ -105,7 +105,7 @@ async def test_parse_resume_pipeline_success_and_candidate_enrichment(
 
 
 @pytest.mark.asyncio
-@patch("apps.worker.src.pipeline.ResumeRepository")
+@patch("hiron.worker.pipeline.ResumeRepository")
 async def test_parse_resume_pipeline_resume_not_found_raises_404(
     mock_resume_repo_cls: MagicMock,
 ) -> None:
@@ -122,7 +122,7 @@ async def test_parse_resume_pipeline_resume_not_found_raises_404(
 
 
 @pytest.mark.asyncio
-@patch("apps.worker.src.pipeline.ResumeRepository")
+@patch("hiron.worker.pipeline.ResumeRepository")
 async def test_parse_resume_pipeline_file_missing_raises_failed(
     mock_resume_repo_cls: MagicMock,
 ) -> None:
@@ -151,11 +151,11 @@ async def test_parse_resume_pipeline_file_missing_raises_failed(
 
 
 @pytest.mark.asyncio
-@patch("apps.worker.src.pipeline.ResumeRepository")
-@patch("apps.worker.src.pipeline.CandidateRepository")
+@patch("hiron.worker.pipeline.ResumeRepository")
+@patch("hiron.worker.pipeline.CandidateRepository")
 @patch("hiron.storage.provider.LocalStorageProvider")
-@patch("apps.worker.src.pipeline.GeminiResumeParser")
-@patch("apps.worker.src.pipeline.extract_text_from_file")
+@patch("hiron.worker.pipeline.GeminiResumeParser")
+@patch("hiron.worker.pipeline.extract_text_from_file")
 @patch("hiron.ai_usage.repository.AIUsageRepository.create_usage_log")
 @patch("hiron.core.qstash_client.qstash_publisher.publish", new_callable=AsyncMock)
 async def test_parse_resume_pipeline_telemetry_failure_isolation(
