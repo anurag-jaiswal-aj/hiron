@@ -1,4 +1,5 @@
 import json
+import typing
 import uuid
 from unittest.mock import MagicMock, patch
 
@@ -49,7 +50,7 @@ async def _seed_test_db(session: AsyncSession) -> tuple[uuid.UUID, uuid.UUID, uu
 
 
 @pytest.fixture
-async def async_client():
+async def async_client() -> typing.AsyncGenerator[AsyncClient, None]:
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://testserver"
     ) as client:
@@ -57,7 +58,7 @@ async def async_client():
 
 
 @pytest.fixture(autouse=True)
-def mock_settings(monkeypatch):
+def mock_settings(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("QSTASH_CURRENT_SIGNING_KEY", CURRENT_KEY)
     monkeypatch.setenv("QSTASH_NEXT_SIGNING_KEY", NEXT_KEY)
     monkeypatch.setenv("QSTASH_WEBHOOK_URL", "http://testserver")
@@ -65,14 +66,14 @@ def mock_settings(monkeypatch):
     get_settings.cache_clear()
 
 
-def create_mock_httpx_error(status_code: int):
+def create_mock_httpx_error(status_code: int) -> HTTPStatusError:
     request = HTTPXRequest("POST", "http://testserver")
     response = HTTPXResponse(status_code=status_code, request=request)
     return HTTPStatusError(f"Error {status_code}", request=request, response=response)
 
 
 @pytest.mark.asyncio
-async def test_batch_score_worker_webhook_success(async_client):
+async def test_batch_score_worker_webhook_success(async_client: AsyncClient) -> None:
     async with AsyncSessionLocal() as session:
         tenant_id, job_id, candidate_id, batch_id = await _seed_test_db(session)
 
@@ -110,13 +111,14 @@ async def test_batch_score_worker_webhook_success(async_client):
     set_tenant_context(str(tenant_id))
     async with AsyncSessionLocal() as session:
         repo = ScoreRepository()
-        persisted = await repo.get_batch_score_job(session, str(tenant_id), str(batch_id))
+        persisted = await repo.get_batch_score_job(session, tenant_id, str(batch_id))
+        assert persisted is not None
         assert persisted.completed_count == 1
         assert candidate_id in persisted.completed_candidate_ids
 
 
 @pytest.mark.asyncio
-async def test_batch_score_worker_webhook_resource_not_found(async_client):
+async def test_batch_score_worker_webhook_resource_not_found(async_client: AsyncClient) -> None:
     async with AsyncSessionLocal() as session:
         tenant_id, job_id, candidate_id, batch_id = await _seed_test_db(session)
 
@@ -149,13 +151,14 @@ async def test_batch_score_worker_webhook_resource_not_found(async_client):
     set_tenant_context(str(tenant_id))
     async with AsyncSessionLocal() as session:
         repo = ScoreRepository()
-        persisted = await repo.get_batch_score_job(session, str(tenant_id), str(batch_id))
+        persisted = await repo.get_batch_score_job(session, tenant_id, str(batch_id))
+        assert persisted is not None
         assert persisted.failed_count == 1
         assert candidate_id in persisted.failed_candidate_ids
 
 
 @pytest.mark.asyncio
-async def test_batch_score_worker_webhook_rate_limit(async_client):
+async def test_batch_score_worker_webhook_rate_limit(async_client: AsyncClient) -> None:
     payload = {
         "batch_id": "12345678-1234-5678-1234-567812345678",
         "tenant_id": str(uuid.uuid4()),
@@ -182,7 +185,7 @@ async def test_batch_score_worker_webhook_rate_limit(async_client):
 
 
 @pytest.mark.asyncio
-async def test_batch_score_worker_webhook_ai_internal_error(async_client):
+async def test_batch_score_worker_webhook_ai_internal_error(async_client: AsyncClient) -> None:
     payload = {
         "batch_id": "12345678-1234-5678-1234-567812345678",
         "tenant_id": str(uuid.uuid4()),
@@ -209,7 +212,7 @@ async def test_batch_score_worker_webhook_ai_internal_error(async_client):
 
 
 @pytest.mark.asyncio
-async def test_batch_score_worker_webhook_ai_schema_error(async_client):
+async def test_batch_score_worker_webhook_ai_schema_error(async_client: AsyncClient) -> None:
     payload = {
         "batch_id": "12345678-1234-5678-1234-567812345678",
         "tenant_id": str(uuid.uuid4()),
@@ -245,7 +248,7 @@ async def test_batch_score_worker_webhook_ai_schema_error(async_client):
 
 
 @pytest.mark.asyncio
-async def test_batch_score_worker_webhook_malformed_payload(async_client):
+async def test_batch_score_worker_webhook_malformed_payload(async_client: AsyncClient) -> None:
     payload = {
         "batch_id": "12345678-1234-5678-1234-567812345678",
         # Missing tenant_id etc.
@@ -299,9 +302,9 @@ async def test_batch_score_worker_webhook_cross_tenant_isolation(async_client: A
 
     # Create Tenant A and its data
     async with AsyncSessionLocal() as session:
-        tenant_a, job_a, candidate_a, batch_a = await _seed_test_db(session)
+        tenant_a, _job_a, _candidate_a, _batch_a = await _seed_test_db(session)
         # Create Tenant B and its data
-        tenant_b, job_b, candidate_b, batch_b = await _seed_test_db(session)
+        _tenant_b, job_b, candidate_b, batch_b = await _seed_test_db(session)
 
     # Tenant A tries to run worker for Tenant B's candidate
     # The payload is structurally valid and signed by QStash, claiming to act for Tenant A
