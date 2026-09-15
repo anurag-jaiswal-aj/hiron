@@ -64,6 +64,7 @@ async def upload_resume(
     filename = file.filename or "resume.pdf"
     content_type = file.content_type or "application/pdf"
 
+    file_bytes = await file.read()
     result = await resume_service.upload_resume(
         session=session,
         tenant_id=current_user.tenant_id,
@@ -71,7 +72,7 @@ async def upload_resume(
         user_role=current_user.role,
         filename=filename,
         content_type=content_type,
-        file_data=file.file,
+        file_data=file_bytes,
         file_size_bytes=file_size,
         candidate_id=parsed_candidate_id,
         job_id=parsed_job_id,
@@ -99,7 +100,8 @@ async def bulk_upload_resumes(
     for f in files:
         fname = f.filename or "resume.pdf"
         ctype = f.content_type or "application/pdf"
-        file_tuples.append((fname, ctype, f.file, f.size or 0))
+        f_bytes = await f.read()
+        file_tuples.append((fname, ctype, f_bytes, f.size or 0))
 
     result = await resume_service.bulk_upload_resumes(
         session=session,
