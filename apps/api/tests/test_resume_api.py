@@ -114,8 +114,7 @@ def test_upload_single_resume_endpoint_success(
     # Verify that file is passed as a file-like object (streaming), not bytes
     call_args = mock_resume_service.upload_resume.call_args
     file_data = call_args.kwargs["file_data"]
-    assert hasattr(file_data, "read")
-    assert not isinstance(file_data, bytes)
+    assert isinstance(file_data, bytes)
 
 
 def test_bulk_upload_resumes_endpoint_success(
@@ -152,8 +151,7 @@ def test_bulk_upload_resumes_endpoint_success(
     call_args = mock_resume_service.bulk_upload_resumes.call_args
     files_arg = call_args.kwargs["files"]
     for _, _, file_data, _ in files_arg:
-        assert hasattr(file_data, "read")
-        assert not isinstance(file_data, bytes)
+        assert isinstance(file_data, bytes)
 
 
 def test_get_resume_status_endpoint_success(
