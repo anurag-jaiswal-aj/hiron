@@ -18,10 +18,14 @@ def test_vercel_entrypoint_loads_successfully() -> None:
         import api.index as vercel_entrypoint
         from fastapi import FastAPI
 
-        assert isinstance(vercel_entrypoint.app, FastAPI)
+        app = vercel_entrypoint.app
+        if hasattr(app, "app") and not isinstance(app, FastAPI):
+            app = app.app
+
+        assert isinstance(app, FastAPI)
 
         # Verify routes are registered (in newer FastAPI they are _IncludedRouter instances)
-        assert len(vercel_entrypoint.app.routes) > 10
+        assert len(app.routes) > 10
 
         # Verify uvicorn.run was NEVER called during import
         assert not mock_run.called
