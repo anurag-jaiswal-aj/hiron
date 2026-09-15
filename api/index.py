@@ -7,23 +7,25 @@ api_dir = Path(__file__).resolve().parent.parent / "apps" / "api"
 sys.path.insert(0, str(api_dir))
 
 # Import the FastAPI application instance
-from hiron.main import app
+from hiron.main import app as _app
 import sentry_sdk
 from opentelemetry import metrics
+from starlette.types import ASGIApp, Receive, Scope, Send, Message
+
 
 class VercelTelemetryFlushMiddleware:
     """Delays the final HTTP response body until Sentry and OTEL flush, keeping the Vercel container alive."""
 
-    def __init__(self, app):
+    def __init__(self, app: ASGIApp) -> None:
         self.app = app
 
-    async def __call__(self, scope, receive, send):
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope.get("type") != "http":
             return await self.app(scope, receive, send)
 
-        final_message = None
+        final_message: Message | None = None
 
-        async def send_wrapper(message):
+        async def send_wrapper(message: Message) -> None:
             nonlocal final_message
             if message.get("type") == "http.response.body" and not message.get("more_body", False):
                 final_message = message
@@ -44,8 +46,9 @@ class VercelTelemetryFlushMiddleware:
             if final_message is not None:
                 await send(final_message)
 
+
 # Replace the exported app instance for Vercel
-app = VercelTelemetryFlushMiddleware(app)
+app: ASGIApp = VercelTelemetryFlushMiddleware(_app)
 
 # Export the app instance for the @vercel/python builder
 __all__ = ["app"]
