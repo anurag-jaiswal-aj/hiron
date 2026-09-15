@@ -1,255 +1,435 @@
-# Hiron — AI-Powered Hiring Intelligence Platform
+# Hiron
+
+Hiron is a production-grade, AI-powered Hiring Intelligence Platform built to automate and enhance modern recruitment workflows at scale.
+
+By combining traditional Applicant Tracking System (ATS) features with cutting-edge natural language processing (NLP) and explainable AI, Hiron enables recruitment teams to move beyond basic keyword matching. It automatically parses resumes, semantically searches candidate pools using 1536-dimensional embeddings, and generates multi-dimensional fit scores using state-of-the-art LLMs.
+
+Built for modern serverless infrastructure, Hiron utilizes a unique architecture that completely bypasses legacy background workers (like Celery) in favor of asynchronous HTTP webhooks via Upstash QStash. It enforces defense-in-depth security, utilizing both FastAPI application-level middleware and strict PostgreSQL Row Level Security (RLS) to guarantee complete data isolation across organizations.
+
+## Badges
 
 [![CI Pipeline](https://github.com/anurag-jaiswal-aj/hiron/actions/workflows/ci.yml/badge.svg)](https://github.com/anurag-jaiswal-aj/hiron/actions)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.12-blue.svg)](https://www.python.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue.svg)](https://www.typescriptlang.org/)
 
-Hiron is a production-grade AI-powered Hiring Intelligence Platform that helps recruiters evaluate candidates using NLP, semantic vector search, explainable AI fit scoring, and automated pipeline workflows.
+## Table of Contents
 
----
+- [Overview](#overview)
+- [Core Features](#core-features)
+- [System Architecture](#system-architecture)
+- [Request & Data Flows](#request--data-flows)
+- [AI Architecture](#ai-architecture)
+- [Multi-Tenant Security](#multi-tenant-security)
+- [Serverless Task Architecture](#serverless-task-architecture)
+- [Data Architecture](#data-architecture)
+- [Observability](#observability)
+- [Performance & Reliability](#performance--reliability)
+- [Testing & Quality](#testing--quality)
+- [Tech Stack](#tech-stack)
+- [Project Structure](#project-structure)
+- [Local Development](#local-development)
+- [Production Architecture](#production-architecture)
+- [Environment Variables](#environment-variables)
+- [API](#api)
+- [Documentation](#documentation)
+- [Security](#security)
+- [Contributing](#contributing)
+- [License](#license)
+- [Project Status](#project-status)
 
-## 🖼️ Repository Preview
+## Overview
 
-![Hiron Social Preview](assets/images/github-social-preview.png)
+Hiron empowers HR and recruiting teams to handle high volumes of applicants without sacrificing qualitative evaluation. The platform’s core workflow is designed for maximum efficiency:
 
-_The official preview representing the Hiron AI-Powered Hiring Intelligence Platform built with FastAPI, OpenAI, pgvector, and Vercel/Supabase._
+**Recruiter**
+→ Creates organizational jobs and configures scoring parameters
+→ Uploads candidate resumes (PDF/DOCX)
+→ *Hiron automatically parses text via spaCy and generates AI embeddings*
+→ Semantically searches the candidate pool for nuanced job fits
+→ Triggers AI-assisted batch scoring for top candidates
+→ Reviews explainable AI fit scores and recommendation bands
+→ Moves candidates through a customizable Kanban hiring pipeline
+→ Records structured notes, tags, and interview feedback
+→ Audits recruiter activity via immutable system logs
 
----
+## Core Features
 
-## ✨ Key Features
+### Recruitment & ATS
+- **Job Requisition Management:** Define jobs, departments, and custom hiring pipelines.
+- **Candidate Tracking:** End-to-end candidate lifecycle management with an interactive Kanban pipeline.
+- **Resume Management:** Secure upload and storage for PDF and DOCX files.
+- **Notes & Tags:** Collaborative structured feedback tied directly to candidate profiles.
 
-- **Multi-Tenant Architecture**: Context-scoped isolation (`TenantIsolationMiddleware`) and database Row Level Security (RLS) policies across entities.
-- **Resume Parsing**: Multi-format document upload (PDF/DOCX), spaCy NLP entity extraction, and automated candidate profile enrichment.
-- **AI Candidate Scoring**: Multi-dimensional candidate fit scoring engine (`gpt-4o-2024-08-06`) generating scores (0–100), explanations, and recommendation bands.
-- **Semantic Search**: High-performance 1536-dimensional vector similarity search backed by `pgvector` (`text-embedding-3-small`) and hybrid filtering.
-- **Recruitment Pipeline**: Interactive Kanban board view, candidate stage movement transitions, and stage history auditing (`CandidateStageHistory`).
-- **Dashboard & Analytics**: Recruitment overview counters, funnel stage conversion stats, score distribution metrics, and real-time activity feeds.
-- **Audit Logging**: Immutable `AuditLog` records tracking user actions, target entity types, IP addresses, and state changes.
-- **AI Usage Monitoring**: `AIUsageLog` tracking LLM prompt/completion token consumption, operation breakdown, and USD cost accounting.
-- **Production Infrastructure**: Vercel Serverless, Supabase PostgreSQL/Storage, Upstash QStash, and automated GitHub Actions CI/CD workflows (AWS infrastructure decommissioned).
+### AI & Recruitment Intelligence
+- **Intelligent Parsing:** Multi-format document parsing combined with spaCy NLP entity extraction.
+- **Semantic Vector Search:** 1536-dimensional candidate-to-job matching backed by `pgvector`.
+- **Explainable AI Scoring:** Multi-dimensional fit scoring engine generating scores (0–100) and actionable reasoning.
+- **AI Usage Tracking:** Granular logging of LLM prompt/completion tokens and API costs per tenant.
 
----
+### Administration & Collaboration
+- **Multi-Tenancy:** Secure tenant environments with strict data isolation.
+- **Access Control:** Role-based access and organizational invitations.
+- **Audit Logging:** Immutable tracking of user actions, state changes, and IP addresses.
 
-## 🏗️ High-Level Architecture
+## System Architecture
+
+Hiron is architected for a modern Vercel-based serverless deployment, decoupling the client, API, and heavy machine learning workloads.
 
 ```mermaid
 graph TD
-    subgraph ClientLayer["Client Layer"]
-        Client["Web Browser / Client Application"]
+    subgraph Client["Frontend"]
+        NextJS["Next.js 14 App Router"]
     end
 
-    subgraph APILayer["API & Security Layer"]
-        ALB["Vercel Edge Network / WAF"]
-        Middleware["Tenant Context & Security Middleware"]
-        Routers["FastAPI Routers (/api/v1/*)"]
+    subgraph API["Core API (Vercel Serverless)"]
+        FastAPI["FastAPI Core App"]
+        Middleware["Tenant Context & Security"]
+        Routers["REST Endpoints (/api/v1)"]
     end
 
-    subgraph ServiceLayer["Service Layer (Business Logic)"]
-        AuthService["Auth & User Service"]
-        JobService["Job Requisition Service"]
-        CandidateService["Candidate Service"]
-        ResumeService["Resume Parsing Service"]
-        ScoreService["AI Fit Scoring Service"]
-        SearchService["Semantic Search Service"]
-        PipelineService["Kanban Pipeline Service"]
-        AuditService["Audit & AI Usage Service"]
+    subgraph Worker["ML Worker (Vercel Serverless)"]
+        WorkerApp["FastAPI Worker App"]
+        NLP["spaCy NLP Extraction"]
+        QStashWebhooks["QStash Webhook Handlers"]
     end
 
-    subgraph RepositoryLayer["Repository Layer"]
-        Repos["SQLAlchemy Data Repositories"]
+    subgraph Data["State & Storage"]
+        Supabase["Supabase PostgreSQL 16 + pgvector"]
+        S3["Supabase Storage"]
+        UpstashRedis["Upstash Redis (LRU Cache)"]
     end
 
-    subgraph DataLayer["Data & State Layer"]
-        Postgres["Supabase PostgreSQL 16 + pgvector"]
-        Redis["Upstash Redis / LRU Cache"]
+    subgraph Async["Asynchronous Broker"]
+        QStash["Upstash QStash (Serverless Message Queue)"]
     end
 
-    subgraph ExternalServices["External AI & Storage"]
-        OpenAI["OpenAI API (gpt-4o / text-embedding-3-small)"]
-        S3["Supabase Storage (Resume Files)"]
+    subgraph External["External Services"]
+        Gemini["Google GenAI (LLMs & Embeddings)"]
     end
 
-    subgraph WorkerLayer["Asynchronous Processing Layer"]
-        Workers["Upstash QStash Webhooks"]
-    end
-
-    subgraph InfrastructureLayer["Serverless Infrastructure"]
-        VPC["Vercel / Supabase Environments"]
-        ECS["Vercel Serverless Functions"]
-    end
-
-    %% Client and Middleware Entry Points
-    Client --> ALB
-    ALB --> Middleware
+    %% Flow
+    NextJS -->|REST (JWT)| API
+    API --> Middleware
     Middleware --> Routers
 
-    %% Explicit FastAPI Router to Service Connections
-    Routers --> AuthService
-    Routers --> JobService
-    Routers --> CandidateService
-    Routers --> ResumeService
-    Routers --> ScoreService
-    Routers --> SearchService
-    Routers --> PipelineService
-    Routers --> AuditService
+    Routers <--> Supabase
+    Routers <--> UpstashRedis
+    Routers -->|Publish Task| QStash
 
-    %% Service to Repository Abstraction Connections
-    AuthService --> Repos
-    JobService --> Repos
-    CandidateService --> Repos
-    ScoreService --> Repos
-    SearchService --> Repos
-    PipelineService --> Repos
-    AuditService --> Repos
-
-    %% Persistence and Service Integrations
-    Repos --> Postgres
-    AuthService --> Redis
-    ScoreService --> OpenAI
-    SearchService --> OpenAI
-    ResumeService --> S3
-    ResumeService --> Workers
-
-    %% Infrastructure Mapping
-    ECS --> APILayer
-    ECS --> ServiceLayer
-    ECS --> WorkerLayer
-    VPC --> DataLayer
+    QStash -->|HTTP POST (Signed)| Worker
+    Worker --> Supabase
+    Worker --> S3
+    Worker <--> Gemini
 ```
 
----
+### Components
+1. **Next.js Frontend:** A highly interactive, responsive UI powered by React, Tailwind CSS, and shadcn/ui.
+2. **FastAPI Core API:** Handles authentication, CRUD operations, database transactions, and coordinates asynchronous task fan-out.
+3. **FastAPI ML Worker:** A dedicated serverless application for heavy synchronous workloads (spaCy parsing) and AI interactions.
+4. **Supabase & Upstash:** Fully managed PostgreSQL, blob storage, Redis caching, and serverless messaging (QStash).
 
-## 🚀 Latest Release
+## Request & Data Flows
 
-- **Version**: [v1.0.0](docs/releases/v1.0.0.md)
-- **Release Date**: July 31, 2026
-- **Stability**: Initial Stable Release
+### Serverless Task Fan-out (QStash)
+Hiron uses a coordinator-worker fan-out pattern for batch AI scoring.
 
-Hiron v1.0.0 delivers a production-ready AI hiring intelligence platform featuring multi-tenant data isolation, spaCy NLP resume parsing, 3-dimensional AI candidate fit scoring, pgvector semantic search, Kanban pipelines, audit logging, and Vercel/Supabase/Upstash serverless infrastructure.
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API
+    participant QStash
+    participant Worker
 
-For detailed release information, view the [v1.0.0 Release Notes](docs/releases/v1.0.0.md) or the [CHANGELOG.md](CHANGELOG.md).
+    Client->>API: POST /api/v1/scores/batch
+    API->>QStash: Publish (Coordinator Task)
+    API-->>Client: 202 Accepted (Batch ID)
 
----
+    QStash->>API: POST /webhooks/scores/coordinator
+    API->>QStash: Publish N Worker Tasks (fan-out)
+    API-->>QStash: 200 OK (Ack Coordinator)
 
-## 📚 Governing Architecture & Specifications
-
-All architectural and engineering decisions in this repository are strictly governed by specification documents in [`docs/`](./docs/):
-
-1. **Engineering Guidelines**: Coding standards, Python/TypeScript style guides, security rules, and AI standards ([`docs/ENGINEERING_GUIDELINES.md`](./docs/ENGINEERING_GUIDELINES.md))
-2. **Database Design**: Production PostgreSQL + `pgvector` multi-tenant database design ([`docs/DATABASE_DESIGN.md`](./docs/DATABASE_DESIGN.md))
-3. **API Contract**: REST API endpoints, schemas, status codes, and security contracts ([`docs/API_CONTRACT.md`](./docs/API_CONTRACT.md))
-4. **UI/UX Design Specification**: Design tokens, component hierarchy, accessibility, and 17 screen wireframes ([`docs/UI_UX_DESIGN.md`](./docs/UI_UX_DESIGN.md))
-5. **Implementation Roadmap**: 20-phase execution plan and sprint schedule ([`docs/historical/IMPLEMENTATION_ROADMAP.md`](./docs/historical/IMPLEMENTATION_ROADMAP.md))
-6. **Operations Runbook**: Production deployment, zero-downtime database migrations, and incident response ([`docs/RUNBOOK.md`](./docs/RUNBOOK.md))
-7. **Maintenance & LTS Manual**: Routine database vacuuming, LRU cache flushing, and AI prompt tuning ([`docs/MAINTENANCE_AND_LTS.md`](./docs/MAINTENANCE_AND_LTS.md))
-8. **Versioned Release Notes**: Release notes for tag v1.0.0 ([`docs/releases/v1.0.0.md`](./docs/releases/v1.0.0.md))
-9. **Changelog History**: Chronological release history ([`CHANGELOG.md`](./CHANGELOG.md))
-
----
-
-## 🏗️ Repository Monorepo Structure
-
+    par For each candidate
+        QStash->>Worker: POST /webhooks/scores/worker
+        Worker->>Worker: LLM Evaluation
+        Worker->>DB: Save Score
+        Worker-->>QStash: 200 OK (Ack Worker)
+    end
 ```
+
+## AI Architecture
+
+Hiron delegates cognitive reasoning and semantic understanding to state-of-the-art models via Google GenAI (Gemini) while maintaining strict architectural boundaries.
+
+- **Embeddings:** Generates `text-embedding-3-small` equivalent 1536-dimensional vectors for both job descriptions and parsed candidate resumes.
+- **Vector Storage:** Embeddings are persisted in PostgreSQL using the `pgvector` extension, indexed using Hierarchical Navigable Small World (HNSW) graphs for sub-millisecond retrieval.
+- **Explainable Scoring:** The batch scoring pipeline feeds parsed resumes and job contexts into a large language model to generate structured JSON output. The model is constrained to return a numerical fit score, recommendation band, and human-readable reasoning.
+- **Resume Parsing:** Uses standard PDF/DOCX text extraction routed through `spaCy` NLP pipelines in the serverless worker to identify structured entities.
+- **Usage & Cost Tracking:** Every AI invocation is intercepted to log token counts and compute USD cost, tying expenditure directly to the invoking tenant.
+
+## Multi-Tenant Security
+
+Hiron operates a defense-in-depth strategy to guarantee complete data isolation across organizations:
+
+1. **Authentication:** Secure, short-lived JWT access tokens and HTTP-only refresh tokens.
+2. **Application Middleware:** `TenantIsolationMiddleware` extracts the organizational context from the JWT and injects it securely into the request state.
+3. **Database Context Hooks:** SQLAlchemy event listeners intercept database connections to execute `SET LOCAL app.current_tenant_id = '...'` before any queries run.
+4. **PostgreSQL Row Level Security (RLS):** Every tenant-scoped table is protected by `FORCE ROW LEVEL SECURITY`. Queries attempting to read or write data outside the active `app.current_tenant_id` context fail at the database kernel level.
+5. **Application-Level Filtering:** Repositories explicitly filter by `tenant_id`, acting as an additional safety net above RLS.
+6. **Webhook Security:** All asynchronous QStash endpoints require cryptographic validation of the `Upstash-Signature` header to prevent spoofing.
+
+## Serverless Task Architecture
+
+Hiron replaces traditional, always-on polling workers (like Celery) with **Upstash QStash**, a serverless HTTP-based message broker.
+
+- **Task Publication:** The API publishes JSON payloads to QStash REST endpoints.
+- **Webhook Delivery:** QStash delivers tasks via HTTP POST to our public Vercel worker endpoints.
+- **Retry Semantics:** Failures are managed entirely via HTTP status codes. `200 OK` acknowledges and drops the message. `429`, `500`, `503` trigger exponential backoff retries. Fatal application errors (e.g., malformed payloads) are gracefully caught and return `200 OK` to prevent infinite loops.
+- **Idempotency:** Unique deduplication IDs prevent double-processing of tasks during retries.
+- **Batch Fan-out:** A single coordinator webhook dynamically spawns hundreds of independent worker tasks for massive parallel candidate scoring.
+
+## Data Architecture
+
+- **Primary Datastore:** PostgreSQL 16 (via Supabase).
+- **Schema Management:** Alembic migrations with strict transactional boundaries.
+- **Vector Storage:** `pgvector` columns (`vector(1536)`) heavily utilized for semantic similarity matching.
+- **Entity Relationships:** Strict foreign-key constraints enforcing referential integrity (e.g., cascading deletes from Tenant -> Jobs -> Candidates).
+- **Caching:** Upstash Redis handles high-throughput transient state, rate-limiting counters, and session revocation checks.
+
+## Observability
+
+Hiron implements production-grade telemetry for constant operational awareness:
+
+### Sentry
+- Traces API requests, async webhook executions, and frontend errors.
+- Automatically strips Personally Identifiable Information (PII) before transmission.
+- Correlates frontend UI exceptions with backend trace IDs.
+
+### OpenTelemetry
+- Emits custom counter and histogram metrics for API requests (`hiron.api.requests`, `hiron.api.request.duration`).
+- Tracks external AI attempts and failures via dedicated telemetry (`hiron.ai.requests`, `hiron.ai.errors`).
+
+### Health & Readiness
+- `/api/v1/health`: Lightweight liveness probe.
+- `/api/v1/health/ready`: Deep readiness probe verifying database connectivity, Redis ping, and AI provider availability.
+
+## Performance & Reliability
+
+- **Database Optimization:** Strategic B-Tree indexes on foreign keys, `created_at` timestamps, and tenant identifiers. HNSW indexes on vector columns for O(log N) semantic searches.
+- **Pagination:** Cursor-based pagination implemented on high-volume endpoints (e.g., Audit Logs) to guarantee constant-time queries regardless of offset depth.
+- **Frontend Optimization:** Next.js Server Components and dynamic imports reduce client-side bundle size. Optimistic UI updates ensure immediate perceived responsiveness.
+- **Graceful Degradation:** AI provider failures gracefully fall back without taking down core ATS functionalities.
+
+## Testing & Quality
+
+Hiron maintains a rigorous quality assurance pipeline enforced via GitHub Actions:
+
+- **Unit & Integration:** 586+ automated Pytest tests validating business logic, database transactions, and tenant isolation policies.
+- **E2E Testing:** Playwright suites verifying critical path recruitment workflows on the Next.js frontend.
+- **Type Checking:** Strict `mypy` configuration on the backend and comprehensive `tsc` checking on the frontend.
+- **Linting:** Enforced via Ruff (Python) and ESLint (TypeScript).
+
+## Tech Stack
+
+| Layer | Technology | Purpose |
+|---|---|---|
+| **Frontend** | Next.js 14, React 18, Tailwind CSS | UI application, server-side rendering, and styling |
+| **Backend API** | FastAPI, Python 3.12, Pydantic | High-performance async REST API and validation |
+| **Database** | PostgreSQL 16, SQLAlchemy 2.0 | Relational state and ORM |
+| **Cache & Queue** | Upstash Redis, Upstash QStash | LRU caching, rate limiting, and serverless webhooks |
+| **AI / NLP** | Google GenAI, spaCy | Embeddings, scoring LLMs, and entity extraction |
+| **Vector Search** | pgvector | 1536-dimensional semantic similarity matching |
+| **Observability** | Sentry, OpenTelemetry | Exception tracking, tracing, and metrics |
+| **CI/CD** | GitHub Actions | Automated linting, testing, and deployments |
+| **Hosting** | Vercel, Supabase | Serverless edge execution and managed database |
+
+## Project Structure
+
+```text
 hiron/
 ├── apps/
-│   ├── api/                    # FastAPI Core API backend application
-│   └── web/                    # Next.js 15 App Router frontend
-├── packages/
-│   ├── shared-types/           # Shared TypeScript interfaces & API contracts
-│   ├── ui/                     # Shared UI component primitives (shadcn/ui base)
-│   ├── config/                 # Shared linting & configuration templates
-│   └── utils/                  # Shared helper functions & formatters
-├── services/
-│   └── ai/                     # Standalone FastAPI AI Microservice (spaCy/OpenAI)
-├── workers/
-│   └── celery/                 # Celery background workers for async processing
-├── infra/
-│   └── docker/                 # Container Dockerfiles & docker-compose manifests
-├── docs/                       # Frozen Architecture & Design Documents
-├── scripts/                    # Development automation & database scripts
-└── .github/
-    └── workflows/              # GitHub Actions CI/CD automation pipelines
+│   ├── api/                    # Core FastAPI Backend
+│   ├── web/                    # Next.js 14 Frontend Application
+│   └── worker/                 # FastAPI ML Worker (spaCy / QStash)
+├── packages/                   # Monorepo Shared Libraries
+│   ├── shared-types/           # TypeScript API interfaces
+│   ├── ui/                     # shadcn/ui React components
+│   ├── config/                 # Shared ESLint/Prettier configs
+│   └── utils/                  # Common TypeScript helpers
+├── infra/                      # Local Docker Compose infrastructure
+├── docs/                       # Canonical Engineering Documentation
+├── scripts/                    # Database seeding and automation
+└── .github/workflows/          # CI/CD Pipelines
 ```
 
 ---
 
-## 🔑 Environment Configuration
+## Local Development
 
-Hiron manages configuration using environment files and Pydantic BaseSettings:
+### Prerequisites
+- Python 3.12+ (managed via `uv`)
+- Node.js 20.x+
+- `pnpm` 9.x+
+- Docker & Docker Compose
+- `cloudflared` (for local QStash webhook tunneling)
 
-- **Local Development (`.env.local`)**: Initialized via `make setup` for local Docker Compose development.
-- **Production Template (`.env.production.example`)**: Template for production settings including database URLs, Redis URLs, OpenAI API keys, and JWT RSA keypair paths.
-- **Secret Management**: Production secrets, database credentials, and RSA private keys should be stored in Vercel Environment Variables.
+### 1. Installation
+
+```bash
+git clone https://github.com/anurag-jaiswal-aj/hiron.git
+cd hiron
+
+# Generate local .env.local
+make setup
+
+# Install all workspace dependencies
+uv sync --all-extras
+pnpm install
+
+# Generate local RSA JWT keys
+mkdir -p keys
+openssl genpkey -algorithm RSA -out keys/jwt_private.pem -pkeyopt rsa_keygen_bits:4096
+openssl rsa -in keys/jwt_private.pem -pubout -out keys/jwt_public.pem
+```
+
+### 2. Database Setup
+
+```bash
+# Start Postgres and Redis containers
+docker compose up -d
+
+# Initialize database, extensions, and run Alembic migrations
+make db-init
+make db-upgrade
+
+# Seed initial Tenant and Admin user
+uv run python scripts/seed.py
+```
+
+### 3. Start Development Servers
+
+Run these in separate terminal windows:
+
+```bash
+# Start Core API (http://localhost:8000)
+export PYTHONPATH=apps/api:$PYTHONPATH
+uv run uvicorn hiron.main:app --reload --port 8000
+
+# Start ML Worker (http://localhost:8001)
+export PYTHONPATH=apps/worker:$PYTHONPATH
+uv run uvicorn src.main:app --reload --port 8001
+
+# Start Next.js Frontend (http://localhost:3000)
+pnpm --filter @hiron/web dev
+```
+
+### 4. QStash Local Webhooks
+
+To test serverless webhooks locally, expose your local API via Cloudflare tunnels:
+
+```bash
+cloudflared tunnel --url http://localhost:8000
+# Copy the generated URL (e.g., https://<random>.trycloudflare.com)
+```
+
+Update your `.env.local` with the new URL and your Upstash keys:
+```env
+BACKGROUND_TASK_ENGINE=qstash
+QSTASH_WEBHOOK_URL=https://<random>.trycloudflare.com
+QSTASH_TOKEN="<your-qstash-token>"
+QSTASH_CURRENT_SIGNING_KEY="<your-current-signing-key>"
+QSTASH_NEXT_SIGNING_KEY="<your-next-signing-key>"
+```
+
+### Verification
+Run the backend test suite to verify your environment:
+```bash
+uv run pytest
+```
 
 ---
 
-## ⚙️ Prerequisites
+## Production Architecture
 
-- **Python**: 3.12+ (managed with `uv` or `pip`)
-- **Node.js**: 20.x LTS+
-- **pnpm**: 9.x+
-- **Docker & Docker Compose**: 24+
+Hiron operates a 100% serverless production infrastructure:
 
----
+- **Vercel:** Hosts the Next.js frontend, Core API backend, and ML Worker as independently scaling Serverless Functions.
+- **Supabase:** Hosts the highly-available PostgreSQL 16 database, handling automatic backups, point-in-time recovery, and `pgvector` indexing. Supabase Storage handles secure candidate resume assets.
+- **Upstash:** Provides Serverless Redis for distributed caching/rate-limiting, and QStash for managing the asynchronous task queue with guaranteed delivery and retry logic.
+- **Sentry & Grafana:** Provides real-time application monitoring, unhandled exception alerting, and operational dashboards.
 
-## 🚀 Getting Started
+## Environment Variables
 
-1. **Clone the repository**:
+| Variable | Required | Used By | Purpose |
+| -------- | -------- | ------- | ------- |
+| `DATABASE_URL` | Yes (All) | API / Worker | PostgreSQL connection string |
+| `REDIS_URL` | Yes (All) | API | Upstash Redis connection string |
+| `JWT_PRIVATE_KEY_PATH` | Yes (All) | API | Path to RSA private key for JWT signing |
+| `JWT_PUBLIC_KEY_PATH` | Yes (All) | API | Path to RSA public key for JWT validation |
+| `QSTASH_TOKEN` | Yes (All) | API | Token to publish tasks to QStash |
+| `QSTASH_CURRENT_SIGNING_KEY` | Yes (All) | API / Worker | Validates inbound QStash webhook signatures |
+| `GEMINI_API_KEY` | Yes (All) | API / Worker | Authenticates with Google GenAI API |
+| `SENTRY_DSN` | Optional | Web / API / Worker | DSN for Sentry telemetry routing |
 
-   ```bash
-   git clone https://github.com/anurag-jaiswal-aj/hiron.git
-   cd hiron
-   ```
+*Values for these variables must be securely injected via Vercel Environment Variables. Never commit secrets to the repository.*
 
-2. **Initialize local environment file (`.env.local`)**:
+## API
 
-   > ⚠️ **IMPORTANT**: You MUST run `make setup` before running `docker compose up` because `.env.local` is required by the container environment.
+The backend exposes a highly structured REST API mapped to standard HTTP verbs. Complete documentation, schema definitions, and internal Serverless Webhook payload contracts can be found in the canonical [API Contract](docs/API_CONTRACT.md).
 
-   ```bash
-   make setup
-   ```
+Interactive OpenAPI documentation is available during local development at `http://localhost:8000/docs`.
 
-3. **Start local development containers**:
+## Documentation
 
-   ```bash
-   make dev
-   ```
+Comprehensive engineering specifications govern the Hiron architecture.
 
-4. **Development Command Reference**:
-   - Run test suite:
-     ```bash
-     uv run pytest
-     ```
-   - Run type checks across monorepo:
-     ```bash
-     make type-check
-     ```
-   - Run linters:
-     ```bash
-     make lint
-     ```
-   - Code formatting:
-     ```bash
-     make format
-     ```
+**Canonical Documentation:**
+- [API Contract](docs/API_CONTRACT.md)
+- [Database Design](docs/DATABASE_DESIGN.md)
+- [Engineering Guidelines](docs/ENGINEERING_GUIDELINES.md)
+- [Local Setup Guide](LOCAL_SETUP.md)
+- [Operations Runbook](docs/RUNBOOK.md)
+- [Maintenance & LTS](docs/MAINTENANCE_AND_LTS.md)
+- [UI/UX Design Spec](docs/UI_UX_DESIGN.md)
+- [QStash Architecture](docs/architecture/qstash/)
 
----
+## Security
 
-## 🤝 Contributing
+Hiron employs rigorous security protocols to protect PII and tenant data:
+- Complete cryptographic separation of JWT signing (RSA 4096-bit).
+- PostgreSQL Row Level Security (RLS) guaranteeing tenant isolation at the database kernel level.
+- Argon2id password hashing parameters calibrated to OWASP recommendations.
+- Cryptographic validation of all serverless webhook traffic (`Upstash-Signature`).
+- Comprehensive parameter validation and injection prevention via SQLAlchemy 2.0.
 
-We welcome contributions to Hiron! Please follow these guidelines:
+## Contributing
 
-1. **Branch Strategy**: Create feature branches from `main` (e.g. `feat/feature-name` or `fix/bug-fix`).
-2. **Quality Verification**: Ensure all checks pass before submitting a Pull Request:
+We welcome contributions to Hiron:
+
+1. **Branch Strategy:** Create feature branches from `main` (e.g. `feat/feature-name` or `fix/bug-fix`).
+2. **Quality Verification:** Ensure all checks pass before submitting a Pull Request:
    - Run PyTest: `uv run pytest`
    - Run Ruff linter & formatter: `uv run ruff check . && uv run ruff format --check .`
    - Run MyPy strict type checker: `uv run mypy apps/api`
-   - Run Prettier check: `npx prettier --check "**/*.{ts,tsx,js,jsx,json,yaml,yml,md}"`
-3. **Pull Requests**: Submit PRs against `main` with a concise summary of changes and reference any related issues.
+   - Run Prettier check: `pnpm run format`
+3. **Pull Requests:** Submit PRs against `main` with a concise summary of changes and reference any related issues.
 
----
-
-## 📄 License
+## License
 
 Distributed under the Apache 2.0 License. See [`LICENSE`](./LICENSE) for details.
+
+## Project Status
+
+**Initial Stable Release (v1.0.0)**
+
+Hiron is currently in active development but stable for production deployments leveraging Vercel and Supabase. The core ATS workflows, serverless QStash asynchronous tasks, and AI parsing/scoring pipelines are fully implemented and verified by automated end-to-end tests.
+
+## Final Project Snapshot
+
+- **Full-stack Applicant Tracking System** (Next.js + FastAPI + Postgres)
+- **Multi-tenant architecture** (Strict RLS data isolation)
+- **AI-assisted recruitment intelligence** (Google GenAI / spaCy)
+- **Semantic vector search** (1536-dim pgvector HNSW indexing)
+- **Serverless asynchronous processing** (Upstash QStash webhooks)
+- **Production observability** (Sentry + OpenTelemetry)
+- **Automated testing and CI/CD** (586+ verified test cases)
