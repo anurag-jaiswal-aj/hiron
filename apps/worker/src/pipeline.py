@@ -257,10 +257,9 @@ async def parse_resume_pipeline(
     """Execute resume parsing pipeline: text extraction -> NER parsing -> DB update -> candidate auto-enrichment."""
     resume_repo = ResumeRepository()
     from hiron.core.config import get_settings
-    from hiron.storage.provider import StorageProvider, LocalStorageProvider, SupabaseStorageProvider
+    from hiron.storage.provider import LocalStorageProvider, SupabaseStorageProvider
     settings = get_settings()
 
-    storage_provider: StorageProvider
     if settings.supabase_url and settings.supabase_service_role_key:
         storage_provider = SupabaseStorageProvider(
             supabase_url=settings.supabase_url,
