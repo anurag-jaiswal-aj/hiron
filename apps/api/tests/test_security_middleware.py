@@ -137,6 +137,10 @@ def clear_redis():
         if keys:
             await redis.delete(*keys)
 
+        auth_keys = await redis.keys("rate_limit:auth:ip:*")
+        if auth_keys:
+            await redis.delete(*auth_keys)
+
     asyncio.run(_clear())
 
 
@@ -146,6 +150,7 @@ async def test_rate_limit_direct_untrusted(monkeypatch):
 
     settings = hiron.core.config.get_settings()
     monkeypatch.setattr(settings, "rate_limit_requests_per_minute", 2)
+    monkeypatch.setattr(settings, "rate_limit_auth_requests_per_minute", 2)
     monkeypatch.setattr(settings, "trusted_proxies", ["10.0.0.1"])
 
     async with AsyncClient(
@@ -171,6 +176,7 @@ async def test_rate_limit_trusted_proxy(monkeypatch):
 
     settings = hiron.core.config.get_settings()
     monkeypatch.setattr(settings, "rate_limit_requests_per_minute", 2)
+    monkeypatch.setattr(settings, "rate_limit_auth_requests_per_minute", 2)
     monkeypatch.setattr(settings, "trusted_proxies", ["10.0.0.1"])
 
     # Client IP is the proxy IP
@@ -191,11 +197,41 @@ async def test_rate_limit_trusted_proxy(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_rate_limit_auth_endpoints(monkeypatch):
+    import hiron.core.config
+
+    settings = hiron.core.config.get_settings()
+    monkeypatch.setattr(settings, "rate_limit_requests_per_minute", 100)
+    monkeypatch.setattr(settings, "rate_limit_auth_requests_per_minute", 2)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app, client=("192.168.1.2", 12345)), base_url="http://test"
+    ) as client:
+        # The generic limit is 100, but auth limit is 2
+        # Send 2 login requests
+        await client.post("/api/v1/auth/login")
+        await client.post("/api/v1/auth/login")
+
+        # 3rd login request should be 429
+        res_login_3 = await client.post("/api/v1/auth/login")
+        assert res_login_3.status_code == 429
+
+        # 3rd refresh request should also be 429 because it shares the same bucket key
+        res_refresh_1 = await client.post("/api/v1/auth/refresh")
+        assert res_refresh_1.status_code == 429
+
+        # However, a generic endpoint should NOT be rate limited
+        res_generic = await client.get("/api/v1/health")
+        assert res_generic.status_code == 200
+
+
+@pytest.mark.asyncio
 async def test_rate_limit_redis_failopen(monkeypatch):
     import hiron.core.config
 
     settings = hiron.core.config.get_settings()
     monkeypatch.setattr(settings, "rate_limit_requests_per_minute", 1)
+    monkeypatch.setattr(settings, "rate_limit_auth_requests_per_minute", 1)
 
     # Mock redis to fail
     class FailingRedis:

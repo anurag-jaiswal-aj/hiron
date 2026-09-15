@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     rate_limit_requests_per_minute: int = Field(
         default=600, description="Rate limit requests per minute per IP"
     )
+    rate_limit_auth_requests_per_minute: int = Field(
+        default=20, description="Stricter rate limit for authentication endpoints per minute per IP"
+    )
     trusted_proxies: list[str] = Field(
         default=["127.0.0.1", "::1"],
         description="List of trusted proxy IPs/CIDRs for resolving X-Forwarded-For",

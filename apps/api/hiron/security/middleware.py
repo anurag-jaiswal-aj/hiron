@@ -159,7 +159,7 @@ def is_trusted_proxy(ip: str, trusted_proxies: list[str]) -> bool:
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """Redis-backed fixed-window rate limiter for API endpoints."""
 
-    async def dispatch(
+    async def dispatch(  # noqa: C901
         self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
         settings = get_settings()
@@ -179,6 +179,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if path == "/api/v1/auth/forgot-password" or path == "/api/v1/users/invite/accept":
             limit = 5
             window_duration = 900  # 15 minutes
+        elif path in ["/api/v1/auth/login", "/api/v1/auth/refresh"]:
+            limit = settings.rate_limit_auth_requests_per_minute
+            window_duration = 60  # 1 minute
         else:
             limit = settings.rate_limit_requests_per_minute
             window_duration = 60  # 1 minute
@@ -201,6 +204,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             window_key = f"rate_limit:forgot_pwd:ip:{client_ip}:{window_time}"
         elif path == "/api/v1/users/invite/accept":
             window_key = f"rate_limit:invite_accept:ip:{client_ip}:{window_time}"
+        elif path in ["/api/v1/auth/login", "/api/v1/auth/refresh"]:
+            window_key = f"rate_limit:auth:ip:{client_ip}:{window_time}"
         else:
             window_key = f"rate_limit:ip:{client_ip}:{window_time}"
 
