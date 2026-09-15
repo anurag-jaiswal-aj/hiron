@@ -16,7 +16,10 @@ class QStashPublisher:
         self.enabled = bool(settings.qstash_token)
 
         if self.enabled and settings.qstash_token:
-            self.client = AsyncQStash(settings.qstash_token)
+            if settings.qstash_url:
+                self.client = AsyncQStash(settings.qstash_token, base_url=settings.qstash_url)
+            else:
+                self.client = AsyncQStash(settings.qstash_token)
         else:
             self.client = None
 

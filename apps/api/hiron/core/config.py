@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     qstash_next_signing_key: str | None = Field(default=None, repr=False)
     qstash_webhook_url: str | None = Field(default=None)
     qstash_token: str | None = Field(default=None, repr=False)
+    qstash_url: str | None = Field(default=None, description="Base URL for Upstash QStash REST API")
     worker_url: str | None = Field(
         default=None, description="Base public URL of the deployed worker"
     )
