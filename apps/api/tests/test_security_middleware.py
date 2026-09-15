@@ -1,13 +1,18 @@
 import json
+import asyncio
+from typing import Any
+from collections.abc import AsyncGenerator
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 
 from hiron.main import app
+from hiron.core.cache import CacheManager
+import hiron.core.config
 
 
 @pytest.mark.asyncio
-async def test_security_headers():
+async def test_security_headers() -> None:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         # Docs endpoint should have different CSP
         response = await client.get("/docs")
@@ -28,7 +33,7 @@ async def test_security_headers():
 
 # Size limit tests
 @pytest.mark.asyncio
-async def test_size_limit_json_over():
+async def test_size_limit_json_over() -> None:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         payload = {"data": "x" * (1 * 1024 * 1024 + 10)}
         headers = {"Content-Length": str(len(json.dumps(payload)))}
@@ -38,7 +43,7 @@ async def test_size_limit_json_over():
 
 
 @pytest.mark.asyncio
-async def test_size_limit_json_under():
+async def test_size_limit_json_under() -> None:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         payload = {"data": "x" * 10}
         headers = {"Content-Length": str(len(json.dumps(payload)))}
@@ -48,7 +53,7 @@ async def test_size_limit_json_under():
 
 
 @pytest.mark.asyncio
-async def test_size_limit_multipart_over():
+async def test_size_limit_multipart_over() -> None:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         headers = {"Content-Length": str(11 * 1024 * 1024), "Content-Type": "multipart/form-data"}
         response = await client.post("/api/v1/resumes/upload", headers=headers)
@@ -56,7 +61,7 @@ async def test_size_limit_multipart_over():
 
 
 @pytest.mark.asyncio
-async def test_size_limit_multipart_under():
+async def test_size_limit_multipart_under() -> None:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         headers = {"Content-Length": str(2 * 1024 * 1024), "Content-Type": "multipart/form-data"}
         response = await client.post("/api/v1/resumes/upload", headers=headers)
@@ -65,8 +70,8 @@ async def test_size_limit_multipart_under():
 
 
 @pytest.mark.asyncio
-async def test_chunked_json_over():
-    async def generate_large_body():
+async def test_chunked_json_over() -> None:
+    async def generate_large_body() -> AsyncGenerator[bytes, None]:
         for _ in range(2000):  # ~ 2MB
             yield b"x" * 1024
 
@@ -80,10 +85,10 @@ async def test_chunked_json_over():
 
 
 @pytest.mark.asyncio
-async def test_chunked_multipart_over():
+async def test_chunked_multipart_over() -> None:
     boundary = b"----WebKitFormBoundary7MA4YWxkTrZu0gW"
 
-    async def generate_huge_body():
+    async def generate_huge_body() -> AsyncGenerator[bytes, None]:
         yield b"--" + boundary + b"\r\n"
         yield b'Content-Disposition: form-data; name="file"; filename="big.txt"\r\n'
         yield b"Content-Type: text/plain\r\n\r\n"
@@ -105,8 +110,8 @@ async def test_chunked_multipart_over():
 
 
 @pytest.mark.asyncio
-async def test_chunked_under():
-    async def generate_small_body():
+async def test_chunked_under() -> None:
+    async def generate_small_body() -> AsyncGenerator[bytes, None]:
         for _ in range(10):  # ~ 10KB
             yield b"x" * 1024
 
@@ -121,15 +126,12 @@ async def test_chunked_under():
 
 # Rate Limiting Tests
 
-from hiron.core.cache import CacheManager
-
 
 @pytest.fixture(autouse=True)
-def clear_redis():
+def clear_redis() -> None:
     """Clear rate limit keys before each test."""
-    import asyncio
 
-    async def _clear():
+    async def _clear() -> None:
         cache = CacheManager()
         redis = cache._get_redis()
         # Mocking flush is safe in test DB
@@ -145,9 +147,7 @@ def clear_redis():
 
 
 @pytest.mark.asyncio
-async def test_rate_limit_direct_untrusted(monkeypatch):
-    import hiron.core.config
-
+async def test_rate_limit_direct_untrusted(monkeypatch: pytest.MonkeyPatch) -> None:
     settings = hiron.core.config.get_settings()
     monkeypatch.setattr(settings, "rate_limit_requests_per_minute", 2)
     monkeypatch.setattr(settings, "rate_limit_auth_requests_per_minute", 2)
@@ -171,9 +171,7 @@ async def test_rate_limit_direct_untrusted(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_rate_limit_trusted_proxy(monkeypatch):
-    import hiron.core.config
-
+async def test_rate_limit_trusted_proxy(monkeypatch: pytest.MonkeyPatch) -> None:
     settings = hiron.core.config.get_settings()
     monkeypatch.setattr(settings, "rate_limit_requests_per_minute", 2)
     monkeypatch.setattr(settings, "rate_limit_auth_requests_per_minute", 2)
@@ -197,9 +195,7 @@ async def test_rate_limit_trusted_proxy(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_rate_limit_auth_endpoints(monkeypatch):
-    import hiron.core.config
-
+async def test_rate_limit_auth_endpoints(monkeypatch: pytest.MonkeyPatch) -> None:
     settings = hiron.core.config.get_settings()
     monkeypatch.setattr(settings, "rate_limit_requests_per_minute", 100)
     monkeypatch.setattr(settings, "rate_limit_auth_requests_per_minute", 2)
@@ -226,33 +222,27 @@ async def test_rate_limit_auth_endpoints(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_rate_limit_redis_failopen(monkeypatch):
-    import hiron.core.config
-
+async def test_rate_limit_redis_failopen(monkeypatch: pytest.MonkeyPatch) -> None:
     settings = hiron.core.config.get_settings()
     monkeypatch.setattr(settings, "rate_limit_requests_per_minute", 1)
     monkeypatch.setattr(settings, "rate_limit_auth_requests_per_minute", 1)
 
     # Mock redis to fail
     class FailingRedis:
-        def pipeline(self):
+        def pipeline(self) -> Any:
             class Pipe:
-                def incr(self, *args):
+                def incr(self, *args: Any) -> None:
                     pass
 
-                def expire(self, *args):
+                def expire(self, *args: Any) -> None:
                     pass
 
-                async def execute(self):
+                async def execute(self) -> None:
                     raise Exception("Redis down!")
 
             return Pipe()
 
-    import hiron.security.middleware
-
-    monkeypatch.setattr(
-        hiron.security.middleware.CacheManager, "_get_redis", lambda self: FailingRedis()
-    )
+    monkeypatch.setattr(CacheManager, "_get_redis", lambda self: FailingRedis())
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         # All requests should pass even if Redis throws exceptions
