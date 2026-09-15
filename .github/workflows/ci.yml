@@ -38,14 +38,6 @@ jobs:
           push: false
           tags: hiron-api:latest
 
-      - name: Build AI Service Container
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: infra/docker/Dockerfile.ai
-          push: false
-          tags: hiron-ai:latest
-
       - name: Build Web Frontend Container
         uses: docker/build-push-action@v5
         with:

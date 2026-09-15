@@ -196,10 +196,4 @@ jobs:
             EXIT_CODE=$PROJECT_EXIT
           fi
 
-          echo "Restarting Celery worker to release accumulated memory..."
-          docker compose restart worker
-
-          # Brief pause to ensure worker is ready
-          sleep 2
-
           exit $EXIT_CODE
