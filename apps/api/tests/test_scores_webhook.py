@@ -265,3 +265,103 @@ async def test_batch_score_worker_webhook_malformed_payload(async_client):
     # Should return 200 OK so QStash drops the message instead of retrying endlessly
     assert response.status_code == 200
     assert response.json()["status"] == "failed"
+
+
+@pytest.mark.asyncio
+async def test_batch_score_worker_webhook_invalid_signature(async_client):
+    payload = {
+        "batch_id": str(uuid.uuid4()),
+        "tenant_id": str(uuid.uuid4()),
+        "job_id": str(uuid.uuid4()),
+        "candidate_id": str(uuid.uuid4()),
+        "force_rescore": False,
+    }
+    body = json.dumps(payload)
+
+    # Send without signature or with invalid signature
+    response = await async_client.post(
+        "/api/v1/webhooks/qstash/scores/batch/worker",
+        content=body,
+        headers={
+            "Upstash-Signature": "t=123,v1=invalid_signature",
+            "Content-Type": "application/json",
+        },
+    )
+
+    # Must reject with 401
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_batch_score_worker_webhook_cross_tenant_isolation(async_client):
+    from hiron.scores.repository import ScoreRepository
+    from hiron.security.context import set_tenant_context
+
+    # Create Tenant A and its data
+    async with AsyncSessionLocal() as session:
+        tenant_a, job_a, candidate_a, batch_a = await _seed_test_db(session)
+        # Create Tenant B and its data
+        tenant_b, job_b, candidate_b, batch_b = await _seed_test_db(session)
+
+    # Tenant A tries to run worker for Tenant B's candidate
+    # The payload is structurally valid and signed by QStash, claiming to act for Tenant A
+    payload = {
+        "batch_id": str(batch_b),
+        "tenant_id": str(tenant_a),  # Authenticating as Tenant A
+        "job_id": str(job_b),  # Target Tenant B's Job
+        "candidate_id": str(candidate_b),  # Target Tenant B's Candidate
+        "force_rescore": False,
+    }
+
+    body = json.dumps(payload)
+    signature = generate_qstash_signature(
+        body, CURRENT_KEY, url="http://testserver/api/v1/webhooks/qstash/scores/batch/worker"
+    )
+
+    response = await async_client.post(
+        "/api/v1/webhooks/qstash/scores/batch/worker",
+        content=body,
+        headers={"Upstash-Signature": signature, "Content-Type": "application/json"},
+    )
+
+    # Because RLS hides Tenant B's candidate from Tenant A, the webhook's DB lookup will fail.
+    # The service layer returns ResourceNotFoundException, which the worker catches and acks (200 OK) with 'ignored'.
+    assert response.status_code == 200
+    assert response.json()["status"] == "ignored"
+    assert response.json()["reason"] == "Entity not found"
+
+
+@pytest.mark.asyncio
+async def test_batch_score_worker_webhook_clears_tenant_context(async_client):
+    from hiron.security.context import get_tenant_context
+
+    payload = {
+        "batch_id": str(uuid.uuid4()),
+        "tenant_id": str(uuid.uuid4()),
+        "job_id": str(uuid.uuid4()),
+        "candidate_id": str(uuid.uuid4()),
+        "force_rescore": False,
+    }
+
+    body = json.dumps(payload)
+    signature = generate_qstash_signature(
+        body, CURRENT_KEY, url="http://testserver/api/v1/webhooks/qstash/scores/batch/worker"
+    )
+
+    # Initial context should be None
+    assert get_tenant_context() is None
+
+    # We patch a failure to ensure the exception path (finally block) is exercised
+    with patch("hiron.webhooks.router.ScoreService.score_candidate_sync") as mock_score:
+        mock_score.side_effect = Exception("Boom")
+
+        response = await async_client.post(
+            "/api/v1/webhooks/qstash/scores/batch/worker",
+            content=body,
+            headers={"Upstash-Signature": signature, "Content-Type": "application/json"},
+        )
+
+        assert response.status_code == 500
+
+    # Ensure context was cleared
+    assert get_tenant_context() is None

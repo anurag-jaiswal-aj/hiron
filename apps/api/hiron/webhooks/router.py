@@ -7,7 +7,8 @@ from pydantic import BaseModel, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hiron.common.exceptions import ResourceNotFoundException
-from hiron.core.database import get_db_session
+from hiron.core.database import AsyncSessionLocal
+from hiron.security.context import set_tenant_context
 from hiron.embeddings.schemas import CandidateEmbeddingWebhookPayload, JobEmbeddingWebhookPayload
 from hiron.embeddings.service import EmbeddingService
 from hiron.scores.schemas import BatchScoreWorkerWebhookPayload
@@ -63,7 +64,6 @@ from typing import Any
 @router.post("/qstash/auth/forgot-password", dependencies=[Depends(verify_qstash_signature)])
 async def qstash_forgot_password_webhook(
     request: Request,
-    session: AsyncSession = Depends(get_db_session),
 ) -> dict[str, Any]:
     """Webhook to securely generate a password reset token and send an email."""
     body_bytes = await request.body()
@@ -78,21 +78,23 @@ async def qstash_forgot_password_webhook(
 
     auth_service = AuthService()
 
+    set_tenant_context(str(parsed.tenant_id))
     try:
-        raw_token = await auth_service.generate_password_reset_token(
-            session=session,
-            email=parsed.email,
-            tenant_id=parsed.tenant_id,
-        )
-
-        if raw_token:
-            email_adapter = get_email_adapter()
-            await email_adapter.send_password_reset_email(
-                to_email=parsed.email,
-                raw_token=raw_token,
+        async with AsyncSessionLocal() as session:
+            raw_token = await auth_service.generate_password_reset_token(
+                session=session,
+                email=parsed.email,
+                tenant_id=parsed.tenant_id,
             )
 
-        return {"status": "success"}
+            if raw_token:
+                email_adapter = get_email_adapter()
+                await email_adapter.send_password_reset_email(
+                    to_email=parsed.email,
+                    raw_token=raw_token,
+                )
+
+            return {"status": "success"}
 
     except Exception as e:
         from hiron.core.email import EmailDeliveryError
@@ -103,6 +105,8 @@ async def qstash_forgot_password_webhook(
 
         logger.error("Failed to process forgot password webhook", error=str(e))
         raise HTTPException(status_code=500, detail=str(e)) from e
+    finally:
+        set_tenant_context(None)
 
 
 from hiron.users.schemas import UserInvitationWebhookPayload
@@ -111,7 +115,6 @@ from hiron.users.schemas import UserInvitationWebhookPayload
 @router.post("/qstash/users/invite", dependencies=[Depends(verify_qstash_signature)])
 async def qstash_user_invitation_webhook(
     request: Request,
-    session: AsyncSession = Depends(get_db_session),
 ) -> dict[str, Any]:
     """Webhook to securely generate an invitation token and send an email."""
     body_bytes = await request.body()
@@ -140,75 +143,79 @@ async def qstash_user_invitation_webhook(
     user_id = UUID(parsed.user_id)
     tenant_id = UUID(parsed.tenant_id)
 
-    # 1. Validate Tenant
-    tenant = await tenant_repo.get_by_id(session, tenant_id)
-    if not tenant:
-        logger.warning("Invitation aborted: Tenant not found", tenant_id=str(tenant_id))
-        return {"status": "ignored", "reason": "Tenant not found"}
-
-    # 2. Validate User
-    user = await user_repo.get_by_id_and_tenant(session, user_id, tenant_id)
-    if not user:
-        logger.warning("Invitation aborted: User not found", user_id=str(user_id))
-        return {"status": "ignored", "reason": "User not found"}
-
-    if user.email != parsed.email:
-        logger.warning("Invitation aborted: Email mismatch", user_id=str(user_id))
-        return {"status": "ignored", "reason": "Email mismatch"}
-
-    if not user.is_active:
-        logger.warning("Invitation aborted: User inactive", user_id=str(user_id))
-        return {"status": "ignored", "reason": "User inactive"}
-
-    if user.is_email_verified:
-        logger.warning("Invitation aborted: User already verified", user_id=str(user_id))
-        return {"status": "ignored", "reason": "User already verified"}
-
-    # 3. Token Generation and Persistence
+    set_tenant_context(str(tenant_id))
     try:
-        # Revoke old tokens
-        await invitation_repo.revoke_pending_for_user(session, user_id)
+        async with AsyncSessionLocal() as session:
+            # 1. Validate Tenant
+            tenant = await tenant_repo.get_by_id(session, tenant_id)
+            if not tenant:
+                logger.warning("Invitation aborted: Tenant not found", tenant_id=str(tenant_id))
+                return {"status": "ignored", "reason": "Tenant not found"}
 
-        # Generate new
-        raw_token = secrets.token_urlsafe(32)
-        token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
-        expires_at = datetime.now(UTC) + timedelta(days=7)
+            # 2. Validate User
+            user = await user_repo.get_by_id_and_tenant(session, user_id, tenant_id)
+            if not user:
+                logger.warning("Invitation aborted: User not found", user_id=str(user_id))
+                return {"status": "ignored", "reason": "User not found"}
 
-        token = UserInvitationToken(
-            user_id=user_id,
-            token_hash=token_hash,
-            expires_at=expires_at,
-        )
-        await invitation_repo.create(session, token)
+            if user.email != parsed.email:
+                logger.warning("Invitation aborted: Email mismatch", user_id=str(user_id))
+                return {"status": "ignored", "reason": "Email mismatch"}
 
-        # Must commit before sending email to guarantee atomicity of the token
-        await session.commit()
-    except Exception as e:
-        logger.error("Database failure while creating invitation token", error=str(e))
-        raise HTTPException(status_code=500, detail="Database failure") from e
+            if not user.is_active:
+                logger.warning("Invitation aborted: User inactive", user_id=str(user_id))
+                return {"status": "ignored", "reason": "User inactive"}
 
-    # 4. Dispatch Email
-    try:
-        email_adapter = get_email_adapter()
-        await email_adapter.send_invitation_email(
-            to_email=parsed.email,
-            raw_token=raw_token,
-            organization_name=tenant.name,
-        )
-        return {"status": "success"}
-    except EmailDeliveryError as e:
-        logger.error("Email provider failed, QStash will retry", error=str(e))
-        # Throw 500 so QStash retries. On retry, the old pending token will be revoked!
-        raise HTTPException(status_code=500, detail="Email delivery failed") from e
-    except Exception as e:
-        logger.error("Failed to process user invitation webhook", error=str(e))
-        raise HTTPException(status_code=500, detail=str(e)) from e
+            if user.is_email_verified:
+                logger.warning("Invitation aborted: User already verified", user_id=str(user_id))
+                return {"status": "ignored", "reason": "User already verified"}
+
+            # 3. Token Generation and Persistence
+            try:
+                # Revoke old tokens
+                await invitation_repo.revoke_pending_for_user(session, user_id)
+
+                # Generate new
+                raw_token = secrets.token_urlsafe(32)
+                token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+                expires_at = datetime.now(UTC) + timedelta(days=7)
+
+                token = UserInvitationToken(
+                    user_id=user_id,
+                    token_hash=token_hash,
+                    expires_at=expires_at,
+                )
+                await invitation_repo.create(session, token)
+
+                # Must commit before sending email to guarantee atomicity of the token
+                await session.commit()
+            except Exception as e:
+                logger.error("Database failure while creating invitation token", error=str(e))
+                raise HTTPException(status_code=500, detail="Database failure") from e
+
+            # 4. Dispatch Email
+            try:
+                email_adapter = get_email_adapter()
+                await email_adapter.send_invitation_email(
+                    to_email=parsed.email,
+                    raw_token=raw_token,
+                    organization_name=tenant.name,
+                )
+                return {"status": "success"}
+            except EmailDeliveryError as e:
+                logger.error("Email provider failed, QStash will retry", error=str(e))
+                # Throw 500 so QStash retries. On retry, the old pending token will be revoked!
+                raise HTTPException(status_code=500, detail="Email delivery failed") from e
+            except Exception as e:
+                logger.error("Failed to process user invitation webhook", error=str(e))
+                raise HTTPException(status_code=500, detail=str(e)) from e
+    finally:
+        set_tenant_context(None)
 
 
 @router.post("/qstash/embeddings/candidate", dependencies=[Depends(verify_qstash_signature)])
 async def qstash_candidate_embedding_webhook(
     request: Request,
-    session: AsyncSession = Depends(get_db_session),
 ) -> dict[str, Any]:
     """Webhook to execute candidate embedding generation."""
     body_bytes = await request.body()
@@ -226,23 +233,25 @@ async def qstash_candidate_embedding_webhook(
 
     service = EmbeddingService()
 
+    set_tenant_context(str(tenant_id))
     try:
-        result = await service.generate_candidate_embedding_pipeline(
-            session=session,
-            tenant_id=tenant_id,
-            candidate_id=candidate_id,
-            model_version=parsed.model_version,
-        )
+        async with AsyncSessionLocal() as session:
+            result = await service.generate_candidate_embedding_pipeline(
+                session=session,
+                tenant_id=tenant_id,
+                candidate_id=candidate_id,
+                model_version=parsed.model_version,
+            )
 
-        if result.status == "failed" and result.error_type == "rate_limit":
-            # Throw 429 so QStash retries
-            raise HTTPException(status_code=429, detail="AI Provider rate limit exceeded")
+            if result.status == "failed" and result.error_type == "rate_limit":
+                # Throw 429 so QStash retries
+                raise HTTPException(status_code=429, detail="AI Provider rate limit exceeded")
 
-        logger.info("ABOUT TO CALL session.commit()")
-        await session.commit()
-        logger.info("FINISHED CALLING session.commit()")
+            logger.info("ABOUT TO CALL session.commit()")
+            await session.commit()
+            logger.info("FINISHED CALLING session.commit()")
 
-        return {"status": "success", "cache_hit": result.cache_hit}
+            return {"status": "success", "cache_hit": result.cache_hit}
 
     except Exception as e:
         logger.error("Failed to generate candidate embedding via webhook", error=str(e))
@@ -250,12 +259,13 @@ async def qstash_candidate_embedding_webhook(
         if isinstance(e, HTTPException):
             raise
         raise HTTPException(status_code=500, detail=str(e)) from e
+    finally:
+        set_tenant_context(None)
 
 
 @router.post("/qstash/embeddings/job", dependencies=[Depends(verify_qstash_signature)])
 async def qstash_job_embedding_webhook(
     request: Request,
-    session: AsyncSession = Depends(get_db_session),
 ) -> dict[str, Any]:
     """Webhook to execute job embedding generation."""
     body_bytes = await request.body()
@@ -273,21 +283,23 @@ async def qstash_job_embedding_webhook(
 
     service = EmbeddingService()
 
+    set_tenant_context(str(tenant_id))
     try:
-        result = await service.generate_job_embedding_pipeline(
-            session=session,
-            tenant_id=tenant_id,
-            job_id=job_id,
-            model_version=parsed.model_version,
-        )
+        async with AsyncSessionLocal() as session:
+            result = await service.generate_job_embedding_pipeline(
+                session=session,
+                tenant_id=tenant_id,
+                job_id=job_id,
+                model_version=parsed.model_version,
+            )
 
-        if result.status == "failed" and result.error_type == "rate_limit":
-            # Throw 429 so QStash retries
-            raise HTTPException(status_code=429, detail="AI Provider rate limit exceeded")
+            if result.status == "failed" and result.error_type == "rate_limit":
+                # Throw 429 so QStash retries
+                raise HTTPException(status_code=429, detail="AI Provider rate limit exceeded")
 
-        await session.commit()
+            await session.commit()
 
-        return {"status": "success", "cache_hit": result.cache_hit}
+            return {"status": "success", "cache_hit": result.cache_hit}
 
     except Exception as e:
         logger.error("Failed to generate job embedding via webhook", error=str(e))
@@ -295,12 +307,13 @@ async def qstash_job_embedding_webhook(
         if isinstance(e, HTTPException):
             raise
         raise HTTPException(status_code=500, detail=str(e)) from e
+    finally:
+        set_tenant_context(None)
 
 
 @router.post("/qstash/scores/batch/worker", dependencies=[Depends(verify_qstash_signature)])
 async def qstash_batch_score_worker_webhook(
     request: Request,
-    session: AsyncSession = Depends(get_db_session),
 ) -> dict[str, Any]:
     """Webhook to execute individual candidate scoring in a batch."""
     body_bytes = await request.body()
@@ -312,94 +325,99 @@ async def qstash_batch_score_worker_webhook(
 
     service = ScoreService()
 
+    set_tenant_context(str(parsed.tenant_id))
     try:
-        # We pass user_role="org_admin" because this is a trusted system action via QStash signature
-        await service.score_candidate_sync(
-            session=session,
-            tenant_id=parsed.tenant_id,
-            user_role="org_admin",
-            job_id=parsed.job_id,
-            candidate_id=parsed.candidate_id,
-            force_rescore=parsed.force_rescore,
-        )
+        async with AsyncSessionLocal() as session:
+            try:
+                # We pass user_role="org_admin" because this is a trusted system action via QStash signature
+                await service.score_candidate_sync(
+                    session=session,
+                    tenant_id=parsed.tenant_id,
+                    user_role="org_admin",
+                    job_id=parsed.job_id,
+                    candidate_id=parsed.candidate_id,
+                    force_rescore=parsed.force_rescore,
+                )
 
-        # Successful terminal claim
-        claimed = await service.score_repo.claim_batch_score_worker_success(
-            session=session,
-            tenant_id=parsed.tenant_id,
-            batch_id=parsed.batch_id,
-            candidate_id=parsed.candidate_id,
-        )
-        if not claimed:
-            logger.info(
-                "Worker success ignored: candidate already terminally claimed",
-                batch_id=parsed.batch_id,
-                candidate_id=str(parsed.candidate_id),
-            )
+                # Successful terminal claim
+                claimed = await service.score_repo.claim_batch_score_worker_success(
+                    session=session,
+                    tenant_id=parsed.tenant_id,
+                    batch_id=parsed.batch_id,
+                    candidate_id=parsed.candidate_id,
+                )
+                if not claimed:
+                    logger.info(
+                        "Worker success ignored: candidate already terminally claimed",
+                        batch_id=parsed.batch_id,
+                        candidate_id=str(parsed.candidate_id),
+                    )
 
-        await session.commit()
+                await session.commit()
 
-        return {
-            "status": "success",
-            "batch_id": parsed.batch_id,
-            "candidate_id": str(parsed.candidate_id),
-        }
+                return {
+                    "status": "success",
+                    "batch_id": parsed.batch_id,
+                    "candidate_id": str(parsed.candidate_id),
+                }
 
-    except Exception as e:
-        logger.error("Failed to score candidate via webhook worker", error=str(e))
+            except Exception as e:
+                logger.error("Failed to score candidate via webhook worker", error=str(e))
 
-        # We must map exceptions according to ERROR_MATRIX.md
-        if isinstance(e, ResourceNotFoundException):
-            # Invalid UUID / Entity Not Found -> 200 OK (Ack)
-            await service.score_repo.claim_batch_score_worker_failure(
-                session=session,
-                tenant_id=parsed.tenant_id,
-                batch_id=parsed.batch_id,
-                candidate_id=parsed.candidate_id,
-            )
-            await session.commit()
-            return {"status": "ignored", "reason": "Entity not found", "details": str(e)}
+                # We must map exceptions according to ERROR_MATRIX.md
+                if isinstance(e, ResourceNotFoundException):
+                    # Invalid UUID / Entity Not Found -> 200 OK (Ack)
+                    await service.score_repo.claim_batch_score_worker_failure(
+                        session=session,
+                        tenant_id=parsed.tenant_id,
+                        batch_id=parsed.batch_id,
+                        candidate_id=parsed.candidate_id,
+                    )
+                    await session.commit()
+                    return {"status": "ignored", "reason": "Entity not found", "details": str(e)}
 
-        if isinstance(e, httpx.HTTPStatusError):
-            if e.response.status_code == 429:
-                # Quota limit -> 429 Too Many Requests -> QStash retries
-                raise HTTPException(
-                    status_code=429, detail="AI Provider rate limit exceeded"
-                ) from e
-            if e.response.status_code >= 500:
-                # AI Internal Error / Bad Gateway -> 503 Service Unavailable -> QStash retries
-                raise HTTPException(status_code=503, detail="AI Provider transient error") from e
+                if isinstance(e, httpx.HTTPStatusError):
+                    if e.response.status_code == 429:
+                        # Quota limit -> 429 Too Many Requests -> QStash retries
+                        raise HTTPException(
+                            status_code=429, detail="AI Provider rate limit exceeded"
+                        ) from e
+                    if e.response.status_code >= 500:
+                        # AI Internal Error / Bad Gateway -> 503 Service Unavailable -> QStash retries
+                        raise HTTPException(status_code=503, detail="AI Provider transient error") from e
 
-            # AI Schema Error / 400 Bad Request -> 200 OK (Ack)
-            await service.score_repo.claim_batch_score_worker_failure(
-                session=session,
-                tenant_id=parsed.tenant_id,
-                batch_id=parsed.batch_id,
-                candidate_id=parsed.candidate_id,
-            )
-            await session.commit()
-            return {"status": "failed", "reason": "Terminal AI error", "details": str(e)}
+                    # AI Schema Error / 400 Bad Request -> 200 OK (Ack)
+                    await service.score_repo.claim_batch_score_worker_failure(
+                        session=session,
+                        tenant_id=parsed.tenant_id,
+                        batch_id=parsed.batch_id,
+                        candidate_id=parsed.candidate_id,
+                    )
+                    await session.commit()
+                    return {"status": "failed", "reason": "Terminal AI error", "details": str(e)}
 
-        import pydantic
+                import pydantic
 
-        if isinstance(e, pydantic.ValidationError):
-            # AI returned bad JSON schema -> 200 OK (Ack)
-            await service.score_repo.claim_batch_score_worker_failure(
-                session=session,
-                tenant_id=parsed.tenant_id,
-                batch_id=parsed.batch_id,
-                candidate_id=parsed.candidate_id,
-            )
-            await session.commit()
-            return {"status": "failed", "reason": "AI Schema Error", "details": str(e)}
+                if isinstance(e, pydantic.ValidationError):
+                    # AI returned bad JSON schema -> 200 OK (Ack)
+                    await service.score_repo.claim_batch_score_worker_failure(
+                        session=session,
+                        tenant_id=parsed.tenant_id,
+                        batch_id=parsed.batch_id,
+                        candidate_id=parsed.candidate_id,
+                    )
+                    await session.commit()
+                    return {"status": "failed", "reason": "AI Schema Error", "details": str(e)}
 
-        # Reraise so QStash handles retries based on status code
-        if isinstance(e, HTTPException):
-            raise
+                # Reraise so QStash handles retries based on status code
+                if isinstance(e, HTTPException):
+                    raise
 
-        # All other unhandled exceptions: 500 -> QStash retries
-        raise HTTPException(status_code=500, detail=str(e)) from e
+                # All other unhandled exceptions: 500 -> QStash retries
+                raise HTTPException(status_code=500, detail=str(e)) from e
 
+    finally:
+        set_tenant_context(None)
 
 from hiron.core.config import get_settings
 from hiron.core.qstash_client import qstash_publisher
@@ -409,7 +427,6 @@ from hiron.scores.schemas import BatchScoreCoordinatorWebhookPayload
 @router.post("/qstash/scores/batch/coordinator", dependencies=[Depends(verify_qstash_signature)])
 async def qstash_batch_score_coordinator_webhook(
     request: Request,
-    session: AsyncSession = Depends(get_db_session),
 ) -> dict[str, Any]:
     """Webhook to coordinate fan-out for batch candidate scoring."""
     body_bytes = await request.body()
@@ -420,77 +437,82 @@ async def qstash_batch_score_coordinator_webhook(
         return {"status": "failed", "reason": "Malformed payload", "details": str(e)}
 
     service = ScoreService()
-    batch_job = await service.score_repo.get_batch_score_job(
-        session=session, tenant_id=parsed.tenant_id, batch_id=parsed.batch_id
-    )
-
-    if not batch_job:
-        logger.warning("Batch job not found for coordinator", batch_id=parsed.batch_id)
-        return {"status": "ignored", "reason": "Batch job not found"}
-
-    if batch_job.status in ("completed", "failed"):
-        logger.info(
-            "Batch job already completed or failed, ignoring duplicate delivery",
-            batch_id=parsed.batch_id,
-            status=batch_job.status,
-        )
-        return {"status": "ignored", "reason": "Already terminal"}
-
-    # Zero candidate behavior
-    if batch_job.queued_count == 0 or len(parsed.candidate_ids) == 0:
-        batch_job.status = "completed"
-        batch_job.completed_count = 0
-        batch_job.failed_count = 0
-        batch_job.queued_count = 0
-        await session.flush()
-        return {"status": "completed", "reason": "Zero candidates"}
-
-    if batch_job.status == "pending":
-        rowcount = await service.score_repo.transition_batch_score_job_to_processing(
-            session=session, tenant_id=parsed.tenant_id, batch_id=parsed.batch_id
-        )
-        if rowcount == 0:
-            logger.info(
-                "Batch already transitioned to processing concurrently", batch_id=parsed.batch_id
+    set_tenant_context(str(parsed.tenant_id))
+    try:
+        async with AsyncSessionLocal() as session:
+            batch_job = await service.score_repo.get_batch_score_job(
+                session=session, tenant_id=parsed.tenant_id, batch_id=parsed.batch_id
             )
 
-    # Fan out to workers using candidate_ids from payload (immutable snapshot)
-    settings = get_settings()
-    if not settings.qstash_webhook_url:
-        raise HTTPException(status_code=500, detail="QStash webhook URL not configured")
+            if not batch_job:
+                logger.warning("Batch job not found for coordinator", batch_id=parsed.batch_id)
+                return {"status": "ignored", "reason": "Batch job not found"}
 
-    # Commit the transaction so workers see the status as processing
-    await session.commit()
+            if batch_job.status in ("completed", "failed"):
+                logger.info(
+                    "Batch job already completed or failed, ignoring duplicate delivery",
+                    batch_id=parsed.batch_id,
+                    status=batch_job.status,
+                )
+                return {"status": "ignored", "reason": "Already terminal"}
 
-    # Gather promises for the publish_json calls
-    for candidate_id in parsed.candidate_ids:
-        worker_payload = {
-            "batch_id": parsed.batch_id,
-            "tenant_id": str(parsed.tenant_id),
-            "job_id": str(parsed.job_id),
-            "candidate_id": str(candidate_id),
-            "force_rescore": parsed.force_rescore,
-        }
-        dedup_id = (
-            f"batch-worker-{parsed.tenant_id}-{parsed.job_id}-{candidate_id}-{parsed.batch_id}"
-        )
+            # Zero candidate behavior
+            if batch_job.queued_count == 0 or len(parsed.candidate_ids) == 0:
+                batch_job.status = "completed"
+                batch_job.completed_count = 0
+                batch_job.failed_count = 0
+                batch_job.queued_count = 0
+                await session.flush()
+                return {"status": "completed", "reason": "Zero candidates"}
 
-        try:
-            await qstash_publisher.publish(
-                url=f"{settings.qstash_webhook_url}/api/v1/webhooks/qstash/scores/batch/worker",
-                payload=worker_payload,
-                deduplication_id=dedup_id,
-            )
-        except Exception as e:
-            logger.error(
-                "Failed to publish to QStash worker",
-                batch_id=parsed.batch_id,
-                candidate_id=str(candidate_id),
-                error=str(e),
-            )
-            # Don't update batch counters, let QStash retry the coordinator
-            raise HTTPException(
-                status_code=500, detail=f"Failed to enqueue worker for {candidate_id}"
-            ) from e
+            if batch_job.status == "pending":
+                rowcount = await service.score_repo.transition_batch_score_job_to_processing(
+                    session=session, tenant_id=parsed.tenant_id, batch_id=parsed.batch_id
+                )
+                if rowcount == 0:
+                    logger.info(
+                        "Batch already transitioned to processing concurrently", batch_id=parsed.batch_id
+                    )
 
-    return {"status": "processing", "fan_out_count": len(parsed.candidate_ids)}
+            # Fan out to workers using candidate_ids from payload (immutable snapshot)
+            settings = get_settings()
+            if not settings.qstash_webhook_url:
+                raise HTTPException(status_code=500, detail="QStash webhook URL not configured")
+
+            # Commit the transaction so workers see the status as processing
+            await session.commit()
+
+            # Gather promises for the publish_json calls
+            for candidate_id in parsed.candidate_ids:
+                worker_payload = {
+                    "batch_id": parsed.batch_id,
+                    "tenant_id": str(parsed.tenant_id),
+                    "job_id": str(parsed.job_id),
+                    "candidate_id": str(candidate_id),
+                    "force_rescore": parsed.force_rescore,
+                }
+                dedup_id = (
+                    f"batch-worker-{parsed.tenant_id}-{parsed.job_id}-{candidate_id}-{parsed.batch_id}"
+                )
+
+                try:
+                    await qstash_publisher.publish(
+                        url=f"{settings.qstash_webhook_url}/api/v1/webhooks/qstash/scores/batch/worker",
+                        payload=worker_payload,
+                        deduplication_id=dedup_id,
+                    )
+                except Exception as e:
+                    logger.error(
+                        "Failed to publish to QStash worker",
+                        batch_id=parsed.batch_id,
+                        candidate_id=str(candidate_id),
+                        error=str(e),
+                    )
+                    # Don't update batch counters, let QStash retry the coordinator
+                    raise HTTPException(
+                        status_code=500, detail=f"Failed to enqueue worker for {candidate_id}"
+                    ) from e
+
+            return {"status": "processing", "fan_out_count": len(parsed.candidate_ids)}
+    finally:
+        set_tenant_context(None)
