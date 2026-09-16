@@ -60,6 +60,7 @@ class SearchRepository:
                 .join(Candidate, Candidate.id == CandidateEmbedding.candidate_id)
                 .where(
                     CandidateEmbedding.model_version == DEFAULT_EMBEDDING_MODEL,
+                    CandidateEmbedding.status == "success",
                     Candidate.tenant_id == tenant_id,
                     Candidate.is_archived.is_(False),
                 )
@@ -136,7 +137,8 @@ class SearchRepository:
             .outerjoin(
                 JobEmbedding,
                 (Job.id == JobEmbedding.job_id)
-                & (JobEmbedding.model_version == DEFAULT_EMBEDDING_MODEL),
+                & (JobEmbedding.model_version == DEFAULT_EMBEDDING_MODEL)
+                & (JobEmbedding.status == "success"),
             )
             .where(
                 Job.tenant_id == tenant_id,

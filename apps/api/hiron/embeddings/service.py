@@ -395,15 +395,12 @@ class EmbeddingService:
             )
             current_hash = self.generator.compute_source_text_hash(current_text)
 
-            if (
-                existing.source_text_hash == current_hash
-                and existing.model_version == model_version
-                and existing.embedding is not None
-                and len(existing.embedding) == EMBEDDING_DIMENSION
-            ):
-                status = "current"
-            else:
+            if existing.source_text_hash != current_hash:
                 status = "stale"
+            elif getattr(existing, "status", "success") == "failed":
+                status = "failed"
+            else:
+                status = "current"
 
         return IndividualEmbeddingStatusResponse(
             data=IndividualEmbeddingStatusData(
@@ -440,15 +437,12 @@ class EmbeddingService:
             current_text = self._construct_job_source_text(job)
             current_hash = self.generator.compute_source_text_hash(current_text)
 
-            if (
-                existing.source_text_hash == current_hash
-                and existing.model_version == model_version
-                and existing.embedding is not None
-                and len(existing.embedding) == EMBEDDING_DIMENSION
-            ):
-                status = "current"
-            else:
+            if existing.source_text_hash != current_hash:
                 status = "stale"
+            elif getattr(existing, "status", "success") == "failed":
+                status = "failed"
+            else:
+                status = "current"
 
         return IndividualEmbeddingStatusResponse(
             data=IndividualEmbeddingStatusData(
@@ -492,15 +486,12 @@ class EmbeddingService:
                     session=session, tenant_id=tenant_id, candidate=cand
                 )
                 current_hash = self.generator.compute_source_text_hash(current_text)
-                if (
-                    emb.source_text_hash == current_hash
-                    and emb.model_version == model_version
-                    and emb.embedding is not None
-                    and len(emb.embedding) == EMBEDDING_DIMENSION
-                ):
-                    cand_with_embedding += 1
-                else:
+                if emb.source_text_hash != current_hash:
                     cand_stale += 1
+                elif getattr(emb, "status", "success") == "failed":
+                    cand_missing += 1  # count failed as missing for coverage stats
+                else:
+                    cand_with_embedding += 1
 
         # 2. Job coverage calculations
         stmt_job = select(Job).where(Job.tenant_id == tenant_id)
@@ -523,15 +514,12 @@ class EmbeddingService:
             else:
                 current_text = self._construct_job_source_text(job)
                 current_hash = self.generator.compute_source_text_hash(current_text)
-                if (
-                    job_emb.source_text_hash == current_hash
-                    and job_emb.model_version == model_version
-                    and job_emb.embedding is not None
-                    and len(job_emb.embedding) == EMBEDDING_DIMENSION
-                ):
-                    job_with_embedding += 1
-                else:
+                if job_emb.source_text_hash != current_hash:
                     job_stale += 1
+                elif getattr(job_emb, "status", "success") == "failed":
+                    job_missing += 1  # count failed as missing for coverage stats
+                else:
+                    job_with_embedding += 1
 
         return EmbeddingStatusResponse(
             data=EmbeddingStatusData(

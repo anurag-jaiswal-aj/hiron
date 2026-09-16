@@ -34,7 +34,11 @@ class CandidateEmbedding(Base):
     candidate_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("candidates.id", ondelete="CASCADE"), nullable=False
     )
-    embedding: Mapped[list[float]] = mapped_column(pgvector.sqlalchemy.Vector(768), nullable=False)
+    embedding: Mapped[list[float] | None] = mapped_column(
+        pgvector.sqlalchemy.Vector(768), nullable=True
+    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="success")
+    error_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
     model_version: Mapped[str] = mapped_column(String(100), nullable=False)
     source_text_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     created_at: Mapped[datetime.datetime] = mapped_column(
@@ -60,7 +64,11 @@ class JobEmbedding(Base):
     job_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False
     )
-    embedding: Mapped[list[float]] = mapped_column(pgvector.sqlalchemy.Vector(768), nullable=False)
+    embedding: Mapped[list[float] | None] = mapped_column(
+        pgvector.sqlalchemy.Vector(768), nullable=True
+    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="success")
+    error_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
     model_version: Mapped[str] = mapped_column(String(100), nullable=False)
     source_text_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     created_at: Mapped[datetime.datetime] = mapped_column(

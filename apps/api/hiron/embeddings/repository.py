@@ -32,6 +32,8 @@ class EmbeddingRepository:
         if existing:
             existing.embedding = embedding
             existing.source_text_hash = source_text_hash
+            existing.status = "success"
+            existing.error_type = None
             await session.flush()
             return existing
 
@@ -41,6 +43,46 @@ class EmbeddingRepository:
             embedding=embedding,
             model_version=model_version,
             source_text_hash=source_text_hash,
+            status="success",
+        )
+        session.add(new_embedding)
+        await session.flush()
+        return new_embedding
+
+    async def upsert_candidate_embedding_failure(
+        self,
+        session: AsyncSession,
+        tenant_id: uuid.UUID,
+        candidate_id: uuid.UUID,
+        model_version: str,
+        source_text_hash: str,
+        error_type: str | None,
+    ) -> CandidateEmbedding:
+        """Create or update candidate vector embedding as a terminal failure."""
+        stmt = select(CandidateEmbedding).where(
+            CandidateEmbedding.tenant_id == tenant_id,
+            CandidateEmbedding.candidate_id == candidate_id,
+            CandidateEmbedding.model_version == model_version,
+        )
+        result = await session.execute(stmt)
+        existing = result.scalar_one_or_none()
+
+        if existing:
+            existing.embedding = None
+            existing.source_text_hash = source_text_hash
+            existing.status = "failed"
+            existing.error_type = error_type
+            await session.flush()
+            return existing
+
+        new_embedding = CandidateEmbedding(
+            tenant_id=tenant_id,
+            candidate_id=candidate_id,
+            embedding=None,
+            model_version=model_version,
+            source_text_hash=source_text_hash,
+            status="failed",
+            error_type=error_type,
         )
         session.add(new_embedding)
         await session.flush()
@@ -102,6 +144,8 @@ class EmbeddingRepository:
         if existing:
             existing.embedding = embedding
             existing.source_text_hash = source_text_hash
+            existing.status = "success"
+            existing.error_type = None
             await session.flush()
             return existing
 
@@ -111,6 +155,46 @@ class EmbeddingRepository:
             embedding=embedding,
             model_version=model_version,
             source_text_hash=source_text_hash,
+            status="success",
+        )
+        session.add(new_embedding)
+        await session.flush()
+        return new_embedding
+
+    async def upsert_job_embedding_failure(
+        self,
+        session: AsyncSession,
+        tenant_id: uuid.UUID,
+        job_id: uuid.UUID,
+        model_version: str,
+        source_text_hash: str,
+        error_type: str | None,
+    ) -> JobEmbedding:
+        """Create or update job vector embedding as a terminal failure."""
+        stmt = select(JobEmbedding).where(
+            JobEmbedding.tenant_id == tenant_id,
+            JobEmbedding.job_id == job_id,
+            JobEmbedding.model_version == model_version,
+        )
+        result = await session.execute(stmt)
+        existing = result.scalar_one_or_none()
+
+        if existing:
+            existing.embedding = None
+            existing.source_text_hash = source_text_hash
+            existing.status = "failed"
+            existing.error_type = error_type
+            await session.flush()
+            return existing
+
+        new_embedding = JobEmbedding(
+            tenant_id=tenant_id,
+            job_id=job_id,
+            embedding=None,
+            model_version=model_version,
+            source_text_hash=source_text_hash,
+            status="failed",
+            error_type=error_type,
         )
         session.add(new_embedding)
         await session.flush()

@@ -214,7 +214,7 @@ async def qstash_user_invitation_webhook(
 
 
 @router.post("/qstash/embeddings/candidate", dependencies=[Depends(verify_qstash_signature)])
-async def qstash_candidate_embedding_webhook(
+async def qstash_candidate_embedding_webhook(  # noqa: C901
     request: Request,
 ) -> dict[str, Any]:
     """Webhook to execute candidate embedding generation."""
@@ -236,35 +236,69 @@ async def qstash_candidate_embedding_webhook(
     set_tenant_context(str(tenant_id))
     try:
         async with AsyncSessionLocal() as session:
-            result = await service.generate_candidate_embedding_pipeline(
-                session=session,
-                tenant_id=tenant_id,
-                candidate_id=candidate_id,
-                model_version=parsed.model_version,
-            )
+            try:
+                result = await service.generate_candidate_embedding_pipeline(
+                    session=session,
+                    tenant_id=tenant_id,
+                    candidate_id=candidate_id,
+                    model_version=parsed.model_version,
+                )
 
-            if result.status == "failed" and result.error_type == "rate_limit":
-                # Throw 429 so QStash retries
-                raise HTTPException(status_code=429, detail="AI Provider rate limit exceeded")
+                if result.status == "failed" and result.error_type == "rate_limit":
+                    raise HTTPException(status_code=429, detail="AI Provider rate limit exceeded")
 
-            logger.info("ABOUT TO CALL session.commit()")
-            await session.commit()
-            logger.info("FINISHED CALLING session.commit()")
+                await session.commit()
+                return {"status": "success", "cache_hit": result.cache_hit}
+            except Exception as e:
+                is_terminal = False
+                error_type = None
 
-            return {"status": "success", "cache_hit": result.cache_hit}
+                if isinstance(e, ResourceNotFoundException):
+                    return {"status": "ignored", "reason": "Entity not found"}
+                if type(e).__name__ == "ClientError" and getattr(e, "code", None) == 400:
+                    is_terminal = True
+                    error_type = "client_error_400"
+
+                if is_terminal:
+                    logger.error("Terminal candidate embedding failure", error_type=error_type)
+                    await session.rollback()
+                    candidate = await service.candidate_repo.get_candidate_by_id(
+                        session=session, candidate_id=candidate_id, tenant_id=tenant_id
+                    )
+                    if candidate:
+                        source_text = await service._construct_candidate_source_text(
+                            session=session, tenant_id=tenant_id, candidate=candidate
+                        )
+                        source_text_hash = service.generator.compute_source_text_hash(source_text)
+                        await service.embedding_repo.upsert_candidate_embedding_failure(
+                            session=session,
+                            tenant_id=tenant_id,
+                            candidate_id=candidate_id,
+                            model_version=parsed.model_version,
+                            source_text_hash=source_text_hash,
+                            error_type=error_type,
+                        )
+                        await session.commit()
+                    return {"status": "failed", "reason": "Terminal error"}
+
+                if type(e).__name__ == "ClientError" and getattr(e, "code", None) == 429:
+                    raise HTTPException(
+                        status_code=429, detail="AI Provider rate limit exceeded"
+                    ) from e
+
+                raise
 
     except Exception as e:
-        logger.error("Failed to generate candidate embedding via webhook", error=str(e))
-        # Reraise so QStash handles retries based on status code
+        logger.error("Transient or unhandled failure in candidate embedding webhook", error=str(e))
         if isinstance(e, HTTPException):
             raise
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Transient error") from e
     finally:
         set_tenant_context(None)
 
 
 @router.post("/qstash/embeddings/job", dependencies=[Depends(verify_qstash_signature)])
-async def qstash_job_embedding_webhook(
+async def qstash_job_embedding_webhook(  # noqa: C901
     request: Request,
 ) -> dict[str, Any]:
     """Webhook to execute job embedding generation."""
@@ -286,27 +320,61 @@ async def qstash_job_embedding_webhook(
     set_tenant_context(str(tenant_id))
     try:
         async with AsyncSessionLocal() as session:
-            result = await service.generate_job_embedding_pipeline(
-                session=session,
-                tenant_id=tenant_id,
-                job_id=job_id,
-                model_version=parsed.model_version,
-            )
+            try:
+                result = await service.generate_job_embedding_pipeline(
+                    session=session,
+                    tenant_id=tenant_id,
+                    job_id=job_id,
+                    model_version=parsed.model_version,
+                )
 
-            if result.status == "failed" and result.error_type == "rate_limit":
-                # Throw 429 so QStash retries
-                raise HTTPException(status_code=429, detail="AI Provider rate limit exceeded")
+                if result.status == "failed" and result.error_type == "rate_limit":
+                    raise HTTPException(status_code=429, detail="AI Provider rate limit exceeded")
 
-            await session.commit()
+                await session.commit()
+                return {"status": "success", "cache_hit": result.cache_hit}
+            except Exception as e:
+                is_terminal = False
+                error_type = None
 
-            return {"status": "success", "cache_hit": result.cache_hit}
+                if isinstance(e, ResourceNotFoundException):
+                    return {"status": "ignored", "reason": "Entity not found"}
+                if type(e).__name__ == "ClientError" and getattr(e, "code", None) == 400:
+                    is_terminal = True
+                    error_type = "client_error_400"
+
+                if is_terminal:
+                    logger.error("Terminal job embedding failure", error_type=error_type)
+                    await session.rollback()
+                    job = await service.job_repo.get_job_by_id(
+                        session=session, job_id=job_id, tenant_id=tenant_id
+                    )
+                    if job:
+                        source_text = service._construct_job_source_text(job)
+                        source_text_hash = service.generator.compute_source_text_hash(source_text)
+                        await service.embedding_repo.upsert_job_embedding_failure(
+                            session=session,
+                            tenant_id=tenant_id,
+                            job_id=job_id,
+                            model_version=parsed.model_version,
+                            source_text_hash=source_text_hash,
+                            error_type=error_type,
+                        )
+                        await session.commit()
+                    return {"status": "failed", "reason": "Terminal error"}
+
+                if type(e).__name__ == "ClientError" and getattr(e, "code", None) == 429:
+                    raise HTTPException(
+                        status_code=429, detail="AI Provider rate limit exceeded"
+                    ) from e
+
+                raise
 
     except Exception as e:
-        logger.error("Failed to generate job embedding via webhook", error=str(e))
-        # Reraise so QStash handles retries based on status code
+        logger.error("Transient or unhandled failure in job embedding webhook", error=str(e))
         if isinstance(e, HTTPException):
             raise
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Transient error") from e
     finally:
         set_tenant_context(None)
 
@@ -384,7 +452,9 @@ async def qstash_batch_score_worker_webhook(
                         ) from e
                     if e.response.status_code >= 500:
                         # AI Internal Error / Bad Gateway -> 503 Service Unavailable -> QStash retries
-                        raise HTTPException(status_code=503, detail="AI Provider transient error") from e
+                        raise HTTPException(
+                            status_code=503, detail="AI Provider transient error"
+                        ) from e
 
                     # AI Schema Error / 400 Bad Request -> 200 OK (Ack)
                     await service.score_repo.claim_batch_score_worker_failure(
@@ -418,6 +488,7 @@ async def qstash_batch_score_worker_webhook(
 
     finally:
         set_tenant_context(None)
+
 
 from hiron.core.config import get_settings
 from hiron.core.qstash_client import qstash_publisher
@@ -471,7 +542,8 @@ async def qstash_batch_score_coordinator_webhook(
                 )
                 if rowcount == 0:
                     logger.info(
-                        "Batch already transitioned to processing concurrently", batch_id=parsed.batch_id
+                        "Batch already transitioned to processing concurrently",
+                        batch_id=parsed.batch_id,
                     )
 
             # Fan out to workers using candidate_ids from payload (immutable snapshot)
@@ -491,9 +563,7 @@ async def qstash_batch_score_coordinator_webhook(
                     "candidate_id": str(candidate_id),
                     "force_rescore": parsed.force_rescore,
                 }
-                dedup_id = (
-                    f"batch-worker-{parsed.tenant_id}-{parsed.job_id}-{candidate_id}-{parsed.batch_id}"
-                )
+                dedup_id = f"batch-worker-{parsed.tenant_id}-{parsed.job_id}-{candidate_id}-{parsed.batch_id}"
 
                 try:
                     await qstash_publisher.publish(
