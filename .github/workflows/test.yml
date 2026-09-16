@@ -157,6 +157,9 @@ jobs:
           echo "POSTGRES_DB=hiron_dev" >> .env.local
           echo "QSTASH_CURRENT_SIGNING_KEY=sig_test_key_12345678901234567890" >> .env.local
           echo "QSTASH_NEXT_SIGNING_KEY=sig_test_key_12345678901234567890" >> .env.local
+          # CI E2E tests share the Docker bridge IP and execute logins rapidly across ~50 tests per shard.
+          # We override the strict production auth rate limit (20) to prevent 429 Too Many Requests in CI.
+          echo "RATE_LIMIT_AUTH_REQUESTS_PER_MINUTE=120" >> .env.local
 
       - name: Start backend infrastructure
         run: docker compose up -d postgres redis api
