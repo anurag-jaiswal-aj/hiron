@@ -33,6 +33,7 @@ async def test_parse_resume_triggers_candidate_embedding(
     """Verify that a successful parse triggers a candidate embedding QStash publish."""
     session = AsyncMock()
     from unittest.mock import MagicMock
+
     session.begin_nested = MagicMock()
     session.begin_nested.return_value.__aenter__ = AsyncMock()
     session.begin_nested.return_value.__aexit__ = AsyncMock()
@@ -55,36 +56,36 @@ async def test_parse_resume_triggers_candidate_embedding(
     )
     mock_resume_repo.get_resume_by_id = AsyncMock(return_value=mock_resume)
 
-    mock_resume_file = ResumeFile(
-        s3_key="foo", original_filename="bar", content_type="text/plain"
-    )
+    mock_resume_file = ResumeFile(s3_key="foo", original_filename="bar", content_type="text/plain")
     mock_resume_repo.get_resume_file_by_resume_id = AsyncMock(return_value=mock_resume_file)
 
     mock_extract_text_from_file.return_value = ("parsed text", False)
 
     mock_gemini_parser = mock_gemini_parser_cls.return_value
     mock_gemini_parser.model_version = "gemini-1.5-flash"
-    mock_gemini_parser.parse_async = AsyncMock(return_value=(
-        {"skills": ["Python"]},
-        1.0,
-        {
-            "model_version": "gemini-1.5-flash",
-            "input_tokens": 100,
-            "output_tokens": 50,
-            "cost_usd": 0.0000225,
-            "latency_ms": 500,
-            "status": "success",
-            "error_type": None,
-        }
-    ))
+    mock_gemini_parser.parse_async = AsyncMock(
+        return_value=(
+            {"skills": ["Python"]},
+            1.0,
+            {
+                "model_version": "gemini-1.5-flash",
+                "input_tokens": 100,
+                "output_tokens": 50,
+                "cost_usd": 0.0000225,
+                "latency_ms": 500,
+                "status": "success",
+                "error_type": None,
+            },
+        )
+    )
 
     parsed_resume = Resume(
         id=resume_id, tenant_id=tenant_id, candidate_id=candidate_id, status="parsed"
     )
     mock_resume_repo.update_resume_status = AsyncMock(return_value=parsed_resume)
-    mock_cand_repo.get_candidate_by_id = AsyncMock(return_value=Candidate(
-        id=candidate_id, tenant_id=tenant_id, full_name="John Doe"
-    ))
+    mock_cand_repo.get_candidate_by_id = AsyncMock(
+        return_value=Candidate(id=candidate_id, tenant_id=tenant_id, full_name="John Doe")
+    )
 
     mock_settings = mock_get_settings.return_value
     mock_settings.worker_url = "http://worker:8000"
@@ -112,6 +113,7 @@ async def test_parse_resume_triggers_candidate_embedding(
     assert ai_args["input_tokens"] == 100
     assert ai_args["output_tokens"] == 50
     assert ai_args["cost_usd"] == 0.0000225
+
 
 @pytest.mark.asyncio
 @patch("apps.worker.src.pipeline.ResumeRepository")
@@ -174,9 +176,7 @@ async def test_parse_resume_trigger_failure_swallowed(
         id=resume_id, tenant_id=tenant_id, candidate_id=candidate_id, status="pending"
     )
     mock_resume_repo.get_resume_by_id = AsyncMock(return_value=mock_resume)
-    mock_resume_file = ResumeFile(
-        s3_key="foo", original_filename="bar", content_type="text/plain"
-    )
+    mock_resume_file = ResumeFile(s3_key="foo", original_filename="bar", content_type="text/plain")
     mock_resume_repo.get_resume_file_by_resume_id = AsyncMock(return_value=mock_resume_file)
 
     mock_extract_text_from_file.return_value = ("parsed text", False)
@@ -189,9 +189,9 @@ async def test_parse_resume_trigger_failure_swallowed(
         id=resume_id, tenant_id=tenant_id, candidate_id=candidate_id, status="parsed"
     )
     mock_resume_repo.update_resume_status = AsyncMock(return_value=parsed_resume)
-    mock_cand_repo.get_candidate_by_id = AsyncMock(return_value=Candidate(
-        id=candidate_id, tenant_id=tenant_id, full_name="John Doe"
-    ))
+    mock_cand_repo.get_candidate_by_id = AsyncMock(
+        return_value=Candidate(id=candidate_id, tenant_id=tenant_id, full_name="John Doe")
+    )
 
     mock_settings = mock_get_settings.return_value
     mock_settings.worker_url = "http://worker:8000"
@@ -206,6 +206,7 @@ async def test_parse_resume_trigger_failure_swallowed(
 
     assert result.status == "parsed"
     mock_qstash_publisher.publish.assert_called_once()
+
 
 @pytest.mark.asyncio
 @patch("apps.worker.src.pipeline.ResumeRepository")
@@ -233,7 +234,9 @@ async def test_parse_resume_deterministic_failure_mutates_state(
         id=resume_id, tenant_id=tenant_id, candidate_id=candidate_id, status="pending"
     )
     mock_resume_repo.get_resume_by_id = AsyncMock(return_value=mock_resume)
-    mock_resume_file = ResumeFile(s3_key="foo", original_filename="bar", content_type="application/pdf")
+    mock_resume_file = ResumeFile(
+        s3_key="foo", original_filename="bar", content_type="application/pdf"
+    )
     mock_resume_repo.get_resume_file_by_resume_id = AsyncMock(return_value=mock_resume_file)
 
     mock_extract_text_from_file.side_effect = ResumeParseFailedError("Empty PDF")
@@ -250,8 +253,103 @@ async def test_parse_resume_deterministic_failure_mutates_state(
 
     # Verify that the pipeline mutated the state by updating status to failed
     mock_resume_repo.update_resume_status.assert_called_with(
-        session=session,
-        resume=mock_resume,
-        status="failed",
-        parse_error="Empty PDF"
+        session=session, resume=mock_resume, status="failed", parse_error="Empty PDF"
     )
+
+
+@pytest.mark.asyncio
+@patch("apps.worker.src.pipeline.ResumeRepository")
+@patch("apps.worker.src.pipeline.CandidateRepository")
+@patch("apps.worker.src.pipeline.extract_text_from_file")
+@patch("apps.worker.src.pipeline.ResumeParser")
+@patch("hiron.storage.provider.LocalStorageProvider")
+@patch("hiron.core.qstash_client.qstash_publisher")
+@patch("hiron.core.config.get_settings")
+@patch("hiron.ai_usage.repository.AIUsageRepository")
+@patch("apps.worker.src.pipeline.GeminiResumeParser")
+async def test_parse_resume_pipeline_key_corruption(
+    mock_gemini_parser_cls,
+    mock_ai_repo_cls,
+    mock_get_settings,
+    mock_qstash_publisher,
+    mock_local_storage_cls,
+    mock_parser_cls,
+    mock_extract_text_from_file,
+    mock_cand_repo_cls,
+    mock_resume_repo_cls,
+):
+    """Verify that removing the tenant prefix does not corrupt the key if the tenant_id appears in the resume UUID."""
+    session = AsyncMock()
+    from unittest.mock import MagicMock
+
+    session.begin_nested = MagicMock()
+    session.begin_nested.return_value.__aenter__ = AsyncMock()
+    session.begin_nested.return_value.__aexit__ = AsyncMock()
+
+    mock_qstash_publisher.publish = AsyncMock()
+    mock_ai_repo = mock_ai_repo_cls.return_value
+    mock_ai_repo.create_usage_log = AsyncMock()
+
+    mock_storage = mock_local_storage_cls.return_value
+    mock_storage.download_file = AsyncMock(return_value=b"resume content")
+
+    # 3b4 is in both
+    tenant_id = uuid.UUID("3b4c919d-72aa-42a1-b847-1d5423871234")
+    resume_id = uuid.UUID("3b4c919d-1111-4444-8888-3b4c919d72aa")
+    candidate_id = uuid.uuid4()
+
+    mock_resume_repo = mock_resume_repo_cls.return_value
+    mock_cand_repo = mock_cand_repo_cls.return_value
+
+    mock_resume = Resume(
+        id=resume_id, tenant_id=tenant_id, candidate_id=candidate_id, status="pending"
+    )
+    mock_resume_repo.get_resume_by_id = AsyncMock(return_value=mock_resume)
+
+    # key intentionally contains the tenant_id string inside the resume part to simulate the bug
+    corruptible_key = f"{tenant_id}/{resume_id}-and-{tenant_id}-inside/original.pdf"
+
+    mock_resume_file = ResumeFile(
+        s3_key=corruptible_key, original_filename="bar", content_type="text/plain"
+    )
+    mock_resume_repo.get_resume_file_by_resume_id = AsyncMock(return_value=mock_resume_file)
+
+    mock_extract_text_from_file.return_value = ("parsed text", False)
+
+    mock_gemini_parser = mock_gemini_parser_cls.return_value
+    mock_gemini_parser.model_version = "gemini-1.5-flash"
+    mock_gemini_parser.parse_async = AsyncMock(
+        return_value=(
+            {"skills": ["Python"]},
+            1.0,
+            {
+                "model_version": "gemini-1.5-flash",
+                "input_tokens": 100,
+                "output_tokens": 50,
+                "cost_usd": 0.0000225,
+                "latency_ms": 500,
+                "status": "success",
+                "error_type": None,
+            },
+        )
+    )
+
+    parsed_resume = Resume(
+        id=resume_id, tenant_id=tenant_id, candidate_id=candidate_id, status="parsed"
+    )
+    mock_resume_repo.update_resume_status = AsyncMock(return_value=parsed_resume)
+    mock_cand_repo.get_candidate_by_id = AsyncMock(
+        return_value=Candidate(id=candidate_id, tenant_id=tenant_id, full_name="John Doe")
+    )
+
+    mock_settings = mock_get_settings.return_value
+    mock_settings.worker_url = "http://worker:8000"
+    mock_settings.supabase_url = None
+    mock_settings.supabase_service_role_key = None
+
+    await parse_resume_pipeline(session, tenant_id, resume_id)
+
+    # Verify download_file was called with the correctly isolated key
+    mock_storage.download_file.assert_called_once()
+    kwargs = mock_storage.download_file.call_args.kwargs
+    assert kwargs["key"] == f"{resume_id}-and-{tenant_id}-inside/original.pdf"

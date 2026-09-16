@@ -83,13 +83,16 @@ async def _enrich_candidate_profile(
     await session.flush()
 
 
-async def _log_ai_usage_telemetry(session: AsyncSession, tenant_id: uuid.UUID, telemetry: dict[str, Any] | None) -> None:
+async def _log_ai_usage_telemetry(
+    session: AsyncSession, tenant_id: uuid.UUID, telemetry: dict[str, Any] | None
+) -> None:
     if not telemetry:
         return
     try:
         # Use a SAVEPOINT so a telemetry DB failure doesn't roll back the resume parse
         async with session.begin_nested():
             from hiron.ai_usage.repository import AIUsageRepository
+
             ai_repo = AIUsageRepository()
             await ai_repo.create_usage_log(
                 session=session,
@@ -106,6 +109,7 @@ async def _log_ai_usage_telemetry(session: AsyncSession, tenant_id: uuid.UUID, t
             )
     except Exception as log_exc:
         logger.warning("Failed to write AI usage telemetry", error=str(log_exc))
+
 
 async def _parse_resume_with_gemini_fallback(
     session: AsyncSession,
@@ -132,7 +136,11 @@ async def _parse_resume_with_gemini_fallback(
         error_type = type(e).__name__
 
         # Safely extract error count for ValidationErrors without logging PII
-        error_details = f"{e.error_count()} validation errors" if hasattr(e, "error_count") else "API/Timeout Error"
+        error_details = (
+            f"{e.error_count()} validation errors"
+            if hasattr(e, "error_count")
+            else "API/Timeout Error"
+        )
 
         logger.warning(
             "Gemini parsing failed",
@@ -144,6 +152,7 @@ async def _parse_resume_with_gemini_fallback(
             # Write Gemini failure telemetry IMMEDIATELY inside a savepoint
             async with session.begin_nested():
                 from hiron.ai_usage.repository import AIUsageRepository
+
                 ai_repo = AIUsageRepository()
                 await ai_repo.create_usage_log(
                     session=session,
@@ -178,10 +187,12 @@ async def _parse_resume_with_gemini_fallback(
         parsed_data, parse_confidence, telemetry = legacy_parser.parse(raw_text)
         return parsed_data, parse_confidence, telemetry, legacy_parser.model_version
 
+
 async def _trigger_candidate_embedding(tenant_id: uuid.UUID, candidate_id: uuid.UUID) -> None:
     """Safely trigger background candidate embedding generation without failing the parse."""
     try:
         from hiron.core.config import get_settings
+
         settings = get_settings()
         from hiron.core.qstash_client import qstash_publisher
 
@@ -209,7 +220,7 @@ async def _trigger_candidate_embedding(tenant_id: uuid.UUID, candidate_id: uuid.
         logger.error(
             "Failed to enqueue candidate embedding generation",
             error=str(trigger_exc),
-            candidate_id=str(candidate_id)
+            candidate_id=str(candidate_id),
         )
 
 
@@ -223,6 +234,7 @@ def _get_safe_error_message(exc: Exception) -> str:
 
     try:
         from google.genai.errors import APIError
+
         if isinstance(exc, APIError):
             code = getattr(exc, "code", None)
             status_attr = getattr(exc, "status", None)
@@ -238,6 +250,7 @@ def _get_safe_error_message(exc: Exception) -> str:
 
     try:
         from pydantic import ValidationError
+
         if isinstance(exc, ValidationError):
             return "Resume schema validation failed"
     except ImportError:
@@ -257,7 +270,12 @@ async def parse_resume_pipeline(
     """Execute resume parsing pipeline: text extraction -> NER parsing -> DB update -> candidate auto-enrichment."""
     resume_repo = ResumeRepository()
     from hiron.core.config import get_settings
-    from hiron.storage.provider import StorageProvider, LocalStorageProvider, SupabaseStorageProvider
+    from hiron.storage.provider import (
+        StorageProvider,
+        LocalStorageProvider,
+        SupabaseStorageProvider,
+    )
+
     settings = get_settings()
 
     storage_provider: StorageProvider
@@ -279,7 +297,11 @@ async def parse_resume_pipeline(
         raise ResumeNotFoundError(f"Resume with ID '{resume_id}' not found")
 
     if resume.status in ("parsed", "failed"):
-        logger.info("Skipping resume parsing: already in terminal state", status=resume.status, resume_id=str(resume_id))
+        logger.info(
+            "Skipping resume parsing: already in terminal state",
+            status=resume.status,
+            resume_id=str(resume_id),
+        )
         return resume
 
     resume_file = await resume_repo.get_resume_file_by_resume_id(
@@ -312,12 +334,13 @@ async def parse_resume_pipeline(
         if storage_provider:
             file_bytes = await storage_provider.download_file(
                 tenant_id=tenant_id,
-                key=resume_file.s3_key.replace(f"{tenant_id}/", ""),
+                key=resume_file.s3_key.removeprefix(f"{tenant_id}/"),
             )
         else:
             file_bytes = b"Jane Smith\njane@example.com\nSenior Python Engineer at Stripe\nSkills: Python, FastAPI, Docker, PostgreSQL"
 
         from fastapi.concurrency import run_in_threadpool
+
         raw_text, text_was_truncated = await run_in_threadpool(
             extract_text_from_file,
             file_bytes=file_bytes,
@@ -337,7 +360,12 @@ async def parse_resume_pipeline(
         raw_text_hash = hashlib.sha256(raw_text.encode("utf-8")).hexdigest()
 
         # Phase B: Gemini AI Parser with deterministic fallback
-        parsed_data, parse_confidence, telemetry, parser_model_version = await _parse_resume_with_gemini_fallback(
+        (
+            parsed_data,
+            parse_confidence,
+            telemetry,
+            parser_model_version,
+        ) = await _parse_resume_with_gemini_fallback(
             session=session,
             tenant_id=tenant_id,
             raw_text=raw_text,

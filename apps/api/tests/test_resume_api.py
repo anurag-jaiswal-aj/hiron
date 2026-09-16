@@ -1,6 +1,7 @@
 """API integration tests for Resume Upload and polling endpoints per API Contract §RES-1..RES-4."""
 
 import uuid
+import typing
 from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock
@@ -151,7 +152,7 @@ def test_bulk_upload_resumes_endpoint_success(
     call_args = mock_resume_service.bulk_upload_resumes.call_args
     files_arg = call_args.kwargs["files"]
     for _, _, file_data, _ in files_arg:
-        assert isinstance(file_data, bytes)
+        assert hasattr(file_data, "read")
 
 
 def test_get_resume_status_endpoint_success(
@@ -278,7 +279,7 @@ def test_get_batch_resume_status_endpoint_success(
             resume_id=resume_id_2,
             status="failed",
             created_at=datetime.now(UTC),
-        )
+        ),
     ]
 
     response = client.post(
@@ -333,3 +334,80 @@ def test_get_batch_resume_status_unauthorized() -> None:
         json={"resumeIds": [str(uuid.uuid4())]},
     )
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+import pytest
+
+import pytest
+
+import pytest
+
+import pytest
+from starlette.datastructures import UploadFile
+
+import pytest
+from hiron.resumes import router as resume_router
+
+import pytest
+
+import pytest
+
+
+def test_upload_memory_exhaustion_protection(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    mock_resume_service: AsyncMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def mock_read(*args: typing.Any, **kwargs: typing.Any) -> bytes:
+        raise RuntimeError("Materialized bytes!")
+
+    monkeypatch.setattr("fastapi.UploadFile.read", mock_read)
+    monkeypatch.setattr(resume_router, "MAX_FILE_SIZE_BYTES", 1)
+
+    response = client.post(
+        "/api/v1/resumes/upload",
+        headers=auth_headers,
+        files={"file": ("huge.pdf", b"fake", "application/pdf")},
+    )
+
+    assert response.status_code == 413
+    assert response.json()["error"]["code"] == "FILE_TOO_LARGE"
+
+
+def test_bulk_upload_memory_exhaustion_protection(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    mock_resume_service: AsyncMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def mock_read(*args: typing.Any, **kwargs: typing.Any) -> bytes:
+        raise RuntimeError("Materialized bytes!")
+
+    monkeypatch.setattr("fastapi.UploadFile.read", mock_read)
+    monkeypatch.setattr(resume_router, "MAX_FILE_SIZE_BYTES", 1)
+
+    mock_resume_service.bulk_upload_resumes.return_value = BulkUploadResumeResponse(
+        task_id="task-1",
+        total_files=2,
+        accepted=0,
+        rejected=2,
+        rejections=[],
+        status_url="/api/v1/tasks/task-1",
+    )
+
+    response = client.post(
+        "/api/v1/resumes/bulk-upload",
+        headers=auth_headers,
+        files=[
+            ("files", ("oversized1.pdf", b"fake", "application/pdf")),
+            ("files", ("oversized2.pdf", b"fake", "application/pdf")),
+        ],
+    )
+
+    assert response.status_code == 202
+
+    mock_resume_service.bulk_upload_resumes.assert_called_once()
+    kwargs = mock_resume_service.bulk_upload_resumes.call_args.kwargs
+    assert kwargs["files"][0][2] == b""
+    assert kwargs["files"][1][2] == b""

@@ -18,7 +18,8 @@ from hiron.resumes.schemas import (
     ResumeStatusResponse,
     UploadResumeResponse,
 )
-from hiron.resumes.service import ResumeService
+from hiron.resumes.exceptions import FileTooLargeError
+from hiron.resumes.service import MAX_FILE_SIZE_BYTES, ResumeService
 from hiron.storage.provider import LocalStorageProvider, StorageProvider, SupabaseStorageProvider
 from hiron.users.models import User
 
@@ -60,7 +61,12 @@ async def upload_resume(
     parsed_candidate_id = uuid.UUID(candidateId) if candidateId else None
     parsed_job_id = uuid.UUID(jobId) if jobId else None
 
-    file_size = file.size or 0
+    file_size = getattr(file, "size", 0) or 0
+    if file_size > MAX_FILE_SIZE_BYTES:
+        raise FileTooLargeError(
+            f"File '{file.filename}' exceeds maximum allowed size of 10 MB ({file_size} bytes)"
+        )
+
     filename = file.filename or "resume.pdf"
     content_type = file.content_type or "application/pdf"
 
@@ -100,8 +106,11 @@ async def bulk_upload_resumes(
     for f in files:
         fname = f.filename or "resume.pdf"
         ctype = f.content_type or "application/pdf"
-        f_bytes = await f.read()
-        file_tuples.append((fname, ctype, f_bytes, f.size or 0))
+        f_size = getattr(f, "size", 0) or 0
+        if f_size > MAX_FILE_SIZE_BYTES:
+            file_tuples.append((fname, ctype, b"", f_size))
+        else:
+            file_tuples.append((fname, ctype, f.file, f_size))
 
     result = await resume_service.bulk_upload_resumes(
         session=session,
