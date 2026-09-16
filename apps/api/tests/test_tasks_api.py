@@ -1,5 +1,5 @@
 import uuid
-from collections.abc import Generator
+from collections.abc import AsyncGenerator, Generator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -26,7 +26,7 @@ def client() -> Generator[TestClient, None, None]:
         is_active=True,
     )
 
-    async def mock_get_db():
+    async def mock_get_db() -> AsyncGenerator[AsyncMock, None]:
         yield AsyncMock()
 
     app.dependency_overrides[get_current_user] = lambda: mock_user
@@ -41,8 +41,11 @@ def client() -> Generator[TestClient, None, None]:
 def test_get_task_status_success(client: TestClient) -> None:
     task_id = str(uuid.uuid4())
 
+    import datetime
+
     mock_batch_job = MagicMock()
     mock_batch_job.status = "processing"
+    mock_batch_job.updated_at = datetime.datetime.now(datetime.UTC)
     mock_batch_job.queued_count = 10
     mock_batch_job.completed_count = 1
     mock_batch_job.failed_count = 1
@@ -74,8 +77,11 @@ def test_get_task_status_not_uuid(client: TestClient) -> None:
 def test_get_task_status_pending(client: TestClient) -> None:
     task_id = str(uuid.uuid4())
 
+    import datetime
+
     mock_batch_job = MagicMock()
     mock_batch_job.status = "pending"
+    mock_batch_job.updated_at = datetime.datetime.now(datetime.UTC)
 
     with patch(
         "hiron.tasks.router.ScoreRepository.get_batch_score_job",

@@ -240,7 +240,26 @@ class ScoreService:
                 changes=changes,
             )
 
-        await session.commit()
+        from sqlalchemy.exc import IntegrityError
+
+        try:
+            await session.commit()
+        except IntegrityError as exc:
+            if "uix_score_current" in str(exc):
+                logger.info(
+                    "Concurrent scoring detected, fetching existing current score",
+                    tenant_id=str(tenant_id),
+                    candidate_id=str(candidate_id),
+                    job_id=str(job_id),
+                )
+                await session.rollback()
+                return await self.get_score(
+                    session=session,
+                    tenant_id=tenant_id,
+                    job_id=job_id,
+                    candidate_id=candidate_id,
+                )
+            raise
 
         logger.info(
             "AI candidate scoring executed successfully",

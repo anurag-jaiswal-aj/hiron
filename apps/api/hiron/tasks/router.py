@@ -37,10 +37,25 @@ async def get_task_status(
         task_uuid = uuid.UUID(task_id)
         repo = ScoreRepository()
         batch_job = await repo.get_batch_score_job(
-            session=session, tenant_id=tenant_id, batch_job_id=task_id
+            session=session, tenant_id=tenant_id, batch_id=task_id
         )
 
         if batch_job:
+            import datetime
+
+            now = datetime.datetime.now(datetime.UTC)
+            updated_at = batch_job.updated_at
+            if updated_at.tzinfo is None:
+                updated_at = updated_at.replace(tzinfo=datetime.UTC)
+
+            if (
+                batch_job.status in ("pending", "processing")
+                and (now - updated_at).total_seconds() > 86400
+            ):
+                batch_job.status = "failed"
+                session.add(batch_job)
+                await session.commit()
+
             # Map BatchScoreJob states to TASK-1 states
             if batch_job.status == "pending":
                 api_status = "pending"
@@ -70,7 +85,7 @@ async def get_task_status(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Task {task_id} not found",
-        )
+        ) from None
 
     return TaskStatusResponse(
         data=TaskStatusData(

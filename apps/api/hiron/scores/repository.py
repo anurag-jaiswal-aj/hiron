@@ -242,6 +242,7 @@ class ScoreRepository:
             .where(
                 BatchScoreJob.tenant_id == tenant_id,
                 BatchScoreJob.id == uuid.UUID(batch_id),
+                BatchScoreJob.status.in_(["pending", "processing"]),
                 ~BatchScoreJob.completed_candidate_ids.contains([candidate_id]),
                 ~BatchScoreJob.failed_candidate_ids.contains([candidate_id]),
             )
@@ -276,6 +277,7 @@ class ScoreRepository:
             .where(
                 BatchScoreJob.tenant_id == tenant_id,
                 BatchScoreJob.id == uuid.UUID(batch_id),
+                BatchScoreJob.status.in_(["pending", "processing"]),
                 ~BatchScoreJob.completed_candidate_ids.contains([candidate_id]),
                 ~BatchScoreJob.failed_candidate_ids.contains([candidate_id]),
             )

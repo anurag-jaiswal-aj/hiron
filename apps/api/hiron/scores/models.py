@@ -26,6 +26,7 @@ from hiron.common.models import Base
 
 if TYPE_CHECKING:
     from hiron.candidates.models import JobCandidate
+    from hiron.jobs.models import Job
     from hiron.tenants.models import Tenant
 
 
@@ -42,6 +43,12 @@ class Score(Base):
             "input_tokens >= 0 AND output_tokens >= 0", name="ck_scores_tokens_positive"
         ),
         CheckConstraint("latency_ms >= 0", name="ck_scores_latency_positive"),
+        Index(
+            "uix_score_current",
+            "job_candidate_id",
+            unique=True,
+            postgresql_where=text("is_current = true"),
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

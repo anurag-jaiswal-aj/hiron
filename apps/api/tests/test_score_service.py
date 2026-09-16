@@ -526,3 +526,155 @@ async def test_batch_score_async_concurrency_reuse() -> None:
 
     assert response.data.task_id == str(existing_batch.id)
     score_repo.create_batch_score_job.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_score_concurrency_fallback() -> None:
+    """Simulate IntegrityError on session.commit to verify it rolls back and falls back to get_score."""
+    from sqlalchemy.exc import IntegrityError
+
+    score_repo = AsyncMock()
+    cand_repo = AsyncMock()
+    job_repo = AsyncMock()
+    emb_repo = AsyncMock()
+    mock_engine = AsyncMock()
+    ai_usage_service = AsyncMock()
+
+    service = ScoreService(
+        score_repository=score_repo,
+        candidate_repository=cand_repo,
+        job_repository=job_repo,
+        embedding_repository=emb_repo,
+        scoring_engine=mock_engine,
+        ai_usage_service=ai_usage_service,
+    )
+
+    session = AsyncMock()
+    # Configure session.commit to raise IntegrityError on first call
+    session.commit.side_effect = IntegrityError(
+        "uix_score_current", params=None, orig=Exception("uix_score_current duplicate key")
+    )
+
+    tenant_id = uuid.uuid4()
+    job_id = uuid.uuid4()
+    candidate_id = uuid.uuid4()
+    job_cand_id = uuid.uuid4()
+
+    cand_repo.get_candidate_by_id.return_value = Candidate(
+        id=candidate_id, tenant_id=tenant_id, full_name="Jane Doe"
+    )
+    job_repo.get_job_by_id.return_value = Job(id=job_id, tenant_id=tenant_id, title="Backend Dev")
+    cand_repo.get_job_candidate.return_value = JobCandidate(
+        id=job_cand_id, tenant_id=tenant_id, job_id=job_id, candidate_id=candidate_id
+    )
+    # The first time get_current_score is called, it returns None (triggering evaluation).
+    # The second time (during fallback), it returns the winner score.
+    mock_winner_score = Score(
+        id=uuid.uuid4(),
+        tenant_id=tenant_id,
+        job_candidate_id=job_cand_id,
+        fit_score=99,
+        confidence=0.99,
+        breakdown={},
+        explanation="Winner match",
+        skills_matched=["Python"],
+        skills_missing=[],
+        prompt_name="candidate_fit_scoring",
+        prompt_version="2.0.0",
+        model_version="gpt-4o-2024-08-06",
+        is_current=True,
+        created_at=datetime.datetime.now(datetime.UTC),
+    )
+    score_repo.get_current_score.side_effect = [None, mock_winner_score]
+
+    mock_engine.evaluate.return_value = {
+        "fit_score": 85,
+        "confidence": 0.85,
+        "breakdown": {},
+        "explanation": "Good match",
+        "skills_matched": ["Python"],
+        "skills_missing": [],
+        "warnings": [],
+        "prompt_name": "candidate_fit_scoring",
+        "prompt_version": "2.0.0",
+        "model_version": "models/gemini-2.5-flash",
+        "input_tokens": 1250,
+        "output_tokens": 350,
+        "latency_ms": 420,
+    }
+
+    response = await service.score_candidate_sync(
+        session=session,
+        tenant_id=tenant_id,
+        user_role="recruiter",
+        job_id=job_id,
+        candidate_id=candidate_id,
+    )
+
+    # Assert it returned the winner score (99) instead of the evaluated one (85)
+    assert response.data.fit_score == 99
+    session.rollback.assert_called_once()
+    assert score_repo.get_current_score.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_zombie_worker_fence() -> None:
+    """Verify claim_batch_score_worker_success returns False if status is not pending/processing."""
+    async with AsyncSessionLocal() as session:
+        tenant_id, job_id, candidate_id = await _create_test_tenant_and_job_and_candidate(session)
+    set_tenant_context(str(tenant_id))
+
+    async with AsyncSessionLocal() as session:
+        repo = ScoreRepository()
+        batch_job = await repo.create_batch_score_job(session, tenant_id, job_id, 3)
+        # Manually mark as completed to simulate late worker or manual failure
+        batch_job.status = "completed"
+        await session.commit()
+        batch_id = str(batch_job.id)
+
+    async with AsyncSessionLocal() as session2:
+        repo = ScoreRepository()
+        claimed = await repo.claim_batch_score_worker_success(
+            session2, tenant_id, batch_id, candidate_id
+        )
+        assert claimed is False
+
+    async with AsyncSessionLocal() as session3:
+        repo = ScoreRepository()
+        persisted = await repo.get_batch_score_job(session3, tenant_id, batch_id)
+        assert persisted is not None
+        assert persisted.completed_count == 0
+
+
+@pytest.mark.asyncio
+async def test_lazy_24h_timeout() -> None:
+    """Verify get_task_status lazy fails a processing task that has updated_at > 24h."""
+    async with AsyncSessionLocal() as session:
+        tenant_id, job_id, _ = await _create_test_tenant_and_job_and_candidate(session)
+    set_tenant_context(str(tenant_id))
+
+    async with AsyncSessionLocal() as session:
+        repo = ScoreRepository()
+        batch_job = await repo.create_batch_score_job(session, tenant_id, job_id, 3)
+        batch_job.status = "processing"
+        # Force updated_at to be 25 hours ago
+        batch_job.updated_at = datetime.datetime.now(datetime.UTC) - datetime.timedelta(hours=25)
+        await session.commit()
+        batch_id = str(batch_job.id)
+
+    from hiron.tasks.router import get_task_status
+    from hiron.users.models import User
+
+    mock_user = User(id=uuid.uuid4(), tenant_id=tenant_id, email="test@example.com")
+
+    async with AsyncSessionLocal() as session2:
+        # get_task_status will observe it's older than 24h and fail it
+        response = await get_task_status(task_id=batch_id, current_user=mock_user, session=session2)
+        assert response.data.status == "failed"
+
+    # Verify DB was also updated
+    async with AsyncSessionLocal() as session3:
+        repo = ScoreRepository()
+        persisted = await repo.get_batch_score_job(session3, tenant_id, batch_id)
+        assert persisted is not None
+        assert persisted.status == "failed"
