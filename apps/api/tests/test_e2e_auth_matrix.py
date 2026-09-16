@@ -7,6 +7,7 @@ import psycopg
 from httpx import ASGITransport, AsyncClient
 
 from hiron.core.jwt import create_access_token
+from hiron.core.security import hash_password
 from hiron.main import app
 
 
@@ -39,10 +40,7 @@ def auth_matrix_setup() -> Generator[dict[str, str], None, None]:
     )
 
     # Use a known test password hash for "SecurePassword123!"
-    raw_pwd_hash = query_db(
-        "SELECT password_hash FROM users WHERE email = 'admin@acme.com' LIMIT 1;"
-    )
-    pwd_hash = raw_pwd_hash.replace("'", "''")
+    pwd_hash = hash_password("SecurePassword123!")
 
     # Provision Users
     user_a_admin = str(uuid.uuid4())
