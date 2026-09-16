@@ -676,6 +676,40 @@ class JobService:
         await session.commit()
         return updated
 
+    async def delete_job(
+        self,
+        session: AsyncSession,
+        job_id: uuid.UUID,
+        tenant_id: uuid.UUID,
+        user_id: uuid.UUID,
+        current_user_role: str,
+    ) -> bool:
+        """Hard-delete a job per API Contract."""
+        self._validate_role_permission(current_user_role, "delete")
+
+        # Resolves job in tenant context, raises JobNotFoundError if missing/cross-tenant
+        target_job = await self.get_job_by_id(session, job_id, tenant_id)
+
+        changes = extract_model_changes(target_job, "delete")
+        if changes:
+            changes = sanitize_audit_payload(changes)
+
+        await self.audit_service.record_audit_log(
+            session=session,
+            tenant_id=tenant_id,
+            action="job_deleted",
+            entity_type="job",
+            entity_id=job_id,
+            actor_id=user_id,
+            changes=changes,
+        )
+
+        deleted = await self.job_repo.delete_job(session, job_id, tenant_id)
+        logger.info("Job deleted successfully", job_id=str(job_id), tenant_id=str(tenant_id))
+
+        await session.commit()
+        return deleted
+
     async def list_pipeline_stages(
         self,
         session: AsyncSession,

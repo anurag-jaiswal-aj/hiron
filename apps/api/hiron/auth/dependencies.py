@@ -77,31 +77,36 @@ async def get_current_user(
     # 3. Lookup user with strict tenant context validation
     cache_key = f"user:{tenant_id}:{user_id}:profile"
     cached_user = await app_cache.get(cache_key)
+
+    # DB-authoritative check for active status (Security Requirement: Mid-Session Deactivation)
+    db_user = await user_repo.get_by_id_and_tenant(session=db, user_id=user_id, tenant_id=tenant_id)
+    if not db_user:
+        raise AuthenticationError("Authenticated user not found")
+
+    if not db_user.is_active:
+        raise AccountDisabledError()
+
     user: User | None = None
     if cached_user:
         user_kwargs = dict(cached_user)
         user_kwargs["id"] = uuid.UUID(str(user_kwargs["id"]))
         user_kwargs["tenant_id"] = uuid.UUID(str(user_kwargs["tenant_id"]))
+        # Override any stale cached is_active with authoritative DB state
+        user_kwargs["is_active"] = db_user.is_active
         user = User(**user_kwargs)
     else:
-        user = await user_repo.get_by_id_and_tenant(
-            session=db, user_id=user_id, tenant_id=tenant_id
-        )
-        if user:
-            user_dict = {
-                "id": str(user.id),
-                "tenant_id": str(user.tenant_id),
-                "email": user.email,
-                "full_name": user.full_name,
-                "role": user.role,
-                "is_active": user.is_active,
-            }
-            await app_cache.set(cache_key, user_dict, ttl_seconds=300)
+        user = db_user
+        user_dict = {
+            "id": str(user.id),
+            "tenant_id": str(user.tenant_id),
+            "email": user.email,
+            "full_name": user.full_name,
+            "role": user.role,
+            "is_active": user.is_active,
+        }
+        await app_cache.set(cache_key, user_dict, ttl_seconds=300)
 
-    if not user:
-        raise AuthenticationError("Authenticated user not found")
-
-    # 4. Verify account active status
+    # 4. Final safety verification (though already checked above)
     if not user.is_active:
         raise AccountDisabledError()
 

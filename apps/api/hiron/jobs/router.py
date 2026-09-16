@@ -293,10 +293,12 @@ async def delete_job(
     job_service: Annotated[JobService, Depends(get_job_service)],
 ) -> None:
     """Hard-delete job entity."""
-    await job_service.job_repo.delete_job(
+    await job_service.delete_job(
         session=session,
         job_id=job_id,
         tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
+        current_user_role=current_user.role,
     )
 
 
