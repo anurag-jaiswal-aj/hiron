@@ -2,6 +2,7 @@
 
 import uuid
 from dataclasses import dataclass
+from typing import Any
 
 import structlog
 from sqlalchemy import select
@@ -69,6 +70,30 @@ class EmbeddingService:
             raise InsufficientEmbeddingPermissionsError(
                 f"User with role '{role}' is not authorized for embedding operations"
             )
+
+    def _determine_embedding_status(
+        self,
+        existing_row: Any,
+        current_hash: str,
+        requested_model_version: str,
+    ) -> str:
+        """Evaluate standard embedding staleness and failure status."""
+        if not existing_row:
+            return "missing"
+
+        if (
+            existing_row.model_version != requested_model_version
+            or existing_row.source_text_hash != current_hash
+        ):
+            return "stale"
+
+        if getattr(existing_row, "status", "success") == "failed":
+            return "failed"
+
+        if existing_row.embedding is None or len(existing_row.embedding) != EMBEDDING_DIMENSION:
+            return "stale"
+
+        return "current"
 
     def _construct_job_source_text(self, job: Job) -> str:
         """Construct canonical text string from job entity for embedding generation."""
@@ -394,13 +419,7 @@ class EmbeddingService:
                 session=session, tenant_id=tenant_id, candidate=candidate
             )
             current_hash = self.generator.compute_source_text_hash(current_text)
-
-            if existing.source_text_hash != current_hash:
-                status = "stale"
-            elif getattr(existing, "status", "success") == "failed":
-                status = "failed"
-            else:
-                status = "current"
+            status = self._determine_embedding_status(existing, current_hash, model_version)
 
         return IndividualEmbeddingStatusResponse(
             data=IndividualEmbeddingStatusData(
@@ -436,13 +455,7 @@ class EmbeddingService:
         if existing:
             current_text = self._construct_job_source_text(job)
             current_hash = self.generator.compute_source_text_hash(current_text)
-
-            if existing.source_text_hash != current_hash:
-                status = "stale"
-            elif getattr(existing, "status", "success") == "failed":
-                status = "failed"
-            else:
-                status = "current"
+            status = self._determine_embedding_status(existing, current_hash, model_version)
 
         return IndividualEmbeddingStatusResponse(
             data=IndividualEmbeddingStatusData(
@@ -486,9 +499,11 @@ class EmbeddingService:
                     session=session, tenant_id=tenant_id, candidate=cand
                 )
                 current_hash = self.generator.compute_source_text_hash(current_text)
-                if emb.source_text_hash != current_hash:
+
+                status = self._determine_embedding_status(emb, current_hash, model_version)
+                if status == "stale":
                     cand_stale += 1
-                elif getattr(emb, "status", "success") == "failed":
+                elif status == "failed":
                     cand_missing += 1  # count failed as missing for coverage stats
                 else:
                     cand_with_embedding += 1
@@ -514,9 +529,11 @@ class EmbeddingService:
             else:
                 current_text = self._construct_job_source_text(job)
                 current_hash = self.generator.compute_source_text_hash(current_text)
-                if job_emb.source_text_hash != current_hash:
+
+                status = self._determine_embedding_status(job_emb, current_hash, model_version)
+                if status == "stale":
                     job_stale += 1
-                elif getattr(job_emb, "status", "success") == "failed":
+                elif status == "failed":
                     job_missing += 1  # count failed as missing for coverage stats
                 else:
                     job_with_embedding += 1
