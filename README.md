@@ -422,10 +422,12 @@ We welcome contributions to Hiron:
 
 1. **Branch Strategy:** Create feature branches from `main` (e.g. `feat/feature-name` or `fix/bug-fix`).
 2. **Quality Verification:** Ensure all checks pass before submitting a Pull Request:
-   - Run PyTest: `uv run pytest`
-   - Run Ruff linter & formatter: `uv run ruff check . && uv run ruff format --check .`
-   - Run MyPy strict type checker: `uv run mypy apps/api`
-   - Run Prettier check: `pnpm run format`
+   We provide an automated certification script that runs all required CI checks locally.
+   - Run the certification script: `./scripts/pre_push_certification.sh`
+   - (Alternatively) Run PyTest: `uv run pytest`
+   - (Alternatively) Run Ruff linter & formatter: `uv run ruff check . && uv run ruff format --check .`
+   - (Alternatively) Run MyPy strict type checker: `uv run mypy apps/api`
+   - (Alternatively) Run Prettier check: `pnpm run format`
 3. **Pull Requests:** Submit PRs against `main` with a concise summary of changes and reference any related issues.
 
 ## License

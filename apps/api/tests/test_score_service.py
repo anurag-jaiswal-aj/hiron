@@ -14,7 +14,7 @@ from hiron.scores.service import ScoreService
 
 
 @pytest.fixture(autouse=True)
-def force_qstash_engine(monkeypatch):
+def force_qstash_engine(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("QSTASH_WEBHOOK_URL", "http://localhost:8000")
     from hiron.core.config import get_settings
 
@@ -405,6 +405,7 @@ async def test_regression_worker_success_accounting() -> None:
     async with AsyncSessionLocal() as session3:
         repo = ScoreRepository()
         persisted = await repo.get_batch_score_job(session3, tenant_id, batch_id)
+        assert persisted is not None
         assert persisted.completed_count == 1
         assert candidate_id in persisted.completed_candidate_ids
 
@@ -434,6 +435,7 @@ async def test_regression_worker_failure_accounting() -> None:
     async with AsyncSessionLocal() as session3:
         repo = ScoreRepository()
         persisted = await repo.get_batch_score_job(session3, tenant_id, batch_id)
+        assert persisted is not None
         assert persisted.failed_count == 1
         assert candidate_id in persisted.failed_candidate_ids
 
@@ -473,8 +475,10 @@ async def test_regression_duplicate_worker_idempotency() -> None:
     async with AsyncSessionLocal() as session4:
         repo = ScoreRepository()
         persisted = await repo.get_batch_score_job(session4, tenant_id, batch_id)
+        assert persisted is not None
         assert persisted.completed_count == 1
         assert len(persisted.completed_candidate_ids) == 1
+
 
 @pytest.mark.asyncio
 async def test_batch_score_async_concurrency_reuse() -> None:
@@ -501,6 +505,7 @@ async def test_batch_score_async_concurrency_reuse() -> None:
 
     # Mock that an active batch already exists
     from hiron.scores.models import BatchScoreJob
+
     existing_batch = BatchScoreJob(
         id=uuid.uuid4(),
         tenant_id=tenant_id,
