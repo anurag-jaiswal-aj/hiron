@@ -15,13 +15,12 @@ echo "1. Checking for trailing whitespace & conflict markers (git diff --check).
 echo "--------------------------------------"
 git diff --check
 
-BASE_SHA=$(git merge-base HEAD origin/main 2>/dev/null || git rev-parse --verify origin/main 2>/dev/null || echo "HEAD~1")
-echo "Using BASE_SHA: $BASE_SHA for changed files detection."
+ALL_CHANGED_FILES=$( { git diff --name-only origin/main...HEAD; git diff --name-only; git diff --cached --name-only; } 2>/dev/null | sort -u || true )
 
 echo "--------------------------------------"
 echo "2. Backend Ruff format & lint (Changed files only)..."
 echo "--------------------------------------"
-CHANGED_PY_FILES=$(git diff --name-only --diff-filter=ACMRT "$BASE_SHA" HEAD | grep '\.py$' || true)
+CHANGED_PY_FILES=$(echo "$ALL_CHANGED_FILES" | grep '\.py$' | while read -r f; do [ -f "$f" ] && echo "$f"; done || true)
 
 if [ -n "$CHANGED_PY_FILES" ]; then
   echo "Running Ruff formatter check on changed Python files..."
@@ -36,7 +35,7 @@ fi
 echo "--------------------------------------"
 echo "3. Backend MyPy (Changed apps/api files only)..."
 echo "--------------------------------------"
-CHANGED_API_FILES=$(git diff --name-only --diff-filter=ACMRT "$BASE_SHA" HEAD | grep '^apps/api/.*\.py$' || true)
+CHANGED_API_FILES=$(echo "$CHANGED_PY_FILES" | grep '^apps/api/' || true)
 
 if [ -n "$CHANGED_API_FILES" ]; then
   echo "Running MyPy on changed apps/api files..."

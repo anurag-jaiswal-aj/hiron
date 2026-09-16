@@ -11,12 +11,12 @@ from hiron.scores.engine import AIScoringEngine
 from httpx import HTTPStatusError, Request as HttpxRequest, Response as HttpxResponse
 
 
-def test_api_request_telemetry():
+def test_api_request_telemetry() -> None:
     app = FastAPI()
     app.add_middleware(ProcessTimeAndRequestIdMiddleware)
 
     @app.get("/test")
-    def test_route():
+    def test_route() -> dict[str, bool]:
         return {"ok": True}
 
     client = TestClient(app)
@@ -40,12 +40,12 @@ def test_api_request_telemetry():
 
 
 @pytest.mark.asyncio
-async def test_api_error_telemetry():
+async def test_api_error_telemetry() -> None:
     app = FastAPI()
     register_exception_handlers(app)
 
     @app.get("/test/error")
-    async def error_route(request: Request):
+    async def error_route(request: Request) -> None:
         request.state.start_time = 0.0  # dummy start time
         with patch("time.perf_counter", return_value=1.5):  # mock time to simulate duration
             raise ValueError("Something bad happened")
@@ -69,7 +69,7 @@ async def test_api_error_telemetry():
 
 
 @pytest.mark.asyncio
-async def test_ai_error_telemetry():
+async def test_ai_error_telemetry() -> None:
     generator = EmbeddingGenerator()
     generator.gemini_api_key = "fake_key"
 
@@ -93,7 +93,7 @@ async def test_ai_error_telemetry():
 
 
 @pytest.mark.asyncio
-async def test_ai_scoring_telemetry():
+async def test_ai_scoring_telemetry() -> None:
     engine = AIScoringEngine()
 
     mock_candidate = MagicMock()
