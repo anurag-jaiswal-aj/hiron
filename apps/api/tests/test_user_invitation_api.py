@@ -72,13 +72,15 @@ def test_invite_user_success(client: TestClient, mock_user_service: AsyncMock) -
     )
     mock_user_service.create_user.return_value = mock_created_user
 
-    with patch("hiron.users.router.qstash_publisher.publish") as mock_publish:
+    with patch("hiron.users.router.qstash_publisher.publish") as mock_publish, \
+         patch("hiron.users.repository.UserInvitationTokenRepository.revoke_pending_for_user", new_callable=AsyncMock) as mock_revoke:
         payload = {"email": "newuser@example.com", "full_name": "New User", "role": "recruiter"}
         response = client.post("/api/v1/users/invite", json=payload)
 
         assert response.status_code == status.HTTP_201_CREATED
         assert response.json()["data"]["email"] == "newuser@example.com"
 
+        mock_revoke.assert_called_once()
         mock_publish.assert_called_once()
         publish_kwargs = mock_publish.call_args.kwargs
         assert publish_kwargs["payload"]["email"] == "newuser@example.com"
@@ -119,12 +121,14 @@ def test_resend_invitation_success(client: TestClient, mock_user_service: AsyncM
     )
     mock_user_service.get_user_by_id.return_value = mock_target_user
 
-    with patch("hiron.users.router.qstash_publisher.publish") as mock_publish:
+    with patch("hiron.users.router.qstash_publisher.publish") as mock_publish, \
+         patch("hiron.users.repository.UserInvitationTokenRepository.revoke_pending_for_user", new_callable=AsyncMock) as mock_revoke:
         response = client.post(f"/api/v1/users/{mock_target_user.id}/invite/resend")
 
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["data"]["status"] == "invitation_queued"
 
+        mock_revoke.assert_called_once()
         mock_publish.assert_called_once()
         publish_kwargs = mock_publish.call_args.kwargs
         assert publish_kwargs["payload"]["email"] == "pending@example.com"

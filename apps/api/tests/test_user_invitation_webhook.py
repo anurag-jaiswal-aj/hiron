@@ -54,10 +54,6 @@ def test_qstash_invitation_webhook_success(
             "hiron.users.repository.UserRepository.get_by_id_and_tenant", new_callable=AsyncMock
         ) as mock_get_user,
         patch(
-            "hiron.users.repository.UserInvitationTokenRepository.revoke_pending_for_user",
-            new_callable=AsyncMock,
-        ) as mock_revoke,
-        patch(
             "hiron.users.repository.UserInvitationTokenRepository.create", new_callable=AsyncMock
         ) as mock_create,
         patch("hiron.core.email.get_email_adapter") as mock_get_adapter,
@@ -76,10 +72,7 @@ def test_qstash_invitation_webhook_success(
 
         assert response.status_code == status.HTTP_200_OK
 
-        # Verify old tokens revoked
-        mock_revoke.assert_called_once_with(mock_revoke.call_args.args[0], uuid.UUID(base_payload["user_id"]))
-
-        # Verify new token created
+        # Verify new token created and email sent
         mock_create.assert_called_once()
         token_arg = mock_create.call_args.args[1]
         assert isinstance(token_arg, UserInvitationToken)

@@ -172,9 +172,6 @@ async def qstash_user_invitation_webhook(
 
             # 3. Token Generation and Persistence
             try:
-                # Revoke old tokens
-                await invitation_repo.revoke_pending_for_user(session, user_id)
-
                 # Generate new
                 raw_token = secrets.token_urlsafe(32)
                 token_hash = hashlib.sha256(raw_token.encode()).hexdigest()

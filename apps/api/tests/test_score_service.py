@@ -475,3 +475,49 @@ async def test_regression_duplicate_worker_idempotency() -> None:
         persisted = await repo.get_batch_score_job(session4, tenant_id, batch_id)
         assert persisted.completed_count == 1
         assert len(persisted.completed_candidate_ids) == 1
+
+@pytest.mark.asyncio
+async def test_batch_score_async_concurrency_reuse() -> None:
+    """Verify batch_score_async reuses an existing active batch and does not create a new one."""
+    score_repo = AsyncMock()
+    cand_repo = AsyncMock()
+    job_repo = AsyncMock()
+
+    service = ScoreService(
+        score_repository=score_repo,
+        candidate_repository=cand_repo,
+        job_repository=job_repo,
+    )
+    session = AsyncMock()
+    tenant_id = uuid.uuid4()
+    job_id = uuid.uuid4()
+
+    job_repo.get_job_by_id.return_value = Job(
+        id=job_id, tenant_id=tenant_id, title="Backend Dev", description="Python"
+    )
+    cand_repo.list_job_candidates.return_value = [
+        JobCandidate(id=uuid.uuid4(), tenant_id=tenant_id, job_id=job_id, candidate_id=uuid.uuid4())
+    ]
+
+    # Mock that an active batch already exists
+    from hiron.scores.models import BatchScoreJob
+    existing_batch = BatchScoreJob(
+        id=uuid.uuid4(),
+        tenant_id=tenant_id,
+        job_id=job_id,
+        status="processing",
+        queued_count=1,
+    )
+    score_repo.get_active_batch_score_job_for_job.return_value = existing_batch
+
+    with pytest.MonkeyPatch.context() as m:
+        m.setenv("QSTASH_WEBHOOK_URL", "http://localhost:8000")
+        response = await service.batch_score_async(
+            session=session,
+            tenant_id=tenant_id,
+            user_role="org_admin",
+            job_id=job_id,
+        )
+
+    assert response.data.task_id == str(existing_batch.id)
+    score_repo.create_batch_score_job.assert_not_called()

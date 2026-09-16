@@ -146,6 +146,11 @@ async def create_user(
         password=request_data.password,
     )
 
+    from hiron.users.repository import UserInvitationTokenRepository
+    repo = UserInvitationTokenRepository()
+    await repo.revoke_pending_for_user(db, user.id)
+    await db.commit()
+
     await _publish_invitation_webhook(user)
 
     return ResponseEnvelope(data=UserResponse.model_validate(user))
@@ -173,14 +178,19 @@ async def resend_invitation(
             user_id=user_id,
             tenant_id=current_user.tenant_id,
         )
-    except UserNotFoundError:
-        raise HTTPException(status_code=404, detail="User not found")
+    except UserNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="User not found") from exc
 
     if not user.is_active:
         raise HTTPException(status_code=409, detail="Cannot resend invitation to deactivated user")
 
     if user.is_email_verified:
         raise HTTPException(status_code=409, detail="User is already verified")
+
+    from hiron.users.repository import UserInvitationTokenRepository
+    repo = UserInvitationTokenRepository()
+    await repo.revoke_pending_for_user(db, user.id)
+    await db.commit()
 
     await _publish_invitation_webhook(user)
 

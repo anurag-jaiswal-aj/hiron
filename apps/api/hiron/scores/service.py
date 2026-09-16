@@ -285,6 +285,32 @@ class ScoreService:
         if not settings.qstash_webhook_url:
             raise ValueError("qstash_webhook_url is required to publish background tasks")
 
+        from sqlalchemy import text
+
+        # Acquire a transaction-level advisory lock derived deterministically from the job_id
+        lock_id = hash(job_id.int) % (2**63)
+        await session.execute(text("SELECT pg_advisory_xact_lock(:id)"), {"id": lock_id})
+
+        # Check if an active batch already exists
+        existing_batch = await self.score_repo.get_active_batch_score_job_for_job(
+            session=session, tenant_id=tenant_id, job_id=job_id
+        )
+        if existing_batch:
+            logger.info(
+                "Active batch already exists, skipping creation",
+                tenant_id=str(tenant_id),
+                job_id=str(job_id),
+                batch_id=str(existing_batch.id),
+            )
+            return BatchScoreResponse(
+                data=BatchScoreData(
+                    task_id=str(existing_batch.id),
+                    candidates_queued=existing_batch.queued_count,
+                    estimated_completion_seconds=max(5, existing_batch.queued_count * 5),
+                    status_url=f"/api/v1/tasks/{existing_batch.id}",
+                )
+            )
+
         # Create exactly one BatchScoreJob row
         batch_job = await self.score_repo.create_batch_score_job(
             session=session,

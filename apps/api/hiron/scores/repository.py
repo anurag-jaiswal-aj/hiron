@@ -1,10 +1,13 @@
 """Score repository managing persistence and active score status demotion in DB per Database Design §5.10."""
 
 import uuid
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+
+if TYPE_CHECKING:
+    from hiron.scores.models import BatchScoreJob
 
 from hiron.scores.models import Score
 
@@ -151,6 +154,22 @@ class ScoreRepository:
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_active_batch_score_job_for_job(
+        self,
+        session: AsyncSession,
+        tenant_id: uuid.UUID,
+        job_id: uuid.UUID,
+    ) -> "BatchScoreJob | None":
+        from hiron.scores.models import BatchScoreJob
+
+        stmt = select(BatchScoreJob).where(
+            BatchScoreJob.tenant_id == tenant_id,
+            BatchScoreJob.job_id == job_id,
+            BatchScoreJob.status.in_(["pending", "processing"]),
+        )
+        result = await session.execute(stmt)
+        return result.scalars().first()
+
     async def transition_batch_score_job_to_processing(
         self,
         session: AsyncSession,
@@ -171,7 +190,7 @@ class ScoreRepository:
         )
         result = await session.execute(stmt)
         await session.flush()
-        return result.rowcount
+        return result.rowcount  # type: ignore[attr-defined, no-any-return]
 
     async def _recompute_batch_status(
         self,
@@ -234,7 +253,7 @@ class ScoreRepository:
             )
         )
         result = await session.execute(stmt)
-        if result.rowcount > 0:
+        if result.rowcount > 0:  # type: ignore[attr-defined]
             await self._recompute_batch_status(session, tenant_id, batch_id)
             await session.flush()
             return True
@@ -268,7 +287,7 @@ class ScoreRepository:
             )
         )
         result = await session.execute(stmt)
-        if result.rowcount > 0:
+        if result.rowcount > 0:  # type: ignore[attr-defined]
             await self._recompute_batch_status(session, tenant_id, batch_id)
             await session.flush()
             return True
