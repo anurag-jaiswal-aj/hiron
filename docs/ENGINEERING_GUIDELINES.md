@@ -3056,13 +3056,13 @@ cache_key = f"score:{resume_id}:{job_id}"
 
 **Rule**: All AI operations that exceed 5 seconds or process multiple items must run via the Hiron asynchronous QStash workflow (standalone Vercel webhook endpoints). Background jobs must follow these rules:
 
-| Rule                                         | Implementation                                                                            |
-| -------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| Every job must be **idempotent**             | Running the same job twice produces the same result, not duplicates                       |
+| Rule                                              | Implementation                                                                                          |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Every job must be **idempotent**                  | Running the same job twice produces the same result, not duplicates                                     |
 | Every job must have **terminal failure handling** | Handle transient errors gracefully, report terminal failures explicitly, and rely on QStash for retries |
-| Every job must emit **progress updates**     | Report items processed / total items for batch operations natively via the database       |
-| Every job must be **secure**                 | All endpoints must validate the QStash signature (`verify_qstash_signature`)            |
-| Every job must be **tenant-scoped**          | The tenant_id must be passed in the payload explicitly, never inferred                    |
+| Every job must emit **progress updates**          | Report items processed / total items for batch operations natively via the database                     |
+| Every job must be **secure**                      | All endpoints must validate the QStash signature (`verify_qstash_signature`)                            |
+| Every job must be **tenant-scoped**               | The tenant_id must be passed in the payload explicitly, never inferred                                  |
 
 **Rationale**: AI operations are slow and resource-intensive. Running them synchronously in API handlers blocks the event loop and degrades performance for all users. The asynchronous QStash webhook pattern provides reliability (retries via QStash), observability (progress tracking), and prevents a monolithic worker architecture from forming, matching the serverless Vercel deployment model.
 
