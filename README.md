@@ -112,7 +112,7 @@ flowchart TD
     end
 
     %% Flow
-    NextJS -->|REST (JWT)| API
+    NextJS -->|"REST (JWT)"| API
     API --> Middleware
     Middleware --> Routers
 
@@ -120,7 +120,7 @@ flowchart TD
     Routers <--> UpstashRedis
     Routers -->|Publish Task| QStash
 
-    QStash -->|HTTP POST (Signed)| Worker
+    QStash -->|"HTTP POST (Signed)"| Worker
     Worker --> Supabase
     Worker --> S3
     Worker <--> Gemini
