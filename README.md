@@ -80,7 +80,7 @@ Hiron empowers HR and recruiting teams to handle high volumes of applicants with
 Hiron is architected for a modern Vercel-based serverless deployment, decoupling the client, API, and heavy machine learning workloads.
 
 ```mermaid
-graph TD
+flowchart TD
     subgraph Client["Frontend"]
         NextJS["Next.js 14 App Router"]
     end
