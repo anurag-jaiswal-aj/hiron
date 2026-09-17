@@ -3054,84 +3054,94 @@ cache_key = f"score:{resume_id}:{job_id}"
 
 ### A.10 Background Job Rules 🔴
 
-**Rule**: All AI operations that exceed 5 seconds or process multiple items must run as Celery background tasks. Background jobs must follow these rules:
+**Rule**: All AI operations that exceed 5 seconds or process multiple items must run via the Hiron asynchronous QStash workflow (standalone Vercel webhook endpoints). Background jobs must follow these rules:
 
 | Rule                                         | Implementation                                                                            |
 | -------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | Every job must be **idempotent**             | Running the same job twice produces the same result, not duplicates                       |
-| Every job must have a **timeout**            | Max execution time per task (default: 5 minutes for single ops, 30 minutes for batch)     |
-| Every job must emit **progress updates**     | Report items processed / total items for batch operations                                 |
-| Every job must have **dead letter handling** | Failed jobs are retried with backoff, then moved to a dead letter queue for investigation |
-| Every job must be **tenant-scoped**          | The tenant_id must be passed in the task arguments, never inferred                        |
+| Every job must have **terminal failure handling** | Handle transient errors gracefully, report terminal failures explicitly, and rely on QStash for retries |
+| Every job must emit **progress updates**     | Report items processed / total items for batch operations natively via the database       |
+| Every job must be **secure**                 | All endpoints must validate the QStash signature (`verify_qstash_signature`)            |
+| Every job must be **tenant-scoped**          | The tenant_id must be passed in the payload explicitly, never inferred                    |
 
-**Rationale**: AI operations are slow and resource-intensive. Running them synchronously in API handlers blocks the event loop and degrades performance for all users. Background jobs provide reliability (retries), observability (progress tracking), and fairness (queue prevents one tenant from starving others).
+**Rationale**: AI operations are slow and resource-intensive. Running them synchronously in API handlers blocks the event loop and degrades performance for all users. The asynchronous QStash webhook pattern provides reliability (retries via QStash), observability (progress tracking), and prevents a monolithic worker architecture from forming, matching the serverless Vercel deployment model.
 
 **Good Example**:
 
 ```python
-@celery_app.task(
-    bind=True,
-    max_retries=3,
-    default_retry_delay=60,
-    soft_time_limit=300,  # 5 min soft limit — raises SoftTimeLimitExceeded
-    time_limit=360,  # 6 min hard kill
-    acks_late=True,  # Only ack after successful completion
-    reject_on_worker_lost=True,  # Re-queue if worker dies mid-task
-)
-def score_candidates_batch(
-    self: Task,
-    tenant_id: str,
-    job_id: str,
-    candidate_ids: list[str],
-) -> BatchScoringResult:
-    """Score a batch of candidates against a job description.
+@router.post("/qstash/scores/batch/worker", dependencies=[Depends(verify_qstash_signature)])
+async def qstash_batch_score_worker_webhook(
+    request: Request,
+) -> dict[str, Any]:
+    """Webhook to execute individual candidate scoring in a batch.
 
     Idempotent: re-running with the same inputs overwrites existing scores
     rather than creating duplicates.
     """
-    total = len(candidate_ids)
+    body_bytes = await request.body()
+    try:
+        parsed = BatchScoreWorkerWebhookPayload.model_validate_json(body_bytes)
+    except ValidationError as e:
+        logger.warning("Malformed JSON in batch score worker webhook", error=str(e))
+        return {"status": "failed", "reason": "Malformed payload", "details": str(e)}
 
-    for i, candidate_id in enumerate(candidate_ids):
-        try:
-            score_single_candidate(tenant_id, candidate_id, job_id)
-        except SoftTimeLimitExceeded:
-            logger.warning(
-                "batch_scoring_timeout",
-                tenant_id=tenant_id,
-                processed=i,
-                total=total,
-            )
-            raise
-        except OpenAIRateLimitError as exc:
-            raise self.retry(exc=exc, countdown=exc.retry_after or 60)
+    service = ScoreService()
+    set_tenant_context(str(parsed.tenant_id))
 
-        # Progress update
-        self.update_state(
-            state="PROGRESS",
-            meta={"current": i + 1, "total": total, "percent": (i + 1) / total * 100},
-        )
+    try:
+        async with AsyncSessionLocal() as session:
+            try:
+                # We pass user_role="org_admin" because this is a trusted system action via QStash signature
+                await service.score_candidate_sync(
+                    session=session,
+                    tenant_id=parsed.tenant_id,
+                    user_role="org_admin",
+                    job_id=parsed.job_id,
+                    candidate_id=parsed.candidate_id,
+                    force_rescore=parsed.force_rescore,
+                )
 
-    return BatchScoringResult(processed=total, failed=0)
+                # Successful terminal claim and progress update natively via db
+                await service.score_repo.claim_batch_score_worker_success(
+                    session=session,
+                    tenant_id=parsed.tenant_id,
+                    job_id=parsed.job_id,
+                    candidate_id=parsed.candidate_id,
+                )
+            except Exception as e:
+                # Handle terminal failure cleanly
+                await service.score_repo.claim_batch_score_worker_failure(
+                    session=session,
+                    tenant_id=parsed.tenant_id,
+                    job_id=parsed.job_id,
+                    candidate_id=parsed.candidate_id,
+                    error_msg=str(e),
+                )
+                raise
+    finally:
+        set_tenant_context(None)
+
+    return {"status": "success"}
 ```
 
 **Bad Example**:
 
 ```python
-# No timeout, no retries, no progress tracking, not idempotent
-@celery_app.task
-def score_all(job_id):
-    candidates = db.query(Candidate).all()  # Which tenant? ALL of them?
+# No signature verification, no idempotency, not tenant-scoped correctly
+@router.post("/qstash/score_all")
+async def score_all(payload: dict):
+    # Which tenant? ALL of them?
+    candidates = db.query(Candidate).all()
     for c in candidates:
-        score(c, job_id)  # If this fails halfway, partial results are invisible
+        score(c, payload["job_id"])  # If this fails halfway, partial results are invisible and it blocks the Vercel worker
 ```
 
 **Common Mistakes**:
 
-- No timeout — a stuck LLM call hangs the worker forever
-- No idempotency — re-running a failed batch creates duplicate scores
-- Not passing `tenant_id` explicitly — relying on "current context" in async workers is a data leak vector
-- Not using `acks_late` — if the worker crashes, the task is lost forever
-- Processing an entire batch before reporting progress — the user sees "processing" for 10 minutes with no feedback
+- No QStash signature validation — exposes the background job to unauthorized public execution
+- No idempotency — re-running a failed webhook payload creates duplicate scores
+- Not passing `tenant_id` explicitly — relying on implicit state is a data leak vector
+- Processing an entire batch in one synchronous webhook call — hits Vercel execution timeouts; fan-out is required instead
 
 ---
 
@@ -3596,12 +3606,12 @@ async def score_candidate_with_metrics(
 ```
 
 ```python
-# Weekly quality report — runs as a scheduled Celery task
-@celery_app.task
-def run_weekly_ai_quality_report():
+# Weekly quality report — triggered as a scheduled QStash webhook
+@router.post("/qstash/maintenance/weekly-report", dependencies=[Depends(verify_qstash_signature)])
+async def run_weekly_ai_quality_report():
     """Run the AI quality evaluation suite and publish results.
 
-    Triggered by: Celery Beat schedule, every Sunday at 02:00 UTC.
+    Triggered by: Upstash QStash cron schedule, every Sunday at 02:00 UTC.
     """
     golden_dataset = load_golden_dataset()
     evaluator = PromptEvaluator()
