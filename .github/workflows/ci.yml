@@ -81,6 +81,11 @@ jobs:
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.1.0
+
       - name: Vercel Deploy API
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
